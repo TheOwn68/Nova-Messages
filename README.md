@@ -8,9 +8,6 @@ With Nova Messages, you can effortlessly send SMS and MMS messages to stay conne
 **🚫 BLOCK UNWANTED MESSAGES:**  
 Take control of your messaging experience with a robust blocking feature, easily preventing unwanted messages, even from unknown contacts. You can also export and import blocked numbers for hassle-free backup. Additionally, customize your experience by preventing messages with specific words or phrases from reaching your inbox.
 
-**🔒 EFFORTLESS SMS BACKUP:**  
-Say goodbye to worries about losing important messages. Nova Messages offers convenient SMS backup functionality by allowing you to export and import your messages. This feature ensures that you can easily switch devices without losing your valuable conversations.
-
 **🚀 LIGHTNING-FAST AND LIGHTWEIGHT:**  
 Despite its powerful features, Nova Messages boasts a remarkably small app size, making it quick and easy to download and install. Experience speed and efficiency while enjoying the peace of mind that comes with SMS backup.
 
@@ -25,6 +22,7 @@ Your privacy is a top priority. Nova Messages operates without requiring an inte
 
 Make the switch to Nova Messages and experience messaging the way it should be – private, efficient, and user-friendly. Download now and join our community committed to safeguarding your messaging experience.
 
+**Install**
 Sometimes when you install it you need to allow restricted settings, then in the app info settings allow all permissions, clear cache if there's cache, then force stop it and it should work
 
 ![App Screenshot](images/SS3.png)
