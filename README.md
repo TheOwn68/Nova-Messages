@@ -1,7 +1,4 @@
 # Nova Messages
-<img alt="Logo" src="graphics/icon.webp" width="120" />
-
-<a href='https://play.google.com/store/apps/details?id=org.nova.messages'><img alt='Get it on Google Play' src='https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png' height=80/></a> <a href="https://f-droid.org/packages/org.nova.messages/"><img src="https://fdroid.gitlab.io/artwork/badge/get-it-on-en.svg" alt="Get it on F-Droid" height=80/></a> <a href="https://apt.izzysoft.de/fdroid/index/apk/org.nova.messages"><img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png" alt="Get it on IzzyOnDroid" height=80/></a>
 
 Nova Messages is your trusted messaging companion, designed to enhance your messaging experience in various ways.
 
@@ -17,28 +14,15 @@ Say goodbye to worries about losing important messages. Nova Messages offers con
 **🚀 LIGHTNING-FAST AND LIGHTWEIGHT:**  
 Despite its powerful features, Nova Messages boasts a remarkably small app size, making it quick and easy to download and install. Experience speed and efficiency while enjoying the peace of mind that comes with SMS backup.
 
-**🔐 ENHANCED PRIVACY:**  
-Customize what appears on your lock screen for added privacy. Choose to display only the sender, message content, or nothing at all. Your messages are in your control.
-
 **🔍 EFFICIENT MESSAGE SEARCH:**  
 Say goodbye to endless scrolling through conversations. Nova Messages simplifies message retrieval with a quick and efficient search feature. Find what you need, when you need it.
 
 **🌈 MODERN DESIGN & USER-FRIENDLY INTERFACE:**  
-Enjoy a clean, modern design with a user-friendly interface. The app features a material design and a dark theme option, providing a visually appealing and comfortable user experience.
+Enjoy a clean, modern design with a user-friendly interface.
 
 **🌐 OPEN-SOURCE TRANSPARENCY:**  
 Your privacy is a top priority. Nova Messages operates without requiring an internet connection, guaranteeing message security and stability. Our app is completely free of ads and does not request unnecessary permissions. Moreover, it is fully open-source, providing you with peace of mind, as you have access to the source code for security and privacy audits.
 
 Make the switch to Nova Messages and experience messaging the way it should be – private, efficient, and user-friendly. Download now and join our community committed to safeguarding your messaging experience.
 
-➡️ Explore more Nova apps: https://www.nova.org<br>
-➡️ Open-Source Code: https://www.github.com/NovaOrg<br>
-➡️ Join the community on Reddit: https://www.reddit.com/r/Nova<br>
-➡️ Connect on Telegram: https://t.me/Nova
-
-<div align="center">
-<img alt="App image" src="fastlane/metadata/android/en-US/images/phoneScreenshots/1_en-US.png" width="30%">
-<img alt="App image" src="fastlane/metadata/android/en-US/images/phoneScreenshots/2_en-US.png" width="30%">
-<img alt="App image" src="fastlane/metadata/android/en-US/images/phoneScreenshots/3_en-US.png" width="30%">
-</div>
 
