@@ -25,5 +25,7 @@ Your privacy is a top priority. Nova Messages operates without requiring an inte
 
 Make the switch to Nova Messages and experience messaging the way it should be – private, efficient, and user-friendly. Download now and join our community committed to safeguarding your messaging experience.
 
+Sometimes when you install it you need to allow restricted settings, then in the app info settings allow all permissions, clear cache if there's cache, then force stop it and it should work
+
 ![App Screenshot](images/SS3.png)
 ![App Screenshot](images/SS2.png)
