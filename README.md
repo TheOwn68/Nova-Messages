@@ -25,4 +25,5 @@ Your privacy is a top priority. Nova Messages operates without requiring an inte
 
 Make the switch to Nova Messages and experience messaging the way it should be – private, efficient, and user-friendly. Download now and join our community committed to safeguarding your messaging experience.
 
+![App Screenshot](images/SS3.png)
 
