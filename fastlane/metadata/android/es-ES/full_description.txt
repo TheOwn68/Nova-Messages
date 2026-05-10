@@ -1,0 +1,32 @@
+Nova Messenger es su compañero de mensajería de confianza, diseñado para mejorar su experiencia de mensajería de varias maneras.
+
+📱 MANTENTE CONECTADO CON FACILIDAD:
+Con Nova Messenger, puede enviar mensajes SMS y MMS sin esfuerzo para mantenerse conectado con sus seres queridos. Disfrute de mensajes grupales basados en SMS/MMS y exprésese con fotos, emojis y saludos rápidos.
+
+🚫 BLOQUEAR MENSAJES NO DESEADOS:
+Tome el control de su experiencia de mensajería con una función de bloqueo robusta, que evita fácilmente los mensajes no deseados, incluso de contactos desconocidos. También puede exportar e importar números bloqueados para realizar copias de seguridad sin problemas. Además, personaliza tu experiencia evitando que los mensajes con palabras o frases específicas lleguen a tu bandeja de entrada.
+
+🔒 COPIA DE SEGURIDAD DE SMS SIN ESFUERZO:
+Diga adiós a las preocupaciones acerca de perder mensajes importantes. Nova Messenger ofrece una cómoda funcionalidad de copia de seguridad de SMS al permitirle exportar e importar sus mensajes. Esta característica garantiza que pueda cambiar fácilmente de dispositivos sin perder sus valiosas conversaciones.
+
+⟶ RAYO-RÁPIDO Y LIGERO:
+A pesar de sus potentes características, Nova Messenger cuenta con un tamaño de aplicación notablemente pequeño, por lo que es rápido y fácil de descargar e instalar. Experimente velocidad y eficiencia mientras disfruta de la tranquilidad que viene con la copia de seguridad de SMS.
+
+🔐 PRIVACIDAD MEJORADA:
+Personaliza lo que aparece en tu pantalla de bloqueo para mayor privacidad. Elija mostrar sólo el remitente, el contenido del mensaje o nada en absoluto. Sus mensajes están bajo su control.
+
+🔍 BÚSQUEDA EFICIENTE DE MENSAJES:
+Diga adiós al desplazamiento interminable a través de las conversaciones. Nova Messenger simplifica la recuperación de mensajes con una función de búsqueda rápida y eficiente. Encuentra lo que necesitas, cuando lo necesites.
+
+🌈 DISEÑO MODERNO Y FÁCIL DE USAR INTERFAZ:
+Disfrute de un diseño limpio y moderno con una interfaz fácil de usar. La aplicación cuenta con Material Design y una opción de tema oscuro, proporcionando una experiencia de usuario visualmente atractiva y cómoda.
+
+🌐 TRANSPARENCIA DE CÓDIGO ABIERTO:
+Su privacidad es una prioridad. Nova Messenger funciona sin necesidad de conexión a internet, garantizando la seguridad y estabilidad de los mensajes. Nuestra aplicación está completamente libre de anuncios y no solicita permisos innecesarios. Además, es totalmente de código abierto, lo que le brinda tranquilidad, ya que tiene acceso al código fuente para auditorías de seguridad y privacidad.
+
+Cambie a Nova Messenger y experimente la mensajería como debería ser: privada, eficiente y fácil de usar. Descargue ahora y únase a nuestra comunidad comprometida a salvaguardar su experiencia de mensajería.
+
+Explore más aplicaciones de Nova: https://www.nova.org
+Código abierto: https://www.github.com/NovaOrg
+Únete a la comunidad en Reddit: https://www.reddit.com/r/Nova
+Conéctese con Telegram: https://t.me/Nova

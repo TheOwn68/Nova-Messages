@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main_coordinator"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white">
+
+    <org.fossify.commons.views.MyAppBarLayout
+        android:id="@+id/main_appbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/nova_topbar_bg"
+        app:elevation="0dp">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/main_toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="70dp"
+            android:background="@android:color/transparent"
+            app:navigationIconTint="#FFFFFF"
+            app:popupTheme="@style/NovaPopupTheme">
+
+            <TextView
+                android:id="@+id/nova_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:text="Nova Messages"
+                android:textColor="@android:color/white"
+                android:textSize="28sp"
+                android:textStyle="bold"
+                android:layout_marginEnd="60dp"
+                android:ellipsize="end"
+                android:maxLines="1" />
+
+        </com.google.android.material.appbar.MaterialToolbar>
+
+    </org.fossify.commons.views.MyAppBarLayout>
+
+    <!-- MAIN CONTENT BELOW TOP BAR -->
+    <RelativeLayout
+        android:id="@+id/main_nested_scrollview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        android:scrollbars="none"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <androidx.coordinatorlayout.widget.CoordinatorLayout
+            android:id="@+id/main_coordinator_wrapper"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <RelativeLayout
+                android:id="@+id/main_holder"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <com.google.android.material.progressindicator.LinearProgressIndicator
+                    android:id="@+id/conversations_progress_bar"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentTop="true"
+                    android:indeterminate="true"
+                    android:visibility="gone"
+                    app:hideAnimationBehavior="outward"
+                    app:showAnimationBehavior="inward"
+                    app:showDelay="250"
+                    tools:visibility="visible" />
+
+                <org.fossify.commons.views.MyTextView
+                    android:id="@+id/no_conversations_placeholder"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_centerHorizontal="true"
+                    android:layout_marginTop="@dimen/bigger_margin"
+                    android:alpha="0.8"
+                    android:gravity="center"
+                    android:paddingLeft="@dimen/activity_margin"
+                    android:paddingRight="@dimen/activity_margin"
+                    android:text="@string/no_conversations_found"
+                    android:textSize="@dimen/bigger_text_size"
+                    android:textStyle="italic"
+                    android:visibility="gone" />
+
+                <org.fossify.commons.views.MyTextView
+                    android:id="@+id/no_conversations_placeholder_2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@+id/no_conversations_placeholder"
+                    android:layout_centerHorizontal="true"
+                    android:background="@drawable/ripple_all_corners"
+                    android:gravity="center"
+                    android:padding="@dimen/activity_margin"
+                    android:text="@string/start_conversation"
+                    android:textSize="@dimen/bigger_text_size"
+                    android:visibility="gone" />
+
+                <com.qtalk.recyclerviewfastscroller.RecyclerViewFastScroller
+                    android:id="@+id/conversations_fastscroller"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <org.fossify.commons.views.MyRecyclerView
+                        android:id="@+id/conversations_list"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:clipToPadding="false"
+                        android:layoutAnimation="@anim/layout_animation"
+                        android:overScrollMode="ifContentScrolls"
+                        android:scrollbars="none"
+                        android:paddingBottom="100dp"
+                        app:layoutManager="org.fossify.commons.views.MyLinearLayoutManager" />
+
+                </com.qtalk.recyclerviewfastscroller.RecyclerViewFastScroller>
+            </RelativeLayout>
+        </androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+        <!-- SEARCH OVERLAY -->
+        <RelativeLayout
+            android:id="@+id/search_holder"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:alpha="0"
+            android:visibility="gone">
+
+            <org.fossify.commons.views.MyTextView
+                android:id="@+id/search_placeholder"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_centerHorizontal="true"
+                android:layout_marginTop="@dimen/activity_margin"
+                android:alpha="0.8"
+                android:gravity="center"
+                android:paddingStart="@dimen/activity_margin"
+                android:paddingEnd="@dimen/activity_margin"
+                android:text="@string/no_items_found"
+                android:textSize="@dimen/bigger_text_size"
+                android:textStyle="italic" />
+
+            <org.fossify.commons.views.MyTextView
+                android:id="@+id/search_placeholder_2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/search_placeholder"
+                android:layout_centerHorizontal="true"
+                android:alpha="0.8"
+                android:gravity="center"
+                android:paddingStart="@dimen/activity_margin"
+                android:paddingTop="@dimen/medium_margin"
+                android:paddingEnd="@dimen/activity_margin"
+                android:paddingBottom="@dimen/medium_margin"
+                android:text="@string/type_2_characters"
+                android:textSize="@dimen/bigger_text_size"
+                android:textStyle="italic" />
+
+            <org.fossify.commons.views.MyRecyclerView
+                android:id="@+id/search_results_list"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:scrollbars="vertical"
+                app:layoutManager="org.fossify.commons.views.MyLinearLayoutManager" />
+
+        </RelativeLayout>
+    </RelativeLayout>
+
+    <!-- NOVA SEARCH BAR (BOTTOM FLOATING) -->
+    <LinearLayout
+        android:id="@+id/nova_search_bar"
+        android:layout_width="match_parent"
+        android:layout_height="55dp"
+        android:layout_gravity="bottom"
+        android:layout_margin="16dp"
+        android:background="@drawable/nova_searchbar_bg"
+        android:gravity="center_vertical"
+        android:clickable="true"
+        android:focusable="true">
+
+        <EditText
+            android:id="@+id/nova_search_input"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:hint="Search"
+            android:textColor="@android:color/white"
+            android:textColorHint="#888888"
+            android:background="@android:color/transparent"
+            android:imeOptions="actionSearch"
+            android:inputType="text" />
+    </LinearLayout>
+
+    <org.fossify.commons.views.MyTextView
+        android:id="@+id/conversations_fab"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="10dp"
+        android:layout_marginEnd="20dp"
+        android:text="+"
+        android:textColor="#888888"
+        android:textSize="32sp"
+        android:background="@android:color/transparent"
+        android:clickable="true"
+        android:focusable="true"
+        android:includeFontPadding="false" />
+
+    <ImageView
+        android:id="@+id/settings_gear"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        app:layout_anchor="@id/conversations_fab"
+        app:layout_anchorGravity="top|center_horizontal"
+        android:layout_marginTop="55dp"
+        android:src="@drawable/ic_settings_cog_vector"
+        android:alpha="0.3"
+        android:padding="8dp"
+        android:background="?selectableItemBackgroundBorderless"
+        android:clickable="true"
+        android:focusable="true"
+        app:tint="@android:color/white" />
+
+
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
