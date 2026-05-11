@@ -17,6 +17,7 @@ import org.fossify.commons.models.RadioItem
 import org.nova.messages.R
 import org.nova.messages.databinding.ActivitySettingsBinding
 import org.nova.messages.extensions.config
+import org.nova.messages.helpers.*
 
 class SettingsActivity : SimpleActivity() {
 
@@ -44,10 +45,12 @@ class SettingsActivity : SimpleActivity() {
         setupUIScale()
         setupFontSize()
         setupFont()
+        setupMmsFileSizeLimit()
         updateAppFonts(binding.root)
         updateTextColors(binding.settingsNestedScrollview)
 
         binding.settingsLookAndFeelLabel.setTextColor(getProperPrimaryColor())
+        binding.settingsMmsLabel.setTextColor(getProperPrimaryColor())
     }
 
     private fun setupUIScale() = binding.apply {
@@ -106,6 +109,43 @@ class SettingsActivity : SimpleActivity() {
                 org.fossify.commons.helpers.FontHelper.clearCache()
                 recreate()
             }
+        }
+    }
+
+    private fun setupMmsFileSizeLimit() = binding.apply {
+        settingsMmsFileSizeLimit.text = getMmsFileSizeLimitText()
+        settingsMmsFileSizeLimitHolder.setOnClickListener {
+            val items = arrayListOf(
+                RadioItem(FILE_SIZE_100_KB.toInt(), "100 KB"),
+                RadioItem(FILE_SIZE_200_KB.toInt(), "200 KB"),
+                RadioItem(FILE_SIZE_300_KB.toInt(), "300 KB"),
+                RadioItem(FILE_SIZE_600_KB.toInt(), "600 KB"),
+                RadioItem(FILE_SIZE_1_MB.toInt(), "1 MB"),
+                RadioItem(FILE_SIZE_2_MB.toInt(), "2 MB"),
+                RadioItem(FILE_SIZE_50_MB.toInt(), "50 MB"),
+                RadioItem(FILE_SIZE_100_MB.toInt(), "100 MB"),
+                RadioItem(FILE_SIZE_NONE.toInt(), getString(R.string.mms_file_size_limit_none))
+            )
+
+            RadioGroupDialog(this@SettingsActivity, items, config.mmsFileSizeLimit.toInt()) {
+                config.mmsFileSizeLimit = (it as Int).toLong()
+                settingsMmsFileSizeLimit.text = getMmsFileSizeLimitText()
+            }
+        }
+    }
+
+    private fun getMmsFileSizeLimitText(): String {
+        return when (config.mmsFileSizeLimit) {
+            FILE_SIZE_100_KB -> "100 KB"
+            FILE_SIZE_200_KB -> "200 KB"
+            FILE_SIZE_300_KB -> "300 KB"
+            FILE_SIZE_600_KB -> "600 KB"
+            FILE_SIZE_1_MB -> "1 MB"
+            FILE_SIZE_2_MB -> "2 MB"
+            FILE_SIZE_50_MB -> "50 MB"
+            FILE_SIZE_100_MB -> "100 MB"
+            FILE_SIZE_NONE -> getString(R.string.mms_file_size_limit_none)
+            else -> "600 KB"
         }
     }
 

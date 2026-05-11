@@ -19,8 +19,22 @@ class App : FossifyApp() {
     override fun getPackageName(): String {
         val stackTrace = Thread.currentThread().stackTrace
         for (element in stackTrace) {
-            if (element.className.contains("org.fossify.commons")) {
-                return "org.fossify.messages"
+            val className = element.className
+            
+            // Only spoof for Fossify library security/initialization checks
+            if (className.contains("org.fossify.commons")) {
+                val methodName = element.methodName
+                if (methodName == "onCreate" || 
+                    methodName == "startCustomizationActivity" ||
+                    methodName.contains("appLaunched") || 
+                    methodName.contains("Version") || 
+                    methodName.contains("Sideload") ||
+                    methodName.contains("Warning") ||
+                    methodName.contains("Security") ||
+                    methodName.contains("Check") ||
+                    methodName.contains("Dialog")) {
+                    return "org.fossify.messages"
+                }
             }
         }
         return super.getPackageName()

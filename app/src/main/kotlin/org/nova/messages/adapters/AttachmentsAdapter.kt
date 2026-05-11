@@ -40,6 +40,7 @@ class AttachmentsAdapter(
     private val resources = activity.resources
     private val primaryColor = activity.getProperPrimaryColor()
     private val imageCompressor by lazy { ImageCompressor(activity) }
+    private val videoCompressor by lazy { VideoCompressor(activity) }
 
     val attachments = mutableListOf<AttachmentSelection>()
 
@@ -134,21 +135,38 @@ class AttachmentsAdapter(
             }
 
             val compressImage = attachment.mimetype.isImageMimeType() && !attachment.mimetype.isGifMimeType()
-            if (compressImage && attachment.isPending && config.mmsFileSizeLimit != FILE_SIZE_NONE) {
+            val compressVideo = attachment.mimetype.isVideoMimeType()
+            if ((compressImage || compressVideo) && attachment.isPending && config.mmsFileSizeLimit != FILE_SIZE_NONE) {
                 thumbnail.beGone()
                 compressionProgress.beVisible()
 
-                imageCompressor.compressImage(attachment.uri, config.mmsFileSizeLimit) { compressedUri ->
-                    activity.runOnUiThread {
-                        val finalUri = compressedUri ?: attachment.uri
-                        if (finalUri == attachment.uri) {
-                            attachments.find { it.uri == attachment.uri }?.isPending = false
-                            loadMediaPreview(this, attachment)
-                        } else {
-                            attachments.remove(attachment)
-                            addAttachment(attachment.copy(uri = finalUri, isPending = false))
+                if (compressImage) {
+                    imageCompressor.compressImage(attachment.uri, config.mmsFileSizeLimit) { compressedUri ->
+                        activity.runOnUiThread {
+                            val finalUri = compressedUri ?: attachment.uri
+                            if (finalUri == attachment.uri) {
+                                attachments.find { it.uri == attachment.uri }?.isPending = false
+                                loadMediaPreview(this, attachment)
+                            } else {
+                                attachments.remove(attachment)
+                                addAttachment(attachment.copy(uri = finalUri, isPending = false))
+                            }
+                            onReady()
                         }
-                        onReady()
+                    }
+                } else if (compressVideo) {
+                    videoCompressor.compressVideo(attachment.uri, config.mmsFileSizeLimit) { compressedUri ->
+                        activity.runOnUiThread {
+                            val finalUri = compressedUri ?: attachment.uri
+                            if (finalUri == attachment.uri) {
+                                attachments.find { it.uri == attachment.uri }?.isPending = false
+                                loadMediaPreview(this, attachment)
+                            } else {
+                                attachments.remove(attachment)
+                                addAttachment(attachment.copy(uri = finalUri, isPending = false))
+                            }
+                            onReady()
+                        }
                     }
                 }
             } else {

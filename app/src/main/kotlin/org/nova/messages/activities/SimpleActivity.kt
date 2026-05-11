@@ -55,14 +55,17 @@ open class SimpleActivity : BaseSimpleActivity() {
             3 -> android.graphics.Typeface.create("cursive", android.graphics.Typeface.NORMAL)
             4 -> android.graphics.Typeface.create("casual", android.graphics.Typeface.NORMAL)
             5 -> android.graphics.Typeface.SANS_SERIF
+            6 -> android.graphics.Typeface.create("sans-serif-light", android.graphics.Typeface.NORMAL)
+            7 -> android.graphics.Typeface.create("sans-serif-condensed", android.graphics.Typeface.NORMAL)
             else -> android.graphics.Typeface.DEFAULT
         }
     }
 
     fun updateAppFonts(view: View) {
-        val typeface = getCustomTypeface()
+        val customTypeface = getCustomTypeface()
         if (view is TextView) {
-            view.typeface = android.graphics.Typeface.create(typeface, view.typeface?.style ?: android.graphics.Typeface.NORMAL)
+            val style = view.typeface?.style ?: android.graphics.Typeface.NORMAL
+            view.typeface = android.graphics.Typeface.create(customTypeface, style)
         }
         if (view is ViewGroup) {
             for (i in 0 until view.childCount) {
@@ -74,8 +77,22 @@ open class SimpleActivity : BaseSimpleActivity() {
     override fun getPackageName(): String {
         val stackTrace = Thread.currentThread().stackTrace
         for (element in stackTrace) {
-            if (element.className.contains("org.fossify.commons")) {
-                return "org.fossify.messages"
+            val className = element.className
+            
+            // Only spoof for Fossify library security/initialization checks
+            if (className.contains("org.fossify.commons")) {
+                val methodName = element.methodName
+                if (methodName == "onCreate" || 
+                    methodName == "startCustomizationActivity" ||
+                    methodName.contains("appLaunched") || 
+                    methodName.contains("Version") || 
+                    methodName.contains("Sideload") ||
+                    methodName.contains("Warning") ||
+                    methodName.contains("Security") ||
+                    methodName.contains("Check") ||
+                    methodName.contains("Dialog")) {
+                    return "org.fossify.messages"
+                }
             }
         }
         return super.getPackageName()

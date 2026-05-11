@@ -87,6 +87,7 @@ const val FILE_SIZE_600_KB = 614_400L
 const val FILE_SIZE_1_MB = 1_048_576L
 const val FILE_SIZE_2_MB = 2_097_152L
 const val FILE_SIZE_50_MB = 52_428_800L
+const val FILE_SIZE_100_MB = 104_857_600L
 
 const val MESSAGES_LIMIT = 50
 const val MAX_MESSAGE_LENGTH = 5000

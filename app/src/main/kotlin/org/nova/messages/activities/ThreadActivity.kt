@@ -420,8 +420,15 @@ class ThreadActivity : SimpleActivity() {
                 val isFirstLoad = currentList.isEmpty()
                 val isNewMessageAtBottom = currentList.isNotEmpty() && threadItems.size > currentList.size
                 
+                if (isFirstLoad && areSystemAnimationsEnabled) {
+                    binding.threadMessagesList.layoutAnimation = AnimationUtils.loadLayoutAnimation(this@ThreadActivity, R.anim.layout_animation_bubbles)
+                }
+
                 updateMessages(threadItems, callback = {
                     if (isFinishing || isDestroyed) return@updateMessages
+                    if (isFirstLoad) {
+                        binding.threadMessagesList.scheduleLayoutAnimation()
+                    }
                     if (isFirstLoad || isNewMessageAtBottom) {
                         binding.threadMessagesList.post {
                             if (isFinishing || isDestroyed) return@post
@@ -931,12 +938,13 @@ class ThreadActivity : SimpleActivity() {
         val isImage = mimeType.isImageMimeType()
         val isGif = mimeType.isGifMimeType()
         val isRawImage = mimeType.contains("dng", true) || mimeType.contains("raw", true)
+        val isVideo = mimeType.isVideoMimeType()
 
         val fileSize = getFileSizeFromUri(uri)
         val mmsFileSizeLimit = config.mmsFileSizeLimit
         
-        // If not an image (or a type we won't compress like GIF/RAW), check the limit strictly
-        if (mmsFileSizeLimit != FILE_SIZE_NONE && fileSize > mmsFileSizeLimit && (!isImage || isGif || isRawImage)) {
+        // If not an image/video (or a type we won't compress like GIF/RAW), check the limit strictly
+        if (mmsFileSizeLimit != FILE_SIZE_NONE && fileSize > mmsFileSizeLimit && (!isImage || isGif || isRawImage) && !isVideo) {
             toast(R.string.attachment_sized_exceeds_max_limit, length = Toast.LENGTH_LONG)
             return
         }
@@ -968,11 +976,11 @@ class ThreadActivity : SimpleActivity() {
             uri = uri,
             mimetype = mimeType,
             filename = getFilenameFromUri(uri),
-            isPending = isImage && !isGif && !isRawImage
+            isPending = ((isImage && !isGif && !isRawImage) || isVideo) && (mmsFileSizeLimit == FILE_SIZE_NONE || fileSize > mmsFileSizeLimit)
         )
         adapter.addAttachment(attachment)
         
-        // Safety: if it's not an image that needs compression, it's ready immediately
+        // Safety: if it's not something that needs compression, it's ready immediately
         if (!attachment.isPending) {
             checkSendMessageAvailability()
         }

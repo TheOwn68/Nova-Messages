@@ -283,8 +283,11 @@ class ThreadAdapter(
                 text = message.body
                 beVisibleIf(message.body.isNotEmpty())
                 setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
+                
                 val customTypeface = (activity as SimpleActivity).getCustomTypeface()
-                typeface = Typeface.create(customTypeface, Typeface.NORMAL)
+                val style = if (message.isScheduled) Typeface.ITALIC else Typeface.NORMAL
+                typeface = Typeface.create(customTypeface, style)
+
                 setOnLongClickListener {
                     holder.viewLongClicked()
                     true
@@ -336,6 +339,7 @@ class ThreadAdapter(
                 background = AppCompatResources.getDrawable(activity, R.drawable.item_received_background)
                 setTextColor(activity.getProperTextColor())
                 setLinkTextColor(activity.getProperPrimaryColor())
+
                 val customTypeface = (activity as SimpleActivity).getCustomTypeface()
                 typeface = Typeface.create(customTypeface, Typeface.NORMAL)
             }
@@ -363,8 +367,10 @@ class ThreadAdapter(
                 setLinkTextColor(Color.BLACK)
 
                 val customTypeface = (activity as SimpleActivity).getCustomTypeface()
+                val style = if (message.isScheduled) Typeface.ITALIC else Typeface.NORMAL
+                typeface = Typeface.create(customTypeface, style)
+
                 if (message.isScheduled) {
-                    typeface = Typeface.create(customTypeface, Typeface.ITALIC)
                     val scheduledDrawable = AppCompatResources.getDrawable(activity, org.fossify.commons.R.drawable.ic_clock_vector)?.apply {
                         applyColorFilter(Color.BLACK)
                         val size = lineHeight
@@ -373,7 +379,6 @@ class ThreadAdapter(
 
                     setCompoundDrawables(null, null, scheduledDrawable, null)
                 } else {
-                    typeface = Typeface.create(customTypeface, Typeface.NORMAL)
                     setCompoundDrawables(null, null, null, null)
                 }
             }
