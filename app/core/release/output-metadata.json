@@ -11,9 +11,9 @@
       "type": "SINGLE",
       "filters": [],
       "attributes": [],
-      "versionCode": 20,
-      "versionName": "1.8.0",
-      "outputFile": "messages-20-core-release.apk"
+      "versionCode": 22,
+      "versionName": "1.9.6",
+      "outputFile": "messages-22-core-release.apk"
     }
   ],
   "elementType": "File",
@@ -22,14 +22,14 @@
       "minApi": 28,
       "maxApi": 30,
       "baselineProfiles": [
-        "baselineProfiles/1/messages-20-core-release.dm"
+        "baselineProfiles/1/messages-22-core-release.dm"
       ]
     },
     {
       "minApi": 31,
       "maxApi": 2147483647,
       "baselineProfiles": [
-        "baselineProfiles/0/messages-20-core-release.dm"
+        "baselineProfiles/0/messages-22-core-release.dm"
       ]
     }
   ],

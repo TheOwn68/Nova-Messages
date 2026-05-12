@@ -154,6 +154,16 @@
                     android:layout_below="@+id/settings_mms_file_size_limit_label"
                     tools:text="100MB" />
 
+                <org.fossify.commons.views.MyTextView
+                    android:id="@+id/settings_mms_file_size_limit_warning"
+                    style="@style/SettingsTextValueStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@+id/settings_mms_file_size_limit"
+                    android:text="Some carriers limit this to 3 MB or less"
+                    android:textSize="12sp"
+                    android:alpha="0.7" />
+
             </RelativeLayout>
 
         </LinearLayout>

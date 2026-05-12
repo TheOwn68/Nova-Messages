@@ -141,7 +141,7 @@ class NotificationHelper(private val context: Context) {
             }
 
             color = context.getProperPrimaryColor()
-            setSmallIcon(R.drawable.ic_messenger)
+            setSmallIcon(R.drawable.ic_star_notification)
             setContentIntent(contentPendingIntent)
             priority = NotificationCompat.PRIORITY_MAX
             setDefaults(Notification.DEFAULT_LIGHTS)
@@ -214,7 +214,7 @@ class NotificationHelper(private val context: Context) {
             .setContentTitle(context.getString(R.string.message_not_sent_short))
             .setContentText(summaryText)
             .setColor(context.getProperPrimaryColor())
-            .setSmallIcon(R.drawable.ic_messenger)
+            .setSmallIcon(R.drawable.ic_star_notification)
             .setLargeIcon(largeIcon)
             .setStyle(NotificationCompat.BigTextStyle().bigText(summaryText))
             .setContentIntent(contentPendingIntent)
