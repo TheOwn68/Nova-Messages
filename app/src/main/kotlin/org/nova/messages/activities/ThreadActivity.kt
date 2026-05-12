@@ -411,35 +411,37 @@ class ThreadActivity : SimpleActivity() {
     }
 
     private fun setupAdapter() {
-        threadItems = getThreadItems()
-
-        runOnUiThread {
-            if (isFinishing || isDestroyed) return@runOnUiThread
-            refreshMenuItems()
-            getOrCreateThreadAdapter().apply {
-                val isFirstLoad = currentList.isEmpty()
-                val isNewMessageAtBottom = currentList.isNotEmpty() && threadItems.size > currentList.size
-                
-                if (isFirstLoad && areSystemAnimationsEnabled) {
-                    binding.threadMessagesList.layoutAnimation = AnimationUtils.loadLayoutAnimation(this@ThreadActivity, R.anim.layout_animation_bubbles)
-                }
-
-                updateMessages(threadItems, callback = {
-                    if (isFinishing || isDestroyed) return@updateMessages
-                    if (isFirstLoad) {
-                        binding.threadMessagesList.scheduleLayoutAnimation()
+        ensureBackgroundThread {
+            val items = getThreadItems()
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                threadItems = items
+                refreshMenuItems()
+                getOrCreateThreadAdapter().apply {
+                    val isFirstLoad = currentList.isEmpty()
+                    val isNewMessageAtBottom = currentList.isNotEmpty() && threadItems.size > currentList.size
+                    
+                    if (isFirstLoad && areSystemAnimationsEnabled) {
+                        binding.threadMessagesList.layoutAnimation = AnimationUtils.loadLayoutAnimation(this@ThreadActivity, R.anim.layout_animation_bubbles)
                     }
-                    if (isFirstLoad || isNewMessageAtBottom) {
-                        binding.threadMessagesList.post {
-                            if (isFinishing || isDestroyed) return@post
-                            binding.threadMessagesList.scrollToPosition(threadItems.size - 1)
-                            binding.threadMessagesList.postDelayed({
-                                if (isFinishing || isDestroyed) return@postDelayed
-                                binding.threadMessagesList.scrollToPosition(threadItems.size - 1)
-                            }, 100)
+
+                    updateMessages(threadItems, callback = {
+                        if (isFinishing || isDestroyed) return@updateMessages
+                        if (isFirstLoad) {
+                            binding.threadMessagesList.scheduleLayoutAnimation()
                         }
-                    }
-                })
+                        if (isFirstLoad || isNewMessageAtBottom) {
+                            binding.threadMessagesList.post {
+                                if (isFinishing || isDestroyed) return@post
+                                binding.threadMessagesList.scrollToPosition(threadItems.size - 1)
+                                binding.threadMessagesList.postDelayed({
+                                    if (isFinishing || isDestroyed) return@postDelayed
+                                    binding.threadMessagesList.scrollToPosition(threadItems.size - 1)
+                                }, 100)
+                            }
+                        }
+                    })
+                }
             }
         }
 

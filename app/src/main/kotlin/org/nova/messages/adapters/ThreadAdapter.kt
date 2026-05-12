@@ -334,6 +334,7 @@ class ThreadAdapter(
             }
 
             threadMessageSenderPhoto.beGone()
+            threadMessageCarrierWarning.beGone()
 
             threadMessageBody.apply {
                 background = AppCompatResources.getDrawable(activity, R.drawable.item_received_background)
@@ -354,6 +355,9 @@ class ThreadAdapter(
                 connect(threadMessageWrapper.id, ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END)
                 applyTo(threadMessageHolder)
             }
+
+            val hasImage = message.attachment?.attachments?.any { it.mimetype.isImageMimeType() } == true
+            threadMessageCarrierWarning.beVisibleIf(hasImage)
 
             threadMessageBody.apply {
                 updateLayoutParams<RelativeLayout.LayoutParams> {

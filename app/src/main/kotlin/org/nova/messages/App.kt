@@ -20,24 +20,35 @@ class App : FossifyApp() {
         val stackTrace = Thread.currentThread().stackTrace
         for (element in stackTrace) {
             val className = element.className
-            
-            // Only spoof for Fossify library security/initialization checks
-            if (className.contains("org.fossify.commons")) {
-                val methodName = element.methodName
-                if (methodName == "onCreate" || 
-                    methodName == "startCustomizationActivity" ||
-                    methodName.contains("appLaunched") || 
-                    methodName.contains("Version") || 
-                    methodName.contains("Sideload") ||
-                    methodName.contains("Warning") ||
-                    methodName.contains("Security") ||
-                    methodName.contains("Check") ||
-                    methodName.contains("Dialog")) {
-                    return "org.fossify.messages"
-                }
+            val methodName = element.methodName
+            if (className.contains("org.fossify.commons") && 
+                (methodName == "showModdedAppWarning" || 
+                 methodName == "checkAppSideloading" || 
+                 methodName == "isAppSideloaded" ||
+                 methodName == "appLaunched")) {
+                return "org.fossify.messages"
             }
         }
         return super.getPackageName()
+    }
+
+    override fun getApplicationInfo(): android.content.pm.ApplicationInfo {
+        val info = super.getApplicationInfo()
+        val stackTrace = Thread.currentThread().stackTrace
+        for (element in stackTrace) {
+            val className = element.className
+            val methodName = element.methodName
+            if (className.contains("org.fossify.commons") && 
+                (methodName == "showModdedAppWarning" || 
+                 methodName == "checkAppSideloading" || 
+                 methodName == "isAppSideloaded" ||
+                 methodName == "appLaunched")) {
+                val spoofedInfo = android.content.pm.ApplicationInfo(info)
+                spoofedInfo.packageName = "org.fossify.messages"
+                return spoofedInfo
+            }
+        }
+        return info
     }
 
     override fun onCreate() {
