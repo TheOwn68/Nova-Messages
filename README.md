@@ -8,7 +8,7 @@ A fast, lightweight, privacy‑focused SMS/MMS app designed to give you full con
 - Photos & Emojis — Share memories and express yourself effortlessly.  
 - Quick Greetings — Send pre‑designed greetings for fast, personal communication.
 
-**Take Control of Your Inbox**
+**Take Control**
 - Block Unwanted Contacts — Stop messages from unknown or unwanted numbers.  
 - Phrase Filtering — Automatically block messages containing specific words or phrases.  
 - Export/Import Blocked Numbers — Easily back up and restore your block list.
