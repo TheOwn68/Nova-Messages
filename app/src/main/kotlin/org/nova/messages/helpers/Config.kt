@@ -1,6 +1,7 @@
 package org.nova.messages.helpers
 
 import android.content.Context
+import android.graphics.Color
 import org.fossify.commons.helpers.BaseConfig
 import org.nova.messages.extensions.getDefaultKeyboardHeight
 import org.nova.messages.models.Conversation
@@ -8,6 +9,11 @@ import org.nova.messages.models.Conversation
 class Config(context: Context) : BaseConfig(context) {
     companion object {
         fun newInstance(context: Context) = Config(context)
+        
+        // Final Correct Defaults
+        val DEFAULT_DARK_GREY = Color.parseColor("#333333")
+        val DEFAULT_LIGHT_GREY = Color.parseColor("#E0E0E0")
+        val DEFAULT_SENT_GREY = Color.parseColor("#333333")
     }
 
     fun saveUseSIMIdAtNumber(number: String, SIMId: Int) {
@@ -156,4 +162,44 @@ class Config(context: Context) : BaseConfig(context) {
     var fontFamilyNova: Int
         get() = prefs.getInt(FONT_FAMILY_NOVA, 0) // Default to System
         set(fontFamilyNova) = prefs.edit().putInt(FONT_FAMILY_NOVA, fontFamilyNova).apply()
+
+    var topBarColor: Int
+        get() = prefs.getInt(TOP_BAR_COLOR, -1) // Default to -1 (use original black)
+        set(topBarColor) = prefs.edit().putInt(TOP_BAR_COLOR, topBarColor).apply()
+
+    var topBarTextColor: Int
+        get() = prefs.getInt(TOP_BAR_TEXT_COLOR, Color.WHITE)
+        set(topBarTextColor) = prefs.edit().putInt(TOP_BAR_TEXT_COLOR, topBarTextColor).apply()
+
+    var mainTextColor: Int
+        get() = prefs.getInt(MAIN_TEXT_COLOR, Color.BLACK)
+        set(mainTextColor) = prefs.edit().putInt(MAIN_TEXT_COLOR, mainTextColor).apply()
+
+    var mainBackgroundColor: Int
+        get() = prefs.getInt(MAIN_BACKGROUND_COLOR, Color.WHITE)
+        set(mainBackgroundColor) = prefs.edit().putInt(MAIN_BACKGROUND_COLOR, mainBackgroundColor).apply()
+
+    var inputBarBackgroundColor: Int
+        get() = prefs.getInt(INPUT_BAR_BACKGROUND_COLOR, DEFAULT_DARK_GREY)
+        set(inputBarBackgroundColor) = prefs.edit().putInt(INPUT_BAR_BACKGROUND_COLOR, inputBarBackgroundColor).apply()
+
+    var inputBarTextColor: Int
+        get() = prefs.getInt(INPUT_BAR_TEXT_COLOR, Color.WHITE)
+        set(inputBarTextColor) = prefs.edit().putInt(INPUT_BAR_TEXT_COLOR, inputBarTextColor).apply()
+
+    var sentBubbleColor: Int
+        get() = prefs.getInt(SENT_BUBBLE_COLOR, DEFAULT_SENT_GREY)
+        set(sentBubbleColor) = prefs.edit().putInt(SENT_BUBBLE_COLOR, sentBubbleColor).apply()
+
+    var receivedBubbleColor: Int
+        get() = prefs.getInt(RECEIVED_BUBBLE_COLOR, DEFAULT_LIGHT_GREY)
+        set(receivedBubbleColor) = prefs.edit().putInt(RECEIVED_BUBBLE_COLOR, receivedBubbleColor).apply()
+
+    var sentBubbleTextColor: Int
+        get() = prefs.getInt(SENT_BUBBLE_TEXT_COLOR, Color.WHITE)
+        set(sentBubbleTextColor) = prefs.edit().putInt(SENT_BUBBLE_TEXT_COLOR, sentBubbleTextColor).apply()
+
+    var receivedBubbleTextColor: Int
+        get() = prefs.getInt(RECEIVED_BUBBLE_TEXT_COLOR, Color.BLACK)
+        set(receivedBubbleTextColor) = prefs.edit().putInt(RECEIVED_BUBBLE_TEXT_COLOR, receivedBubbleTextColor).apply()
 }

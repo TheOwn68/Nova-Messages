@@ -1,7 +1,11 @@
 package org.nova.messages.activities
 
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.view.LayoutInflater
+import android.widget.SeekBar
+import androidx.appcompat.app.AlertDialog
 import com.google.android.material.slider.Slider
 import org.fossify.commons.dialogs.RadioGroupDialog
 import org.fossify.commons.extensions.getFontSizeText
@@ -16,6 +20,7 @@ import org.fossify.commons.helpers.NavigationIcon
 import org.fossify.commons.models.RadioItem
 import org.nova.messages.R
 import org.nova.messages.databinding.ActivitySettingsBinding
+import org.nova.messages.databinding.DialogColorPickerBinding
 import org.nova.messages.extensions.config
 import org.nova.messages.helpers.*
 
@@ -38,7 +43,6 @@ class SettingsActivity : SimpleActivity() {
         super.onResume()
         setupTopAppBar(binding.settingsAppbar, NavigationIcon.Arrow, Color.TRANSPARENT)
         binding.settingsToolbar.navigationIcon?.setTint(Color.WHITE)
-        binding.settingsAppbar.setBackgroundResource(R.drawable.nova_topbar_bg)
         binding.settingsToolbar.setTitleTextColor(Color.WHITE)
         setupScaledToolbar(binding.settingsToolbar)
 
@@ -46,11 +50,141 @@ class SettingsActivity : SimpleActivity() {
         setupFontSize()
         setupFont()
         setupMmsFileSizeLimit()
+        setupCustomization()
         updateAppFonts(binding.root)
         updateTextColors(binding.settingsNestedScrollview)
 
-        binding.settingsLookAndFeelLabel.setTextColor(getProperPrimaryColor())
-        binding.settingsMmsLabel.setTextColor(getProperPrimaryColor())
+        val primaryColor = getProperPrimaryColor()
+        binding.settingsLookAndFeelLabel.setTextColor(primaryColor)
+        binding.settingsMmsLabel.setTextColor(primaryColor)
+        binding.settingsCustomizationLabel.setTextColor(primaryColor)
+        binding.settingsBubbleCustomizationLabel.setTextColor(primaryColor)
+        binding.settingsResetDefaults.setTextColor(primaryColor)
+    }
+
+    private fun setupCustomization() = binding.apply {
+        fun updatePreview(view: android.view.View, color: Int) {
+            val drawable = view.background as GradientDrawable
+            drawable.setColor(color)
+        }
+
+        updatePreview(settingsTopBarColorPreview, if (config.topBarColor == -1) Color.BLACK else config.topBarColor)
+        updatePreview(settingsTopBarTextColorPreview, config.topBarTextColor)
+        updatePreview(settingsMainBackgroundColorPreview, config.mainBackgroundColor)
+        updatePreview(settingsMainTextColorPreview, config.mainTextColor)
+        updatePreview(settingsInputBarBackgroundColorPreview, config.inputBarBackgroundColor)
+        updatePreview(settingsInputBarTextColorPreview, config.inputBarTextColor)
+        
+        updatePreview(settingsSentBubbleColorPreview, config.sentBubbleColor)
+        updatePreview(settingsSentBubbleTextColorPreview, config.sentBubbleTextColor)
+        updatePreview(settingsReceivedBubbleColorPreview, config.receivedBubbleColor)
+        updatePreview(settingsReceivedBubbleTextColorPreview, config.receivedBubbleTextColor)
+
+        settingsTopBarColorHolder.setOnClickListener {
+            showColorWheel(if (config.topBarColor == -1) Color.BLACK else config.topBarColor) { config.topBarColor = it; applyCustomColors(); recreate() }
+        }
+
+        settingsTopBarTextColorHolder.setOnClickListener {
+            showColorWheel(config.topBarTextColor) { config.topBarTextColor = it; applyCustomColors(); recreate() }
+        }
+
+        settingsMainBackgroundColorHolder.setOnClickListener {
+            showColorWheel(config.mainBackgroundColor) { config.mainBackgroundColor = it; applyCustomColors(); recreate() }
+        }
+
+        settingsMainTextColorHolder.setOnClickListener {
+            showColorWheel(config.mainTextColor) { config.mainTextColor = it; applyCustomColors(); recreate() }
+        }
+
+        settingsInputBarBackgroundColorHolder.setOnClickListener {
+            showColorWheel(config.inputBarBackgroundColor) { config.inputBarBackgroundColor = it; applyCustomColors(); recreate() }
+        }
+
+        settingsInputBarTextColorHolder.setOnClickListener {
+            showColorWheel(config.inputBarTextColor) { config.inputBarTextColor = it; applyCustomColors(); recreate() }
+        }
+
+        settingsSentBubbleColorHolder.setOnClickListener {
+            showColorWheel(config.sentBubbleColor) { config.sentBubbleColor = it; recreate() }
+        }
+
+        settingsSentBubbleTextColorHolder.setOnClickListener {
+            showColorWheel(config.sentBubbleTextColor) { config.sentBubbleTextColor = it; recreate() }
+        }
+
+        settingsReceivedBubbleColorHolder.setOnClickListener {
+            showColorWheel(config.receivedBubbleColor) { config.receivedBubbleColor = it; recreate() }
+        }
+
+        settingsReceivedBubbleTextColorHolder.setOnClickListener {
+            showColorWheel(config.receivedBubbleTextColor) { config.receivedBubbleTextColor = it; recreate() }
+        }
+
+        settingsResetDefaults.setOnClickListener {
+            config.topBarColor = -1
+            config.topBarTextColor = Color.WHITE
+            config.mainBackgroundColor = Color.WHITE
+            config.mainTextColor = Color.BLACK
+            config.inputBarBackgroundColor = Config.DEFAULT_DARK_GREY
+            config.inputBarTextColor = Color.WHITE
+            config.sentBubbleColor = Config.DEFAULT_SENT_GREY
+            config.receivedBubbleColor = Config.DEFAULT_LIGHT_GREY
+            config.sentBubbleTextColor = Color.WHITE
+            config.receivedBubbleTextColor = Color.BLACK
+            applyCustomColors()
+            recreate()
+        }
+    }
+
+    private fun showColorWheel(initialColor: Int, callback: (Int) -> Unit) {
+        val pickerBinding = DialogColorPickerBinding.inflate(LayoutInflater.from(this))
+        val dialog = AlertDialog.Builder(this)
+            .setView(pickerBinding.root)
+            .create()
+
+        var selectedColor = initialColor
+        val hsv = FloatArray(3)
+        Color.colorToHSV(initialColor, hsv)
+
+        fun updateColor() {
+            selectedColor = Color.HSVToColor(hsv)
+            val drawable = pickerBinding.colorPickerPreview.background as GradientDrawable
+            drawable.setColor(selectedColor)
+        }
+
+        pickerBinding.colorPickerHue.progress = hsv[0].toInt()
+        pickerBinding.colorPickerSaturation.progress = (hsv[1] * 100).toInt()
+        pickerBinding.colorPickerValue.progress = (hsv[2] * 100).toInt()
+        
+        val drawable = pickerBinding.colorPickerPreview.background as GradientDrawable
+        drawable.setColor(initialColor)
+
+        val listener = object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (fromUser) {
+                    when (seekBar?.id) {
+                        R.id.color_picker_hue -> hsv[0] = progress.toFloat()
+                        R.id.color_picker_saturation -> hsv[1] = progress.toFloat() / 100f
+                        R.id.color_picker_value -> hsv[2] = progress.toFloat() / 100f
+                    }
+                    updateColor()
+                }
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        }
+
+        pickerBinding.colorPickerHue.setOnSeekBarChangeListener(listener)
+        pickerBinding.colorPickerSaturation.setOnSeekBarChangeListener(listener)
+        pickerBinding.colorPickerValue.setOnSeekBarChangeListener(listener)
+
+        pickerBinding.colorPickerCancel.setOnClickListener { dialog.dismiss() }
+        pickerBinding.colorPickerOk.setOnClickListener {
+            callback(selectedColor)
+            dialog.dismiss()
+        }
+
+        dialog.show()
     }
 
     private fun setupUIScale() = binding.apply {

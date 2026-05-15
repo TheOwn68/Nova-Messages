@@ -53,6 +53,18 @@ const val FONT_FAMILY = "font_family_nova"
 const val FONT_TYPE = "font_type"
 const val FONT_FAMILY_NOVA = "font_family_nova"
 
+// Customization constants
+const val TOP_BAR_COLOR = "top_bar_color"
+const val TOP_BAR_TEXT_COLOR = "top_bar_text_color"
+const val MAIN_TEXT_COLOR = "main_text_color"
+const val MAIN_BACKGROUND_COLOR = "main_background_color"
+const val INPUT_BAR_BACKGROUND_COLOR = "input_bar_background_color"
+const val INPUT_BAR_TEXT_COLOR = "input_bar_text_color"
+const val SENT_BUBBLE_COLOR = "sent_bubble_color"
+const val RECEIVED_BUBBLE_COLOR = "received_bubble_color"
+const val SENT_BUBBLE_TEXT_COLOR = "sent_bubble_text_color"
+const val RECEIVED_BUBBLE_TEXT_COLOR = "received_bubble_text_color"
+
 private const val PATH = "org.nova.org.nova.messages.action."
 const val MARK_AS_READ = PATH + "mark_as_read"
 const val REPLY = PATH + "reply"

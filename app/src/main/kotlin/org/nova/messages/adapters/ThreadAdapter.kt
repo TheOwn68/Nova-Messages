@@ -4,6 +4,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
+import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
 import android.view.Menu
 import android.view.View
@@ -337,8 +338,15 @@ class ThreadAdapter(
             threadMessageCarrierWarning.beGone()
 
             threadMessageBody.apply {
-                background = AppCompatResources.getDrawable(activity, R.drawable.item_received_background)
-                setTextColor(activity.getProperTextColor())
+                val backgroundDrawable = AppCompatResources.getDrawable(activity, R.drawable.item_received_background)
+                if (backgroundDrawable is GradientDrawable) {
+                    backgroundDrawable.setColor(activity.config.receivedBubbleColor)
+                } else if (backgroundDrawable != null) {
+                    backgroundDrawable.applyColorFilter(activity.config.receivedBubbleColor)
+                }
+                background = backgroundDrawable
+                
+                setTextColor(activity.config.receivedBubbleTextColor)
                 setLinkTextColor(activity.getProperPrimaryColor())
 
                 val customTypeface = (activity as SimpleActivity).getCustomTypeface()
@@ -365,10 +373,16 @@ class ThreadAdapter(
                     addRule(RelativeLayout.ALIGN_PARENT_END)
                 }
 
-                background = AppCompatResources.getDrawable(activity, R.drawable.item_sent_background)
-                background.applyColorFilter(Color.parseColor("#CCCCCC")) // Darker grey
-                setTextColor(Color.BLACK)
-                setLinkTextColor(Color.BLACK)
+                val backgroundDrawable = AppCompatResources.getDrawable(activity, R.drawable.item_sent_background)
+                if (backgroundDrawable is GradientDrawable) {
+                    backgroundDrawable.setColor(activity.config.sentBubbleColor)
+                } else if (backgroundDrawable != null) {
+                    backgroundDrawable.applyColorFilter(activity.config.sentBubbleColor)
+                }
+                background = backgroundDrawable
+
+                setTextColor(activity.config.sentBubbleTextColor)
+                setLinkTextColor(activity.config.sentBubbleTextColor)
 
                 val customTypeface = (activity as SimpleActivity).getCustomTypeface()
                 val style = if (message.isScheduled) Typeface.ITALIC else Typeface.NORMAL
@@ -376,7 +390,7 @@ class ThreadAdapter(
 
                 if (message.isScheduled) {
                     val scheduledDrawable = AppCompatResources.getDrawable(activity, org.fossify.commons.R.drawable.ic_clock_vector)?.apply {
-                        applyColorFilter(Color.BLACK)
+                        applyColorFilter(activity.config.sentBubbleTextColor)
                         val size = lineHeight
                         setBounds(0, 0, size, size)
                     }

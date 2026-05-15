@@ -1,5 +1,6 @@
 package org.nova.messages
 
+import android.content.pm.ApplicationInfo
 import android.database.ContentObserver
 import android.net.Uri
 import android.os.Handler
@@ -22,13 +23,7 @@ class App : FossifyApp() {
             val className = element.className
             val methodName = element.methodName
             
-            if (className.startsWith("android.app.") || 
-                className.startsWith("androidx.startup.") ||
-                className.startsWith("android.content.pm.") ||
-                className.startsWith("com.bumptech.glide")) {
-                break
-            }
-
+            // Only spoof for Fossify library security/initialization checks
             if (className.contains("org.fossify.commons")) {
                 if (methodName == "onCreate" || 
                     methodName == "appLaunched" || 
@@ -38,34 +33,40 @@ class App : FossifyApp() {
                     return "org.fossify.messages"
                 }
             }
+
+            // CRITICAL: Prevent spoofing for system startup and providers
+            if (className.startsWith("android.app.") || 
+                className.startsWith("androidx.startup.") ||
+                className.startsWith("android.content.pm.")) {
+                break
+            }
         }
         return super.getPackageName()
     }
 
-    override fun getApplicationInfo(): android.content.pm.ApplicationInfo {
+    override fun getApplicationInfo(): ApplicationInfo {
         val info = super.getApplicationInfo()
         val stackTrace = Thread.currentThread().stackTrace
         for (element in stackTrace) {
             val className = element.className
             val methodName = element.methodName
             
-            if (className.startsWith("android.app.") || 
-                className.startsWith("androidx.startup.") ||
-                className.startsWith("android.content.pm.") ||
-                className.startsWith("com.bumptech.glide")) {
-                break
-            }
-
             if (className.contains("org.fossify.commons")) {
                 if (methodName == "onCreate" || 
                     methodName == "appLaunched" || 
                     methodName.contains("Warning") || 
                     methodName.contains("Sideload") ||
                     methodName.contains("Security")) {
-                    val spoofedInfo = android.content.pm.ApplicationInfo(info)
+                    val spoofedInfo = ApplicationInfo(info)
                     spoofedInfo.packageName = "org.fossify.messages"
                     return spoofedInfo
                 }
+            }
+
+            if (className.startsWith("android.app.") || 
+                className.startsWith("androidx.startup.") ||
+                className.startsWith("android.content.pm.")) {
+                break
             }
         }
         return info

@@ -1,11 +1,16 @@
 package org.nova.messages.activities
 
 import android.content.Context
-import android.content.res.Configuration
+import android.content.pm.ApplicationInfo
+import android.content.res.ColorStateList
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import android.widget.TextView
 import androidx.appcompat.widget.Toolbar
 import androidx.core.view.updateLayoutParams
@@ -24,6 +29,64 @@ import org.nova.messages.helpers.Config
 open class SimpleActivity : BaseSimpleActivity() {
 
     val uiScale get() = config.uiScale
+
+    override fun getPackageName(): String {
+        val stackTrace = Thread.currentThread().stackTrace
+        for (element in stackTrace) {
+            val className = element.className
+            val methodName = element.methodName
+            
+            if (className.contains("org.fossify.commons")) {
+                if (methodName == "onCreate" || 
+                    methodName == "appLaunched" || 
+                    methodName.contains("Warning") || 
+                    methodName.contains("Sideload") ||
+                    methodName.contains("Security")) {
+                    return "org.fossify.messages"
+                }
+            }
+
+            if (className.startsWith("android.app.") || 
+                className.startsWith("androidx.startup.") ||
+                className.startsWith("android.content.pm.")) {
+                break
+            }
+        }
+        return super.getPackageName()
+    }
+
+    override fun getApplicationInfo(): ApplicationInfo {
+        val info = super.getApplicationInfo()
+        val stackTrace = Thread.currentThread().stackTrace
+        for (element in stackTrace) {
+            val className = element.className
+            val methodName = element.methodName
+            
+            if (className.contains("org.fossify.commons")) {
+                if (methodName == "onCreate" || 
+                    methodName == "appLaunched" || 
+                    methodName.contains("Warning") || 
+                    methodName.contains("Sideload") ||
+                    methodName.contains("Security")) {
+                    val spoofedInfo = ApplicationInfo(info)
+                    spoofedInfo.packageName = "org.fossify.messages"
+                    return spoofedInfo
+                }
+            }
+
+            if (className.startsWith("android.app.") || 
+                className.startsWith("androidx.startup.") ||
+                className.startsWith("android.content.pm.")) {
+                break
+            }
+        }
+        return info
+    }
+
+    private val globalLayoutListener = ViewTreeObserver.OnGlobalLayoutListener {
+        applyCustomColors()
+        updateAppFonts(findViewById(android.R.id.content))
+    }
 
     fun getScaledTextSize(multiplier: Float = 1.0f): Float {
         return getTextSize() * multiplier
@@ -61,11 +124,21 @@ open class SimpleActivity : BaseSimpleActivity() {
         }
     }
 
-    fun updateAppFonts(view: View) {
+    fun updateAppFonts(view: View?) {
+        if (view == null) return
         val customTypeface = getCustomTypeface()
         if (view is TextView) {
             val style = view.typeface?.style ?: android.graphics.Typeface.NORMAL
             view.typeface = android.graphics.Typeface.create(customTypeface, style)
+            
+            // Apply custom text color if not in toolbar AND not a message bubble
+            val id = view.id
+            if (id != R.id.thread_toolbar_title && 
+                id != R.id.nova_title && 
+                id != R.id.settings_toolbar_title &&
+                id != R.id.thread_message_body) {
+                view.setTextColor(config.mainTextColor)
+            }
         }
         if (view is ViewGroup) {
             for (i in 0 until view.childCount) {
@@ -74,61 +147,77 @@ open class SimpleActivity : BaseSimpleActivity() {
         }
     }
 
-    override fun getPackageName(): String {
-        val stackTrace = Thread.currentThread().stackTrace
-        for (element in stackTrace) {
-            val className = element.className
-            val methodName = element.methodName
-            
-            // Critical system classes must get the real package name
-            if (className.startsWith("android.app.") || 
-                className.startsWith("androidx.startup.") ||
-                className.startsWith("android.content.pm.") ||
-                className.startsWith("com.bumptech.glide")) {
-                break
-            }
+    fun applyCustomColors() {
+        val density = resources.displayMetrics.density
 
-            // Only spoof for Fossify library security/initialization checks
-            if (className.contains("org.fossify.commons")) {
-                if (methodName == "onCreate" || 
-                    methodName == "appLaunched" || 
-                    methodName.contains("Warning") || 
-                    methodName.contains("Sideload") ||
-                    methodName.contains("Security")) {
-                    return "org.fossify.messages"
-                }
+        // 1. Apply main background color
+        val rootView = findViewById<View>(R.id.main_coordinator) ?: 
+                      findViewById<View>(R.id.thread_messages_list) ?: 
+                      findViewById<View>(R.id.settings_coordinator) ?:
+                      findViewById<View>(android.R.id.content)
+        
+        rootView?.setBackgroundColor(config.mainBackgroundColor)
+        
+        // 2. Apply top bar color (Preserving Bottom Rounding)
+        val topBar = findViewById<View>(R.id.settings_appbar) ?: findViewById<View>(R.id.thread_appbar) ?: findViewById<View>(R.id.main_appbar)
+        val toolbar = findViewById<Toolbar>(R.id.settings_toolbar) ?: findViewById<Toolbar>(R.id.thread_toolbar) ?: findViewById<Toolbar>(R.id.main_toolbar)
+        
+        if (topBar != null) {
+            val radius = 26 * density
+            val color = if (config.topBarColor != -1) config.topBarColor else Color.BLACK
+            
+            val shape = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, radius, radius, radius, radius)
+                setColor(color)
+            }
+            topBar.background = shape
+            toolbar?.setBackgroundColor(Color.TRANSPARENT)
+        }
+        
+        // 3. Apply top bar text color
+        if (toolbar != null) {
+            toolbar.setTitleTextColor(config.topBarTextColor)
+            toolbar.navigationIcon?.setTint(config.topBarTextColor)
+            toolbar.overflowIcon?.setTint(config.topBarTextColor)
+        }
+        
+        val titleText = findViewById<TextView>(R.id.thread_toolbar_title) ?: 
+                         findViewById<TextView>(R.id.nova_title) ?: 
+                         findViewById<TextView>(R.id.settings_toolbar_title)
+        titleText?.setTextColor(config.topBarTextColor)
+        
+        // 4. Apply input bar colors (Maintaining Rounded Shape)
+        val inputBar = findViewById<View>(R.id.nova_search_bar) ?: findViewById<View>(R.id.nova_message_input_bar)
+        if (inputBar != null) {
+            val color = config.inputBarBackgroundColor
+            val radius = 28 * density 
+            
+            val shape = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = radius
+                setColor(color)
+            }
+            inputBar.background = shape
+        }
+        
+        val inputText = findViewById<TextView>(R.id.nova_search_input) ?: findViewById<TextView>(R.id.thread_type_message)
+        if (inputText != null) {
+            inputText.setTextColor(config.inputBarTextColor)
+            inputText.setHintTextColor(if (config.inputBarTextColor == Color.WHITE) Color.parseColor("#888888") else config.inputBarTextColor.withAlpha(0.6f))
+        }
+        
+        // Apply gear icon color
+        findViewById<View>(R.id.settings_gear)?.let {
+            if (it is android.widget.ImageView) {
+                it.imageTintList = ColorStateList.valueOf(config.topBarTextColor)
             }
         }
-        return super.getPackageName()
     }
 
-    override fun getApplicationInfo(): android.content.pm.ApplicationInfo {
-        val info = super.getApplicationInfo()
-        val stackTrace = Thread.currentThread().stackTrace
-        for (element in stackTrace) {
-            val className = element.className
-            val methodName = element.methodName
-            
-            if (className.startsWith("android.app.") || 
-                className.startsWith("androidx.startup.") ||
-                className.startsWith("android.content.pm.") ||
-                className.startsWith("com.bumptech.glide")) {
-                break
-            }
-
-            if (className.contains("org.fossify.commons")) {
-                if (methodName == "onCreate" || 
-                    methodName == "appLaunched" || 
-                    methodName.contains("Warning") || 
-                    methodName.contains("Sideload") ||
-                    methodName.contains("Security")) {
-                    val spoofedInfo = android.content.pm.ApplicationInfo(info)
-                    spoofedInfo.packageName = "org.fossify.messages"
-                    return spoofedInfo
-                }
-            }
-        }
-        return info
+    private fun Int.withAlpha(alpha: Float): Int {
+        val a = (alpha * 255).toInt().coerceIn(0, 255)
+        return (this and 0x00FFFFFF) or (a shl 24)
     }
 
     override fun attachBaseContext(newBase: Context) {
@@ -148,7 +237,14 @@ open class SimpleActivity : BaseSimpleActivity() {
 
     override fun onResume() {
         super.onResume()
+        findViewById<View>(android.R.id.content)?.viewTreeObserver?.addOnGlobalLayoutListener(globalLayoutListener)
+        applyCustomColors()
         updateAppFonts(findViewById(android.R.id.content))
+    }
+
+    override fun onPause() {
+        super.onPause()
+        findViewById<View>(android.R.id.content)?.viewTreeObserver?.removeOnGlobalLayoutListener(globalLayoutListener)
     }
 
     private fun requestHighRefreshRate() {

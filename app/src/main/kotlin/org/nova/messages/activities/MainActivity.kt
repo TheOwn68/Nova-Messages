@@ -85,7 +85,6 @@ class MainActivity : SimpleActivity() {
 
         updateAppFonts(binding.root)
         updateTextColors(binding.mainCoordinator)
-        binding.mainAppbar.setBackgroundResource(R.drawable.nova_topbar_bg)
         binding.novaTitle.updateLayoutParams<Toolbar.LayoutParams> {
             marginEnd = 60.getScaledPx()
         }

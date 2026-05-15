@@ -4,4 +4,6 @@
     <color name="text_color_secondary">#66000000</color>
     <color name="text_color_tertiary">#40000000</color>
 
+    <color name="nova_dark_grey">#333333</color>
+    <color name="nova_light_grey">#E0E0E0</color>
 </resources>

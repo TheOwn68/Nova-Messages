@@ -172,7 +172,6 @@ class ThreadActivity : SimpleActivity() {
         )
         binding.threadToolbar.navigationIcon?.setTint(Color.WHITE)
         binding.threadToolbar.overflowIcon?.setTint(Color.WHITE)
-        binding.threadAppbar.setBackgroundResource(R.drawable.nova_topbar_bg)
         binding.threadToolbar.setTitleTextAppearance(this, R.style.NovaToolbarTitle)
         binding.threadToolbar.setTitleTextColor(Color.WHITE)
         
@@ -430,16 +429,7 @@ class ThreadActivity : SimpleActivity() {
                         if (isFirstLoad) {
                             binding.threadMessagesList.scheduleLayoutAnimation()
                         }
-                        if (isFirstLoad || isNewMessageAtBottom) {
-                            binding.threadMessagesList.post {
-                                if (isFinishing || isDestroyed) return@post
-                                binding.threadMessagesList.scrollToPosition(threadItems.size - 1)
-                                binding.threadMessagesList.postDelayed({
-                                    if (isFinishing || isDestroyed) return@postDelayed
-                                    binding.threadMessagesList.scrollToPosition(threadItems.size - 1)
-                                }, 100)
-                            }
-                        }
+                        scrollToBottom()
                     })
                 }
             }
@@ -1216,6 +1206,22 @@ class ThreadActivity : SimpleActivity() {
             binding.threadMessagesList.post {
                 if (!isFinishing && !isDestroyed) {
                     binding.threadMessagesList.scrollToPosition(adapter.itemCount - 1)
+                    // Robust multi-stage scroll for dynamic content/images
+                    binding.threadMessagesList.postDelayed({
+                        if (!isFinishing && !isDestroyed) {
+                            binding.threadMessagesList.scrollToPosition(adapter.itemCount - 1)
+                        }
+                    }, 100)
+                    binding.threadMessagesList.postDelayed({
+                        if (!isFinishing && !isDestroyed) {
+                            binding.threadMessagesList.scrollToPosition(adapter.itemCount - 1)
+                        }
+                    }, 300)
+                    binding.threadMessagesList.postDelayed({
+                        if (!isFinishing && !isDestroyed) {
+                            binding.threadMessagesList.scrollToPosition(adapter.itemCount - 1)
+                        }
+                    }, 600)
                 }
             }
         }
