@@ -1,2 +1,0 @@
-* Fixed issues with forwarding messages (https://github.com/NovaOrg/Messages/issues/288)
-* Added more translations
