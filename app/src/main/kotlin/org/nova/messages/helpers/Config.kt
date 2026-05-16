@@ -10,10 +10,10 @@ class Config(context: Context) : BaseConfig(context) {
     companion object {
         fun newInstance(context: Context) = Config(context)
         
-        // Final Correct Defaults
+        // FINAL ABSOLUTE DEFAULTS
         val DEFAULT_DARK_GREY = Color.parseColor("#333333")
         val DEFAULT_LIGHT_GREY = Color.parseColor("#E0E0E0")
-        val DEFAULT_SENT_GREY = Color.parseColor("#333333")
+        val DEFAULT_SENT_GREY = Color.parseColor("#777777") // Slightly lighter than the previous #555555
     }
 
     fun saveUseSIMIdAtNumber(number: String, SIMId: Int) {
@@ -164,7 +164,7 @@ class Config(context: Context) : BaseConfig(context) {
         set(fontFamilyNova) = prefs.edit().putInt(FONT_FAMILY_NOVA, fontFamilyNova).apply()
 
     var topBarColor: Int
-        get() = prefs.getInt(TOP_BAR_COLOR, -1) // Default to -1 (use original black)
+        get() = prefs.getInt(TOP_BAR_COLOR, -1)
         set(topBarColor) = prefs.edit().putInt(TOP_BAR_COLOR, topBarColor).apply()
 
     var topBarTextColor: Int

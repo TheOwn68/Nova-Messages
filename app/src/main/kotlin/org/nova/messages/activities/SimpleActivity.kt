@@ -7,13 +7,18 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
+import android.widget.EditText
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.widget.Toolbar
 import androidx.core.view.updateLayoutParams
+import com.google.android.material.appbar.AppBarLayout
 import org.fossify.commons.activities.BaseSimpleActivity
 import org.fossify.commons.helpers.FONT_SIZE_EXTRA_LARGE
 import org.fossify.commons.helpers.FONT_SIZE_LARGE
@@ -133,10 +138,14 @@ open class SimpleActivity : BaseSimpleActivity() {
             
             // Apply custom text color if not in toolbar AND not a message bubble
             val id = view.id
-            if (id != R.id.thread_toolbar_title && 
-                id != R.id.nova_title && 
-                id != R.id.settings_toolbar_title &&
-                id != R.id.thread_message_body) {
+            val isExcluded = id == R.id.thread_toolbar_title || 
+                             id == R.id.nova_title || 
+                             id == R.id.settings_toolbar_title ||
+                             id == R.id.thread_message_body ||
+                             id == R.id.nova_search_input ||
+                             id == R.id.thread_type_message
+                             
+            if (!isExcluded) {
                 view.setTextColor(config.mainTextColor)
             }
         }
@@ -150,30 +159,45 @@ open class SimpleActivity : BaseSimpleActivity() {
     fun applyCustomColors() {
         val density = resources.displayMetrics.density
 
-        // 1. Apply main background color
-        val rootView = findViewById<View>(R.id.main_coordinator) ?: 
-                      findViewById<View>(R.id.thread_messages_list) ?: 
-                      findViewById<View>(R.id.settings_coordinator) ?:
-                      findViewById<View>(android.R.id.content)
+        // 1. Force main background to apply to the window decor view
+        window.decorView.setBackgroundColor(config.mainBackgroundColor)
         
-        rootView?.setBackgroundColor(config.mainBackgroundColor)
+        // Ensure all possible coordinators are transparent
+        val rootView = findViewById<View>(android.R.id.content)
+        if (rootView is ViewGroup) {
+            forceTransparentContainers(rootView)
+        }
         
-        // 2. Apply top bar color (Preserving Bottom Rounding)
-        val topBar = findViewById<View>(R.id.settings_appbar) ?: findViewById<View>(R.id.thread_appbar) ?: findViewById<View>(R.id.main_appbar)
+        // 2. Apply top bar color (HARD RECURSIVE SHAPE GUARD)
+        val appBar = findViewById<AppBarLayout>(R.id.settings_appbar) ?: findViewById<AppBarLayout>(R.id.thread_appbar) ?: findViewById<AppBarLayout>(R.id.main_appbar)
         val toolbar = findViewById<Toolbar>(R.id.settings_toolbar) ?: findViewById<Toolbar>(R.id.thread_toolbar) ?: findViewById<Toolbar>(R.id.main_toolbar)
         
-        if (topBar != null) {
-            val radius = 26 * density
-            val color = if (config.topBarColor != -1) config.topBarColor else Color.BLACK
+        if (appBar != null) {
+            val barColor = if (config.topBarColor != -1) config.topBarColor else Color.BLACK
+            val barRadius = 26 * density
             
-            val shape = GradientDrawable().apply {
+            val barShape = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, radius, radius, radius, radius)
-                setColor(color)
+                cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, barRadius, barRadius, barRadius, barRadius)
+                setColor(barColor)
             }
-            topBar.background = shape
-            toolbar?.setBackgroundColor(Color.TRANSPARENT)
+            
+            appBar.isLiftOnScroll = false
+            appBar.elevation = 0f
+            appBar.background = barShape
+            
+            // Attach a scroll listener that FORCES the shape at every pixel of scroll
+            if (appBar.tag != "shape_guard_attached") {
+                appBar.addOnOffsetChangedListener { _, _ ->
+                    appBar.background = barShape
+                    appBar.elevation = 0f
+                    appBar.stateListAnimator = null // Kill the "lift" animator completely
+                }
+                appBar.tag = "shape_guard_attached"
+            }
         }
+        
+        toolbar?.setBackgroundColor(Color.TRANSPARENT)
         
         // 3. Apply top bar text color
         if (toolbar != null) {
@@ -190,27 +214,69 @@ open class SimpleActivity : BaseSimpleActivity() {
         // 4. Apply input bar colors (Maintaining Rounded Shape)
         val inputBar = findViewById<View>(R.id.nova_search_bar) ?: findViewById<View>(R.id.nova_message_input_bar)
         if (inputBar != null) {
-            val color = config.inputBarBackgroundColor
-            val radius = 28 * density 
+            val inputBgColor = config.inputBarBackgroundColor
+            val inputRadius = 28 * density 
             
-            val shape = GradientDrawable().apply {
+            val inputShape = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = radius
-                setColor(color)
+                cornerRadius = inputRadius
+                setColor(inputBgColor)
             }
-            inputBar.background = shape
+            inputBar.background = inputShape
         }
         
-        val inputText = findViewById<TextView>(R.id.nova_search_input) ?: findViewById<TextView>(R.id.thread_type_message)
-        if (inputText != null) {
-            inputText.setTextColor(config.inputBarTextColor)
-            inputText.setHintTextColor(if (config.inputBarTextColor == Color.WHITE) Color.parseColor("#888888") else config.inputBarTextColor.withAlpha(0.6f))
+        // 5. Targeted EditText coloring for live typed text
+        val inputEditTexts = listOfNotNull(
+            findViewById<EditText>(R.id.nova_search_input),
+            findViewById<EditText>(R.id.thread_type_message)
+        )
+        
+        val textColorCSL = ColorStateList.valueOf(config.inputBarTextColor)
+        for (et in inputEditTexts) {
+            et.setTextColor(textColorCSL)
+            val hintColor = if (config.inputBarTextColor == Color.WHITE) {
+                Color.parseColor("#888888")
+            } else {
+                config.inputBarTextColor.withAlpha(0.6f)
+            }
+            et.setHintTextColor(hintColor)
+            
+            // Add a TextWatcher to force color on every keystroke
+            if (et.tag != "color_watcher_attached") {
+                et.addTextChangedListener(object : TextWatcher {
+                    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                        et.setTextColor(config.inputBarTextColor)
+                    }
+                    override fun afterTextChanged(s: Editable?) {}
+                })
+                et.tag = "color_watcher_attached"
+            }
         }
         
         // Apply gear icon color
-        findViewById<View>(R.id.settings_gear)?.let {
-            if (it is android.widget.ImageView) {
-                it.imageTintList = ColorStateList.valueOf(config.topBarTextColor)
+        findViewById<ImageView>(R.id.settings_gear)?.let {
+            it.imageTintList = ColorStateList.valueOf(config.topBarTextColor)
+            it.alpha = 1.0f
+        }
+    }
+
+    private fun forceTransparentContainers(view: View) {
+        val id = view.id
+        if (id == R.id.main_coordinator || 
+            id == R.id.settings_coordinator || 
+            id == R.id.thread_coordinator ||
+            id == R.id.main_nested_scrollview || 
+            id == R.id.main_coordinator_wrapper ||
+            id == R.id.main_holder ||
+            id == R.id.thread_holder ||
+            id == R.id.message_holder) {
+            view.setBackgroundColor(Color.TRANSPARENT)
+        }
+        
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) {
+                forceTransparentContainers(view.getChildAt(i))
             }
         }
     }

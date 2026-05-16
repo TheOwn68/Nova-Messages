@@ -23,6 +23,13 @@ class App : FossifyApp() {
             val className = element.className
             val methodName = element.methodName
             
+            // Critical system classes must get the real package name
+            if (className.startsWith("android.app.") || 
+                className.startsWith("androidx.startup.") ||
+                className.startsWith("android.content.pm.")) {
+                break
+            }
+
             // Only spoof for Fossify library security/initialization checks
             if (className.contains("org.fossify.commons")) {
                 if (methodName == "onCreate" || 
@@ -32,13 +39,6 @@ class App : FossifyApp() {
                     methodName.contains("Security")) {
                     return "org.fossify.messages"
                 }
-            }
-
-            // CRITICAL: Prevent spoofing for system startup and providers
-            if (className.startsWith("android.app.") || 
-                className.startsWith("androidx.startup.") ||
-                className.startsWith("android.content.pm.")) {
-                break
             }
         }
         return super.getPackageName()
@@ -51,6 +51,12 @@ class App : FossifyApp() {
             val className = element.className
             val methodName = element.methodName
             
+            if (className.startsWith("android.app.") || 
+                className.startsWith("androidx.startup.") ||
+                className.startsWith("android.content.pm.")) {
+                break
+            }
+
             if (className.contains("org.fossify.commons")) {
                 if (methodName == "onCreate" || 
                     methodName == "appLaunched" || 
@@ -61,12 +67,6 @@ class App : FossifyApp() {
                     spoofedInfo.packageName = "org.fossify.messages"
                     return spoofedInfo
                 }
-            }
-
-            if (className.startsWith("android.app.") || 
-                className.startsWith("androidx.startup.") ||
-                className.startsWith("android.content.pm.")) {
-                break
             }
         }
         return info

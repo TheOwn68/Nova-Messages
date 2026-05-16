@@ -5,13 +5,13 @@
     android:id="@+id/thread_coordinator"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/white">
+    android:background="@android:color/transparent">
 
     <org.fossify.commons.views.MyAppBarLayout
         android:id="@+id/thread_appbar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/nova_topbar_bg"
+        android:background="@android:color/transparent"
         app:elevation="0dp">
 
         <com.google.android.material.appbar.MaterialToolbar

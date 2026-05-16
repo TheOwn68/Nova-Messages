@@ -33,10 +33,6 @@ class SettingsActivity : SimpleActivity() {
         setContentView(binding.root)
 
         setupEdgeToEdge(padBottomImeAndSystem = listOf(binding.settingsNestedScrollview))
-        setupMaterialScrollListener(
-            scrollingView = binding.settingsNestedScrollview,
-            topAppBar = binding.settingsAppbar
-        )
     }
 
     override fun onResume() {

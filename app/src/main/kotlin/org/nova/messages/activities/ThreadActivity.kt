@@ -85,6 +85,7 @@ import org.joda.time.DateTime
 import java.io.File
 import org.fossify.commons.models.SimpleContact
 import org.nova.messages.messaging.*
+import org.nova.messages.dialogs.AttachmentPickerDialog
 
 class ThreadActivity : SimpleActivity() {
 
@@ -155,9 +156,6 @@ class ThreadActivity : SimpleActivity() {
         bus!!.register(this)
 
         loadConversation()
-        setupAttachmentPickerView()
-        hideAttachmentPicker()
-        maybeSetupRecycleBinView()
     }
 
     override fun onResume() {
@@ -170,10 +168,6 @@ class ThreadActivity : SimpleActivity() {
             navigationIcon = NavigationIcon.Arrow,
             topBarColor = Color.TRANSPARENT
         )
-        binding.threadToolbar.navigationIcon?.setTint(Color.WHITE)
-        binding.threadToolbar.overflowIcon?.setTint(Color.WHITE)
-        binding.threadToolbar.setTitleTextAppearance(this, R.style.NovaToolbarTitle)
-        binding.threadToolbar.setTitleTextColor(Color.WHITE)
         
         // Ensure this listener is set last to avoid being overwritten by setupTopAppBar
         binding.threadToolbar.setNavigationOnClickListener {
@@ -205,10 +199,6 @@ class ThreadActivity : SimpleActivity() {
 
             markThreadMessagesRead(threadId)
         }
-
-        binding.messageHolder.root.setBackgroundColor(Color.TRANSPARENT)
-        binding.shortCodeHolder.root.setBackgroundColor(Color.TRANSPARENT)
-        updateAppFonts(binding.root)
 
         binding.threadToolbarTitle.updateLayoutParams<Toolbar.LayoutParams> {
             marginEnd = 100.getScaledPx()
@@ -594,8 +584,6 @@ class ThreadActivity : SimpleActivity() {
             threadCharacterCounter.setTextSize(TypedValue.COMPLEX_UNIT_PX, getScaledTextSize())
 
             threadTypeMessage.setTextSize(TypedValue.COMPLEX_UNIT_PX, getScaledTextSize())
-            threadTypeMessage.setTextColor(Color.WHITE)
-            threadTypeMessage.setHintTextColor(Color.parseColor("#888888"))
             threadSendMessage.setOnClickListener {
                 sendMessage()
             }
@@ -665,18 +653,7 @@ class ThreadActivity : SimpleActivity() {
 
             threadTypeMessage.setText(intent.getStringExtra(THREAD_TEXT))
             threadAddAttachment.setOnClickListener {
-                if (attachmentPickerHolder.isVisible()) {
-                    isAttachmentPickerVisible = false
-                    hideAttachmentPicker()
-                    window.insetsController(binding.messageHolder.threadTypeMessage)
-                        .show(WindowInsetsCompat.Type.ime())
-                } else {
-                    isAttachmentPickerVisible = true
-                    showAttachmentPicker()
-                    window.insetsController(binding.messageHolder.threadTypeMessage)
-                        .hide(WindowInsetsCompat.Type.ime())
-                }
-                binding.messageHolder.threadTypeMessage.requestApplyInsets()
+                showAttachmentPickerDialog()
             }
 
             if (intent.extras?.containsKey(THREAD_ATTACHMENT_URI) == true) {
@@ -694,6 +671,33 @@ class ThreadActivity : SimpleActivity() {
         }
 
         setupScheduleSendUi()
+    }
+
+    private fun showAttachmentPickerDialog() {
+        AttachmentPickerDialog { id ->
+            when (id) {
+                R.id.picker_image -> {
+                    try {
+                        launchGetContentIntent(arrayOf("image/*"), PICK_PHOTO_INTENT)
+                    } catch (e: Exception) {
+                        toast(org.fossify.commons.R.string.unknown_error_occurred)
+                    }
+                }
+                R.id.picker_video -> launchGetContentIntent(arrayOf("video/*"), PICK_VIDEO_INTENT)
+                R.id.picker_camera -> launchCapturePhotoIntent()
+                R.id.picker_camera_video -> launchCaptureVideoIntent()
+                R.id.picker_audio -> launchCaptureAudioIntent()
+                R.id.picker_file -> launchGetContentIntent(arrayOf("*/*"), PICK_DOCUMENT_INTENT)
+                R.id.picker_contact -> launchPickContactIntent()
+                R.id.picker_schedule -> {
+                    if (isScheduledMessage) {
+                        launchScheduleSendDialog(scheduledDateTime)
+                    } else {
+                        launchScheduleSendDialog()
+                    }
+                }
+            }
+        }.show(supportFragmentManager, AttachmentPickerDialog.TAG)
     }
 
     private fun askForExactAlarmPermissionIfNeeded(callback: () -> Unit = {}) {
@@ -1322,25 +1326,10 @@ class ThreadActivity : SimpleActivity() {
                 } else {
                     getDefaultKeyboardHeight()
                 }
-                hideAttachmentPicker()
-            } else if (isAttachmentPickerVisible) {
-                showAttachmentPicker()
             }
 
             insets
         }
-    }
-
-    private fun showAttachmentPicker() {
-        binding.messageHolder.attachmentPickerDivider.showWithAnimation()
-        binding.messageHolder.attachmentPickerHolder.showWithAnimation()
-        animateAttachmentButton(rotation = -135f)
-    }
-
-    private fun hideAttachmentPicker() {
-        binding.messageHolder.attachmentPickerDivider.beGone()
-        binding.messageHolder.attachmentPickerHolder.beGone()
-        animateAttachmentButton(rotation = 0f)
     }
 
     private fun animateAttachmentButton(rotation: Float) {
@@ -1361,59 +1350,6 @@ class ThreadActivity : SimpleActivity() {
         resources.getColor(org.fossify.commons.R.color.you_bottom_bar_color)
     } else {
         getBottomNavigationBackgroundColor()
-    }
-
-    private fun setupAttachmentPickerView() {
-        binding.messageHolder.attachmentPicker.apply {
-            val textColor = Color.WHITE
-            listOf(
-                choosePhotoText,
-                chooseVideoText,
-                takePhotoText,
-                recordVideoText,
-                recordAudioText,
-                pickFileText,
-                pickContactText,
-                scheduleMessageText
-            ).forEach { it.setTextColor(textColor) }
-
-            val imageClickListener = View.OnClickListener {
-                try {
-                    launchGetContentIntent(arrayOf("image/*"), PICK_PHOTO_INTENT)
-                } catch (e: Exception) {
-                    toast(org.fossify.commons.R.string.unknown_error_occurred)
-                }
-            }
-            choosePhoto.setOnClickListener(imageClickListener)
-            choosePhotoIcon.setOnClickListener(imageClickListener)
-            choosePhotoText.setOnClickListener(imageClickListener)
-
-            chooseVideo.setOnClickListener {
-                launchGetContentIntent(arrayOf("video/*"), PICK_VIDEO_INTENT)
-            }
-            takePhoto.setOnClickListener {
-                launchCapturePhotoIntent()
-            }
-            recordVideo.setOnClickListener {
-                launchCaptureVideoIntent()
-            }
-            recordAudio.setOnClickListener {
-                launchCaptureAudioIntent()
-            }
-            pickFile.setOnClickListener {
-                launchGetContentIntent(arrayOf("*/*"), PICK_DOCUMENT_INTENT)
-            }
-            pickContact.setOnClickListener {
-                launchPickContactIntent()
-            }
-            scheduleMessage.setOnClickListener {
-                if (isScheduledMessage) {
-                    launchScheduleSendDialog(scheduledDateTime)
-                } else {
-                    launchScheduleSendDialog()
-                }
-            }
-        }
     }
 
     private fun launchGetContentIntent(types: Array<String>, requestCode: Int) {
