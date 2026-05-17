@@ -13,7 +13,7 @@ class Config(context: Context) : BaseConfig(context) {
         // FINAL ABSOLUTE DEFAULTS
         val DEFAULT_DARK_GREY = Color.parseColor("#333333")
         val DEFAULT_LIGHT_GREY = Color.parseColor("#E0E0E0")
-        val DEFAULT_SENT_GREY = Color.parseColor("#777777") // Slightly lighter than the previous #555555
+        val DEFAULT_SENT_GREY = Color.parseColor("#D8D8D8") // Even lighter grey, very close to receiver bubble
     }
 
     fun saveUseSIMIdAtNumber(number: String, SIMId: Int) {
@@ -196,7 +196,7 @@ class Config(context: Context) : BaseConfig(context) {
         set(receivedBubbleColor) = prefs.edit().putInt(RECEIVED_BUBBLE_COLOR, receivedBubbleColor).apply()
 
     var sentBubbleTextColor: Int
-        get() = prefs.getInt(SENT_BUBBLE_TEXT_COLOR, Color.WHITE)
+        get() = prefs.getInt(SENT_BUBBLE_TEXT_COLOR, Color.BLACK)
         set(sentBubbleTextColor) = prefs.edit().putInt(SENT_BUBBLE_TEXT_COLOR, sentBubbleTextColor).apply()
 
     var receivedBubbleTextColor: Int

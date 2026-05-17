@@ -4,12 +4,10 @@ import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.res.ColorStateList
 import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
-import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
@@ -17,19 +15,15 @@ import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.widget.Toolbar
+import androidx.core.graphics.toColorInt
 import androidx.core.view.updateLayoutParams
 import com.google.android.material.appbar.AppBarLayout
 import org.fossify.commons.activities.BaseSimpleActivity
-import org.fossify.commons.helpers.FONT_SIZE_EXTRA_LARGE
-import org.fossify.commons.helpers.FONT_SIZE_LARGE
-import org.fossify.commons.helpers.FONT_SIZE_MEDIUM
-import org.fossify.commons.helpers.FONT_SIZE_SMALL
-import org.fossify.commons.helpers.FontHelper
 import org.fossify.commons.helpers.isRPlus
 import org.fossify.commons.extensions.getTextSize
 import org.nova.messages.R
 import org.nova.messages.extensions.config
-import org.nova.messages.helpers.Config
+import kotlin.math.max
 
 open class SimpleActivity : BaseSimpleActivity() {
 
@@ -42,8 +36,8 @@ open class SimpleActivity : BaseSimpleActivity() {
             val methodName = element.methodName
             
             if (className.contains("org.fossify.commons")) {
-                if (methodName == "onCreate" || 
-                    methodName == "appLaunched" || 
+                if ((methodName == "onCreate") || 
+                    (methodName == "appLaunched") || 
                     methodName.contains("Warning") || 
                     methodName.contains("Sideload") ||
                     methodName.contains("Security")) {
@@ -52,7 +46,7 @@ open class SimpleActivity : BaseSimpleActivity() {
             }
 
             if (className.startsWith("android.app.") || 
-                className.startsWith("androidx.startup.") ||
+                className.startsWith("androidx.") ||
                 className.startsWith("android.content.pm.")) {
                 break
             }
@@ -67,9 +61,15 @@ open class SimpleActivity : BaseSimpleActivity() {
             val className = element.className
             val methodName = element.methodName
             
+            if (className.startsWith("android.app.") || 
+                className.startsWith("androidx.") ||
+                className.startsWith("android.content.pm.")) {
+                break
+            }
+
             if (className.contains("org.fossify.commons")) {
-                if (methodName == "onCreate" || 
-                    methodName == "appLaunched" || 
+                if ((methodName == "onCreate") || 
+                    (methodName == "appLaunched") || 
                     methodName.contains("Warning") || 
                     methodName.contains("Sideload") ||
                     methodName.contains("Security")) {
@@ -77,12 +77,6 @@ open class SimpleActivity : BaseSimpleActivity() {
                     spoofedInfo.packageName = "org.fossify.messages"
                     return spoofedInfo
                 }
-            }
-
-            if (className.startsWith("android.app.") || 
-                className.startsWith("androidx.startup.") ||
-                className.startsWith("android.content.pm.")) {
-                break
             }
         }
         return info
@@ -108,7 +102,7 @@ open class SimpleActivity : BaseSimpleActivity() {
     fun setupScaledToolbar(toolbar: Toolbar) {
         val baseHeight = 70.getScaledPx()
         val minHeightRequired = (48 * resources.displayMetrics.density).toInt()
-        val finalHeight = Math.max(baseHeight, minHeightRequired)
+        val finalHeight = max(baseHeight, minHeightRequired)
         
         toolbar.updateLayoutParams {
             height = finalHeight
@@ -116,8 +110,7 @@ open class SimpleActivity : BaseSimpleActivity() {
     }
 
     fun getCustomTypeface(): android.graphics.Typeface {
-        val fontFamily = config.fontFamilyNova
-        return when (fontFamily) {
+        return when (config.fontFamilyNova) {
             1 -> android.graphics.Typeface.SERIF
             2 -> android.graphics.Typeface.MONOSPACE
             3 -> android.graphics.Typeface.create("cursive", android.graphics.Typeface.NORMAL)
@@ -149,9 +142,9 @@ open class SimpleActivity : BaseSimpleActivity() {
                 view.setTextColor(config.mainTextColor)
             }
         }
-        if (view is ViewGroup) {
-            for (i in 0 until view.childCount) {
-                updateAppFonts(view.getChildAt(i))
+        (view as? ViewGroup)?.let {
+            for (i in 0 until it.childCount) {
+                updateAppFonts(it.getChildAt(i))
             }
         }
     }
@@ -169,8 +162,13 @@ open class SimpleActivity : BaseSimpleActivity() {
         }
         
         // 2. Apply top bar color (HARD RECURSIVE SHAPE GUARD)
-        val appBar = findViewById<AppBarLayout>(R.id.settings_appbar) ?: findViewById<AppBarLayout>(R.id.thread_appbar) ?: findViewById<AppBarLayout>(R.id.main_appbar)
-        val toolbar = findViewById<Toolbar>(R.id.settings_toolbar) ?: findViewById<Toolbar>(R.id.thread_toolbar) ?: findViewById<Toolbar>(R.id.main_toolbar)
+        val appBar = findViewById<AppBarLayout>(R.id.settings_appbar) ?: 
+                     findViewById<AppBarLayout>(R.id.thread_appbar) ?: 
+                     findViewById<AppBarLayout>(R.id.main_appbar)
+                     
+        val toolbar = findViewById<Toolbar>(R.id.settings_toolbar) ?: 
+                      findViewById<Toolbar>(R.id.thread_toolbar) ?: 
+                      findViewById<Toolbar>(R.id.main_toolbar)
         
         if (appBar != null) {
             val barColor = if (config.topBarColor != -1) config.topBarColor else Color.BLACK
@@ -228,14 +226,14 @@ open class SimpleActivity : BaseSimpleActivity() {
         // 5. Targeted EditText coloring for live typed text
         val inputEditTexts = listOfNotNull(
             findViewById<EditText>(R.id.nova_search_input),
-            findViewById<EditText>(R.id.thread_type_message)
+            findViewById<EditText>(R.id.thread_type_message),
         )
         
         val textColorCSL = ColorStateList.valueOf(config.inputBarTextColor)
         for (et in inputEditTexts) {
             et.setTextColor(textColorCSL)
             val hintColor = if (config.inputBarTextColor == Color.WHITE) {
-                Color.parseColor("#888888")
+                "#888888".toColorInt()
             } else {
                 config.inputBarTextColor.withAlpha(0.6f)
             }
@@ -274,9 +272,9 @@ open class SimpleActivity : BaseSimpleActivity() {
             view.setBackgroundColor(Color.TRANSPARENT)
         }
         
-        if (view is ViewGroup) {
-            for (i in 0 until view.childCount) {
-                forceTransparentContainers(view.getChildAt(i))
+        (view as? ViewGroup)?.let {
+            for (i in 0 until it.childCount) {
+                forceTransparentContainers(it.getChildAt(i))
             }
         }
     }
@@ -322,7 +320,7 @@ open class SimpleActivity : BaseSimpleActivity() {
                 if (maxRefreshRate > 60f) {
                     window.attributes.preferredRefreshRate = maxRefreshRate
                 }
-            } catch (ignored: Exception) {
+            } catch (_: Exception) {
             }
         }
     }

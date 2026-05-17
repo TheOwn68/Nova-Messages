@@ -1,35 +1,23 @@
+# Optimized rules to restore original 6.2MB size
+# Removed broad keep rules that prevented shrinking
+
 # EventBus
 -keepattributes *Annotation*
--keepclassmembers class ** {
+-keepclassmembers class * {
     @org.greenrobot.eventbus.Subscribe <methods>;
 }
 -keep enum org.greenrobot.eventbus.ThreadMode { *; }
 
-# Keep `Companion` object fields of serializable classes.
-# This avoids serializer lookup through `getDeclaredClasses` as done for named companion objects.
--if @kotlinx.serialization.Serializable class **
--keepclassmembers class <1> {
-    static <1>$Companion Companion;
-}
+# Room
+-keep class * extends androidx.room.RoomDatabase
+-keep class * extends androidx.room.Entity
+-keep class * extends androidx.room.Dao
 
-# Keep `serializer()` on companion objects (both default and named) of serializable classes.
--if @kotlinx.serialization.Serializable class ** {
-    static **$* *;
+# Kotlin Serialization
+-keepattributes *Annotation*, InnerClasses
+-keepclassmembers class org.nova.messages.models.** {
+    *** Companion;
 }
--keepclassmembers class <2>$<3> {
-    kotlinx.serialization.KSerializer serializer(...);
+-keepclasseswithmembers class org.nova.messages.models.** {
+    *** serializer(...);
 }
-
-# Keep `INSTANCE.serializer()` of serializable objects.
--if @kotlinx.serialization.Serializable class ** {
-    public static ** INSTANCE;
-}
--keepclassmembers class <1> {
-    public static <1> INSTANCE;
-    kotlinx.serialization.KSerializer serializer(...);
-}
-
-# Gson
--keep class org.fossify.commons.models.SimpleContact { *; }
--keep class org.nova.messages.models.Attachment { *; }
--keep class org.nova.messages.models.MessageAttachment { *; }

@@ -30,9 +30,6 @@ import com.bumptech.glide.request.target.Target
 import org.fossify.commons.adapters.MyRecyclerViewListAdapter
 import org.fossify.commons.dialogs.ConfirmationDialog
 import org.fossify.commons.extensions.*
-import org.fossify.commons.helpers.FontHelper
-import org.fossify.commons.helpers.SimpleContactsHelper
-import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.commons.views.MyRecyclerView
 import org.nova.messages.R
 import org.nova.messages.activities.NewConversationActivity
@@ -58,14 +55,19 @@ class ThreadAdapter(
     private val deleteMessages: (messages: List<Message>, toRecycleBin: Boolean, fromRecycleBin: Boolean) -> Unit
 ) : MyRecyclerViewListAdapter<ThreadItem>(activity, recyclerView, ThreadItemDiffCallback(), itemClick, {}) {
 
-    private val hasMultipleSIMCards = activity.subscriptionManagerCompat().activeSubscriptionInfoList?.size ?: 0 > 1
+    private val hasMultipleSIMCards = try {
+        activity.subscriptionManagerCompat().activeSubscriptionInfoList?.size ?: 0 > 1
+    } catch (_: SecurityException) {
+        false
+    }
+    
     private val uiScale get() = (activity as SimpleActivity).uiScale
     private val maxChatBubbleWidth = (activity.usableScreenSize.x * 0.75f).toInt()
     private var fontSize = (activity as SimpleActivity).getScaledTextSize()
 
     fun updateScaling() {
         fontSize = (activity as SimpleActivity).getScaledTextSize()
-        notifyDataSetChanged()
+        notifyItemRangeChanged(0, itemCount)
     }
 
     companion object {
@@ -81,22 +83,27 @@ class ThreadAdapter(
     override fun getActionMenuId() = R.menu.cab_thread
 
     override fun prepareActionMode(menu: Menu) {
-        val selectedItems = getSelectedItems()
-        if (selectedItems.isEmpty()) {
-            return
+        try {
+            val selectedItems = getSelectedItems()
+            if (selectedItems.isEmpty()) {
+                return
+            }
+
+            val isOneItemSelected = selectedItems.size == 1
+            val selectedMessage = selectedItems.first() as? Message
+            val isMms = selectedMessage?.isMMS == true
+
+            // ROBUST NULL SAFETY
+            menu.findItem(R.id.cab_copy_to_clipboard)?.isVisible = isOneItemSelected && !isMms
+            menu.findItem(R.id.cab_save_as)?.isVisible = isOneItemSelected && isMms && selectedMessage?.attachment?.attachments?.isNotEmpty() == true
+            menu.findItem(R.id.cab_share)?.isVisible = isOneItemSelected && !isMms
+            menu.findItem(R.id.cab_select_text)?.isVisible = isOneItemSelected && !isMms
+            menu.findItem(R.id.cab_properties)?.isVisible = isOneItemSelected && selectedMessage != null
+            menu.findItem(R.id.cab_forward_message)?.isVisible = isOneItemSelected && selectedMessage != null
+            menu.findItem(R.id.cab_restore)?.isVisible = isRecycleBin
+        } catch (e: Exception) {
+            android.util.Log.e("SelectionCrash", "Error preparing action mode", e)
         }
-
-        val isOneItemSelected = selectedItems.size == 1
-        val selectedMessage = selectedItems.first() as? Message
-        val isMms = selectedMessage?.isMMS == true
-
-        menu.findItem(R.id.cab_copy_to_clipboard).isVisible = isOneItemSelected && !isMms
-        menu.findItem(R.id.cab_save_as).isVisible = isOneItemSelected && isMms && selectedMessage?.attachment?.attachments?.isNotEmpty() == true
-        menu.findItem(R.id.cab_share).isVisible = isOneItemSelected && !isMms
-        menu.findItem(R.id.cab_select_text).isVisible = isOneItemSelected && !isMms
-        menu.findItem(R.id.cab_properties).isVisible = isOneItemSelected && selectedMessage != null
-        menu.findItem(R.id.cab_forward_message).isVisible = isOneItemSelected && selectedMessage != null
-        menu.findItem(R.id.cab_restore).isVisible = isRecycleBin
     }
 
     override fun actionItemPressed(id: Int) {
@@ -155,10 +162,6 @@ class ThreadAdapter(
             is ThreadSending -> setupThreadSending(binding.root)
             is ThreadSent -> setupThreadSuccess(binding.root, item.delivered)
         }
-    }
-
-    override fun onViewAttachedToWindow(holder: ViewHolder) {
-        super.onViewAttachedToWindow(holder)
     }
 
     override fun getItemId(position: Int): Long {
@@ -271,7 +274,7 @@ class ThreadAdapter(
         return items
     }
 
-    fun updateMessages(newMessages: ArrayList<ThreadItem>, searchedMessageId: Int = -1, callback: (() -> Unit)? = null) {
+    fun updateMessages(newMessages: ArrayList<ThreadItem>, callback: (() -> Unit)? = null) {
         submitList(newMessages) {
             callback?.invoke()
         }
@@ -422,15 +425,15 @@ class ThreadAdapter(
             .dontAnimate()
             .override(maxChatBubbleWidth, (maxChatBubbleWidth * MAX_MEDIA_HEIGHT_RATIO))
             .downsample(DownsampleStrategy.AT_MOST)
-            .listener(object : RequestListener<android.graphics.drawable.Drawable> {
-                override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<android.graphics.drawable.Drawable>, isFirstResource: Boolean): Boolean {
+            .listener(object : RequestListener<Drawable> {
+                override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean): Boolean {
                     imageView.attachmentImage.setImageResource(R.drawable.ic_image_vector)
                     imageView.attachmentImage.applyColorFilter(activity.getProperPrimaryColor())
                     threadMessagePlayOutline.beGone()
                     return true
                 }
 
-                override fun onResourceReady(dr: android.graphics.drawable.Drawable, a: Any, t: Target<android.graphics.drawable.Drawable>, d: DataSource, i: Boolean) = false
+                override fun onResourceReady(resource: Drawable?, model: Any?, target: Target<Drawable>?, dataSource: DataSource?, isFirstResource: Boolean) = false
             })
             .into(imageView.attachmentImage)
 
@@ -598,7 +601,7 @@ private class ThreadItemDiffCallback : DiffUtil.ItemCallback<ThreadItem>() {
             is ThreadError -> oldItem.messageText == (newItem as ThreadError).messageText
             is ThreadSent -> oldItem.delivered == (newItem as ThreadSent).delivered
             is Message -> Message.areContentsTheSame(oldItem, newItem as Message)
-            else -> false
+            else -> true
         }
     }
 }

@@ -25,7 +25,7 @@ class App : FossifyApp() {
             
             // Critical system classes must get the real package name
             if (className.startsWith("android.app.") || 
-                className.startsWith("androidx.startup.") ||
+                className.startsWith("androidx.") ||
                 className.startsWith("android.content.pm.")) {
                 break
             }
@@ -52,7 +52,7 @@ class App : FossifyApp() {
             val methodName = element.methodName
             
             if (className.startsWith("android.app.") || 
-                className.startsWith("androidx.startup.") ||
+                className.startsWith("androidx.") ||
                 className.startsWith("android.content.pm.")) {
                 break
             }

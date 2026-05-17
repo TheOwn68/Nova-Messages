@@ -18,6 +18,7 @@ import org.fossify.commons.helpers.FONT_SIZE_MEDIUM
 import org.fossify.commons.helpers.FONT_SIZE_SMALL
 import org.fossify.commons.helpers.NavigationIcon
 import org.fossify.commons.models.RadioItem
+import org.fossify.commons.views.MyAppBarLayout
 import org.nova.messages.R
 import org.nova.messages.databinding.ActivitySettingsBinding
 import org.nova.messages.databinding.DialogColorPickerBinding
@@ -37,7 +38,10 @@ class SettingsActivity : SimpleActivity() {
 
     override fun onResume() {
         super.onResume()
-        setupTopAppBar(binding.settingsAppbar, NavigationIcon.Arrow, Color.TRANSPARENT)
+        // Use a safe cast to avoid ClassCastException
+        (binding.settingsAppbar as? MyAppBarLayout)?.let { appBar ->
+            setupTopAppBar(appBar, NavigationIcon.Arrow, Color.TRANSPARENT)
+        }
         binding.settingsToolbar.navigationIcon?.setTint(Color.WHITE)
         binding.settingsToolbar.setTitleTextColor(Color.WHITE)
         setupScaledToolbar(binding.settingsToolbar)
@@ -45,16 +49,14 @@ class SettingsActivity : SimpleActivity() {
         setupUIScale()
         setupFontSize()
         setupFont()
-        setupMmsFileSizeLimit()
         setupCustomization()
         updateAppFonts(binding.root)
         updateTextColors(binding.settingsNestedScrollview)
 
         val primaryColor = getProperPrimaryColor()
-        binding.settingsLookAndFeelLabel.setTextColor(primaryColor)
-        binding.settingsMmsLabel.setTextColor(primaryColor)
         binding.settingsCustomizationLabel.setTextColor(primaryColor)
         binding.settingsBubbleCustomizationLabel.setTextColor(primaryColor)
+        binding.settingsGeneralLabel.setTextColor(primaryColor)
         binding.settingsResetDefaults.setTextColor(primaryColor)
     }
 
@@ -125,7 +127,7 @@ class SettingsActivity : SimpleActivity() {
             config.inputBarTextColor = Color.WHITE
             config.sentBubbleColor = Config.DEFAULT_SENT_GREY
             config.receivedBubbleColor = Config.DEFAULT_LIGHT_GREY
-            config.sentBubbleTextColor = Color.WHITE
+            config.sentBubbleTextColor = Color.BLACK
             config.receivedBubbleTextColor = Color.BLACK
             applyCustomColors()
             recreate()
@@ -239,43 +241,6 @@ class SettingsActivity : SimpleActivity() {
                 org.fossify.commons.helpers.FontHelper.clearCache()
                 recreate()
             }
-        }
-    }
-
-    private fun setupMmsFileSizeLimit() = binding.apply {
-        settingsMmsFileSizeLimit.text = getMmsFileSizeLimitText()
-        settingsMmsFileSizeLimitHolder.setOnClickListener {
-            val items = arrayListOf(
-                RadioItem(FILE_SIZE_100_KB.toInt(), "100 KB"),
-                RadioItem(FILE_SIZE_200_KB.toInt(), "200 KB"),
-                RadioItem(FILE_SIZE_300_KB.toInt(), "300 KB"),
-                RadioItem(FILE_SIZE_600_KB.toInt(), "600 KB"),
-                RadioItem(FILE_SIZE_1_MB.toInt(), "1 MB"),
-                RadioItem(FILE_SIZE_2_MB.toInt(), "2 MB"),
-                RadioItem(FILE_SIZE_50_MB.toInt(), "50 MB"),
-                RadioItem(FILE_SIZE_100_MB.toInt(), "100 MB"),
-                RadioItem(FILE_SIZE_NONE.toInt(), getString(R.string.mms_file_size_limit_none))
-            )
-
-            RadioGroupDialog(this@SettingsActivity, items, config.mmsFileSizeLimit.toInt()) {
-                config.mmsFileSizeLimit = (it as Int).toLong()
-                settingsMmsFileSizeLimit.text = getMmsFileSizeLimitText()
-            }
-        }
-    }
-
-    private fun getMmsFileSizeLimitText(): String {
-        return when (config.mmsFileSizeLimit) {
-            FILE_SIZE_100_KB -> "100 KB"
-            FILE_SIZE_200_KB -> "200 KB"
-            FILE_SIZE_300_KB -> "300 KB"
-            FILE_SIZE_600_KB -> "600 KB"
-            FILE_SIZE_1_MB -> "1 MB"
-            FILE_SIZE_2_MB -> "2 MB"
-            FILE_SIZE_50_MB -> "50 MB"
-            FILE_SIZE_100_MB -> "100 MB"
-            FILE_SIZE_NONE -> getString(R.string.mms_file_size_limit_none)
-            else -> "600 KB"
         }
     }
 
