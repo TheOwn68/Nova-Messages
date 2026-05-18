@@ -58,7 +58,7 @@ class SettingsActivity : SimpleActivity() {
         binding.settingsBubbleCustomizationLabel.setTextColor(primaryColor)
         binding.settingsGeneralLabel.setTextColor(primaryColor)
         binding.settingsResetDefaults.setTextColor(primaryColor)
-        
+
         applyCustomColors()
     }
 

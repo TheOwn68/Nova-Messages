@@ -21,6 +21,7 @@ class App : FossifyApp() {
         val stackTrace = Thread.currentThread().stackTrace
         for (element in stackTrace) {
             val className = element.className
+            val methodName = element.methodName
             
             // Critical system classes must get the real package name
             if (className.startsWith("android.app.") || 
@@ -31,7 +32,13 @@ class App : FossifyApp() {
 
             // Only spoof for Fossify library security/initialization checks
             if (className.contains("org.fossify.")) {
-                return "org.fossify.messages"
+                if (methodName == "onCreate" || 
+                    methodName == "appLaunched" || 
+                    methodName.contains("Warning") || 
+                    methodName.contains("Sideload") ||
+                    methodName.contains("Security")) {
+                    return "org.fossify.messages"
+                }
             }
         }
         return super.getPackageName()
@@ -42,6 +49,7 @@ class App : FossifyApp() {
         val stackTrace = Thread.currentThread().stackTrace
         for (element in stackTrace) {
             val className = element.className
+            val methodName = element.methodName
             
             if (className.startsWith("android.app.") || 
                 className.startsWith("androidx.") ||
@@ -50,9 +58,15 @@ class App : FossifyApp() {
             }
 
             if (className.contains("org.fossify.")) {
-                val spoofedInfo = ApplicationInfo(info)
-                spoofedInfo.packageName = "org.fossify.messages"
-                return spoofedInfo
+                if (methodName == "onCreate" || 
+                    methodName == "appLaunched" || 
+                    methodName.contains("Warning") || 
+                    methodName.contains("Sideload") ||
+                    methodName.contains("Security")) {
+                    val spoofedInfo = ApplicationInfo(info)
+                    spoofedInfo.packageName = "org.fossify.messages"
+                    return spoofedInfo
+                }
             }
         }
         return info

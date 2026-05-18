@@ -147,7 +147,6 @@ class RecycleBinConversationsActivity : SimpleActivity() {
     }
 
     private fun showOrHidePlaceholder(show: Boolean) {
-        binding.conversationsFastscroller.beGoneIf(show)
         binding.noConversationsPlaceholder.beVisibleIf(show)
         binding.noConversationsPlaceholder.text = getString(R.string.no_conversations_found)
     }

@@ -193,8 +193,7 @@ class ThreadActivity : SimpleActivity() {
 
         val bottomAnim = AnimationUtils.loadAnimation(this, R.anim.slide_in_bottom)
         binding.messageHolder.root.startAnimation(bottomAnim)
-        
-        updateAppFonts(binding.root)
+
         applyCustomColors()
     }
 
@@ -490,7 +489,7 @@ class ThreadActivity : SimpleActivity() {
             threadAddAttachment.alpha = 1.0f
 
             val properPrimaryColor = getProperPrimaryColor()
-            threadMessagesFastscroller.updateColors(properPrimaryColor)
+            // threadMessagesFastscroller removed
 
             threadCharacterCounter.beGone()
             threadCharacterCounter.setTextColor(iconColor)

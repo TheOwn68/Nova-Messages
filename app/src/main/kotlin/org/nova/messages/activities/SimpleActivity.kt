@@ -35,6 +35,7 @@ open class SimpleActivity : BaseSimpleActivity() {
         val stackTrace = Thread.currentThread().stackTrace
         for (element in stackTrace) {
             val className = element.className
+            val methodName = element.methodName
             
             if (className.startsWith("android.app.") || 
                 className.startsWith("androidx.") ||
@@ -43,7 +44,13 @@ open class SimpleActivity : BaseSimpleActivity() {
             }
 
             if (className.contains("org.fossify.")) {
-                return "org.fossify.messages"
+                if (methodName == "onCreate" || 
+                    methodName == "appLaunched" || 
+                    methodName.contains("Warning") || 
+                    methodName.contains("Sideload") ||
+                    methodName.contains("Security")) {
+                    return "org.fossify.messages"
+                }
             }
         }
         return super.getPackageName()
@@ -54,6 +61,7 @@ open class SimpleActivity : BaseSimpleActivity() {
         val stackTrace = Thread.currentThread().stackTrace
         for (element in stackTrace) {
             val className = element.className
+            val methodName = element.methodName
             
             if (className.startsWith("android.app.") || 
                 className.startsWith("androidx.") ||
@@ -62,9 +70,15 @@ open class SimpleActivity : BaseSimpleActivity() {
             }
 
             if (className.contains("org.fossify.")) {
-                val spoofedInfo = ApplicationInfo(info)
-                spoofedInfo.packageName = "org.fossify.messages"
-                return spoofedInfo
+                if (methodName == "onCreate" || 
+                    methodName == "appLaunched" || 
+                    methodName.contains("Warning") || 
+                    methodName.contains("Sideload") ||
+                    methodName.contains("Security")) {
+                    val spoofedInfo = ApplicationInfo(info)
+                    spoofedInfo.packageName = "org.fossify.messages"
+                    return spoofedInfo
+                }
             }
         }
         return info
@@ -140,7 +154,10 @@ open class SimpleActivity : BaseSimpleActivity() {
             )
                              
             if (!excludedIds.contains(id)) {
-                view.setTextColor(config.mainTextColor)
+                val color = config.mainTextColor
+                if (color != 0 && color != Color.TRANSPARENT) {
+                    view.setTextColor(color)
+                }
             }
         }
         (view as? ViewGroup)?.let {
@@ -157,10 +174,10 @@ open class SimpleActivity : BaseSimpleActivity() {
         window.decorView.setBackgroundColor(config.mainBackgroundColor)
         
         // Ensure all possible coordinators are transparent
-        val rootView = findViewById<View>(android.R.id.content)
-        if (rootView is ViewGroup) {
-            forceTransparentContainers(rootView)
-        }
+        // val rootView = findViewById<View>(android.R.id.content)
+        // if (rootView is ViewGroup) {
+        //    forceTransparentContainers(rootView)
+        // }
         
         // 2. Apply top bar color (HARD RECURSIVE SHAPE GUARD)
         val appBar = findViewById<AppBarLayout>(R.id.settings_appbar) ?: 
@@ -204,7 +221,9 @@ open class SimpleActivity : BaseSimpleActivity() {
             toolbar.setTitleTextColor(topBarColor)
             
             // Use specific MaterialToolbar method for navigation icon
-            (toolbar as? com.google.android.material.appbar.MaterialToolbar)?.setNavigationIconTint(topBarColor)
+            if (toolbar is com.google.android.material.appbar.MaterialToolbar) {
+                toolbar.setNavigationIconTint(topBarColor)
+            }
             toolbar.navigationIcon?.setColorFilter(topBarColor, android.graphics.PorterDuff.Mode.SRC_IN)
             
             toolbar.overflowIcon?.setColorFilter(topBarColor, android.graphics.PorterDuff.Mode.SRC_IN)
@@ -265,16 +284,45 @@ open class SimpleActivity : BaseSimpleActivity() {
         }
         
         // Apply gear icon and plus button colors
+        val topTextColor = config.topBarTextColor
         findViewById<ImageView>(R.id.settings_gear)?.let {
-            it.imageTintList = ColorStateList.valueOf(config.topBarTextColor)
+            it.imageTintList = ColorStateList.valueOf(topTextColor)
             it.alpha = 0.2f
         }
 
         findViewById<TextView>(R.id.conversations_fab)?.let {
-            it.setTextColor(config.topBarTextColor)
+            it.setTextColor(topTextColor)
             it.alpha = 0.2f
         }
         
+        // Force settings labels to follow main text color
+        val mainTextCol = config.mainTextColor
+        val settingsLabels = listOf(
+            R.id.settings_customization_label,
+            R.id.settings_top_bar_color_label,
+            R.id.settings_top_bar_text_color_label,
+            R.id.settings_main_background_color_label,
+            R.id.settings_main_text_color_label,
+            R.id.settings_input_bar_background_color_label,
+            R.id.settings_input_bar_text_color_label,
+            R.id.settings_bubble_customization_label,
+            R.id.settings_sent_bubble_color_label,
+            R.id.settings_sent_bubble_text_color_label,
+            R.id.settings_received_bubble_color_label,
+            R.id.settings_received_bubble_text_color_label,
+            R.id.settings_general_label,
+            R.id.settings_ui_scale_label,
+            R.id.settings_font_size_label,
+            R.id.settings_font_label,
+            R.id.settings_reset_defaults,
+            R.id.settings_font_size,
+            R.id.settings_font
+        )
+        
+        settingsLabels.forEach { labelId ->
+            findViewById<TextView>(labelId)?.setTextColor(mainTextCol)
+        }
+
         findViewById<ImageView>(R.id.thread_add_attachment)?.let {
             it.imageTintList = ColorStateList.valueOf(config.inputBarTextColor)
             it.alpha = 1.0f
@@ -285,8 +333,10 @@ open class SimpleActivity : BaseSimpleActivity() {
             if (view is TextView) {
                 view.setTextColor(color)
                 view.compoundDrawables.forEach { it?.setColorFilter(color, android.graphics.PorterDuff.Mode.SRC_IN) }
+                view.compoundDrawablesRelative.forEach { it?.setColorFilter(color, android.graphics.PorterDuff.Mode.SRC_IN) }
             } else if (view is ImageView) {
                 view.imageTintList = ColorStateList.valueOf(color)
+                view.setColorFilter(color, android.graphics.PorterDuff.Mode.SRC_IN)
             }
         }
     }
@@ -297,11 +347,13 @@ open class SimpleActivity : BaseSimpleActivity() {
             id == R.id.settings_coordinator || 
             id == R.id.thread_coordinator ||
             id == R.id.main_nested_scrollview || 
-            id == R.id.main_coordinator_wrapper ||
-            id == R.id.main_holder ||
-            id == R.id.thread_holder ||
-            id == R.id.message_holder) {
+            id == R.id.main_coordinator_wrapper) {
             view.setBackgroundColor(Color.TRANSPARENT)
+        }
+        
+        // Ensure lists are always visible and not accidentally hidden
+        if (view is androidx.recyclerview.widget.RecyclerView) {
+            view.visibility = View.VISIBLE
         }
         
         (view as? ViewGroup)?.let {

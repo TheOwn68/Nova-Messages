@@ -83,9 +83,6 @@ class MainActivity : SimpleActivity() {
             updateDrafts()
         }
 
-        updateAppFonts(binding.root)
-        updateTextColors(binding.mainCoordinator)
-        applyCustomColors()
         binding.novaTitle.updateLayoutParams<Toolbar.LayoutParams> {
             marginEnd = 60.getScaledPx()
         }
@@ -224,9 +221,11 @@ class MainActivity : SimpleActivity() {
     // -----------------------------
     private fun initMessenger() {
         if (isFinishing || isDestroyed) return
-        val now = System.currentTimeMillis()
-        if (now - lastRefreshTime < 1000) return
-        lastRefreshTime = now
+        
+        // Removed 1000ms throttle to ensure immediate loading on launch
+        // val now = System.currentTimeMillis()
+        // if (now - lastRefreshTime < 1000) return
+        // lastRefreshTime = now
 
         try {
             if (!isInitialized) {
@@ -355,7 +354,6 @@ class MainActivity : SimpleActivity() {
     }
 
     private fun showOrHidePlaceholder(show: Boolean) {
-        binding.conversationsFastscroller.beGoneIf(show)
         binding.noConversationsPlaceholder.beVisibleIf(show)
         binding.noConversationsPlaceholder2.beVisibleIf(show)
     }

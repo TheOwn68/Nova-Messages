@@ -66,23 +66,15 @@
                     android:textStyle="italic"
                     android:visibility="gone" />
 
-                <com.qtalk.recyclerviewfastscroller.RecyclerViewFastScroller
-                    android:id="@+id/conversations_fastscroller"
+                <org.fossify.commons.views.MyRecyclerView
+                    android:id="@+id/conversations_list"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:visibility="gone">
-
-                    <org.fossify.commons.views.MyRecyclerView
-                        android:id="@+id/conversations_list"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:clipToPadding="false"
-                        android:layoutAnimation="@anim/layout_animation"
-                        android:overScrollMode="ifContentScrolls"
-                        android:scrollbars="none"
-                        app:layoutManager="org.fossify.commons.views.MyLinearLayoutManager" />
-
-                </com.qtalk.recyclerviewfastscroller.RecyclerViewFastScroller>
+                    android:layout_height="match_parent"
+                    android:clipToPadding="false"
+                    android:layoutAnimation="@anim/layout_animation"
+                    android:overScrollMode="ifContentScrolls"
+                    android:scrollbars="none"
+                    app:layoutManager="org.fossify.commons.views.MyLinearLayoutManager" />
             </RelativeLayout>
         </androidx.coordinatorlayout.widget.CoordinatorLayout>
     </RelativeLayout>

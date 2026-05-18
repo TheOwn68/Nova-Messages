@@ -144,17 +144,19 @@ abstract class BaseConversationsAdapter(
             val paddingStart = (activity as SimpleActivity).getScaledDimen(org.fossify.commons.R.dimen.activity_margin)
             val paddingTop = (activity as SimpleActivity).getScaledDimen(org.fossify.commons.R.dimen.medium_margin)
             root.setPadding(paddingStart, paddingTop, paddingStart, paddingTop)
+            
+            val currentMainTextColor = activity.config.mainTextColor
             val smsDraft = drafts[conversation.threadId]
             draftIndicator.apply {
                 beVisibleIf(!smsDraft.isNullOrEmpty())
-                setTextColor(properPrimaryColor)
+                setTextColor(currentMainTextColor)
                 setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize * 0.9f)
             }
 
             pinIndicator.beVisibleIf(
                 activity.config.pinnedConversations.contains(conversation.threadId.toString())
             )
-            pinIndicator.applyColorFilter(textColor)
+            pinIndicator.applyColorFilter(currentMainTextColor)
 
             conversationFrame.isSelected = selectedKeys.contains(conversation.hashCode())
 
@@ -193,8 +195,9 @@ abstract class BaseConversationsAdapter(
             draftIndicator.typeface = Typeface.create(customTypeface, Typeface.ITALIC)
 
             arrayListOf(conversationAddress, conversationBodyShort, conversationDate).forEach {
-                it.setTextColor(textColor)
+                it.setTextColor(currentMainTextColor)
             }
+            unreadCountBadge.setTextColor(currentMainTextColor)
 
             setupBadgeCount(unreadCountBadge, isUnread, conversation.unreadCount)
             // at group conversations we use an icon as the placeholder, not any letter

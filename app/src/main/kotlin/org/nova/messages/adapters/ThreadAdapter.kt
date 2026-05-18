@@ -283,9 +283,62 @@ class ThreadAdapter(
     private fun setupView(holder: ViewHolder, view: View, message: Message) {
         ItemMessageBinding.bind(view).apply {
             threadMessageHolder.isSelected = selectedKeys.contains(message.getSelectionKey())
+            threadMessageHolder.visibility = View.VISIBLE
+            threadMessageWrapper.visibility = View.VISIBLE
+
+            if (message.isReceivedMessage()) {
+                with(ConstraintSet()) {
+                    clone(threadMessageHolder)
+                    clear(threadMessageWrapper.id, ConstraintSet.END)
+                    connect(threadMessageWrapper.id, ConstraintSet.START, ConstraintSet.PARENT_ID, ConstraintSet.START)
+                    applyTo(threadMessageHolder)
+                }
+            } else {
+                with(ConstraintSet()) {
+                    clone(threadMessageHolder)
+                    clear(threadMessageWrapper.id, ConstraintSet.START)
+                    connect(threadMessageWrapper.id, ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END)
+                    applyTo(threadMessageHolder)
+                }
+            }
+
             threadMessageBody.apply {
+                val config = activity.config
+                val isReceived = message.isReceivedMessage()
+                val bgColor = if (isReceived) config.receivedBubbleColor else config.sentBubbleColor
+                val textColor = if (isReceived) config.receivedBubbleTextColor else config.sentBubbleTextColor
+                
+                updateLayoutParams<RelativeLayout.LayoutParams> {
+                    if (isReceived) {
+                        removeRule(RelativeLayout.ALIGN_PARENT_END)
+                        addRule(RelativeLayout.END_OF, R.id.thread_message_sender_photo)
+                    } else {
+                        removeRule(RelativeLayout.END_OF)
+                        addRule(RelativeLayout.ALIGN_PARENT_END)
+                    }
+                }
+                
+                // Safety: if background and text are too similar or transparent, use defaults
+                val finalTextColor = if (textColor == 0 || textColor == Color.TRANSPARENT || textColor == bgColor) {
+                    if (bgColor == Color.WHITE) Color.BLACK else Color.WHITE
+                } else {
+                    textColor
+                }
+
+                val backgroundDrawable = AppCompatResources.getDrawable(activity, if (message.isReceivedMessage()) R.drawable.item_received_background else R.drawable.item_sent_background)
+                if (backgroundDrawable is GradientDrawable) {
+                    backgroundDrawable.setColor(bgColor)
+                } else if (backgroundDrawable != null) {
+                    backgroundDrawable.applyColorFilter(bgColor)
+                }
+                background = backgroundDrawable
+                
+                setTextColor(finalTextColor)
+                alpha = 1.0f
+                setLinkTextColor(if (message.isReceivedMessage()) activity.getProperPrimaryColor() else finalTextColor)
+
                 text = message.body
-                beVisibleIf(message.body.isNotEmpty())
+                visibility = if (message.body.isNotEmpty()) View.VISIBLE else View.GONE
                 setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
                 
                 val customTypeface = (activity as SimpleActivity).getCustomTypeface()
@@ -300,12 +353,17 @@ class ThreadAdapter(
                 setOnClickListener {
                     holder.viewClicked(message)
                 }
-            }
 
-            if (message.isReceivedMessage()) {
-                setupReceivedMessageView(messageBinding = this)
-            } else {
-                setupSentMessageView(messageBinding = this, message = message)
+                if (!message.isReceivedMessage() && message.isScheduled) {
+                    val scheduledDrawable = AppCompatResources.getDrawable(activity, org.fossify.commons.R.drawable.ic_clock_vector)?.apply {
+                        applyColorFilter(finalTextColor)
+                        val size = lineHeight
+                        setBounds(0, 0, size, size)
+                    }
+                    setCompoundDrawables(null, null, scheduledDrawable, null)
+                } else {
+                    setCompoundDrawables(null, null, null, null)
+                }
             }
 
             if (message.attachment?.attachments?.isNotEmpty() == true) {
@@ -324,84 +382,6 @@ class ThreadAdapter(
             } else {
                 threadMessageAttachmentsHolder.beGone()
                 threadMessagePlayOutline.beGone()
-            }
-        }
-    }
-
-    private fun setupReceivedMessageView(messageBinding: ItemMessageBinding) {
-        messageBinding.apply {
-            with(ConstraintSet()) {
-                clone(threadMessageHolder)
-                clear(threadMessageWrapper.id, ConstraintSet.END)
-                connect(threadMessageWrapper.id, ConstraintSet.START, ConstraintSet.PARENT_ID, ConstraintSet.START)
-                applyTo(threadMessageHolder)
-            }
-
-            threadMessageSenderPhoto.beGone()
-            threadMessageCarrierWarning.beGone()
-
-            threadMessageBody.apply {
-                val backgroundDrawable = AppCompatResources.getDrawable(activity, R.drawable.item_received_background)
-                if (backgroundDrawable is GradientDrawable) {
-                    backgroundDrawable.setColor(activity.config.receivedBubbleColor)
-                } else if (backgroundDrawable != null) {
-                    backgroundDrawable.applyColorFilter(activity.config.receivedBubbleColor)
-                }
-                background = backgroundDrawable
-                
-                setTextColor(activity.config.receivedBubbleTextColor)
-                setLinkTextColor(activity.getProperPrimaryColor())
-
-                val customTypeface = (activity as SimpleActivity).getCustomTypeface()
-                typeface = Typeface.create(customTypeface, Typeface.NORMAL)
-            }
-        }
-    }
-
-    private fun setupSentMessageView(messageBinding: ItemMessageBinding, message: Message) {
-        messageBinding.apply {
-            with(ConstraintSet()) {
-                clone(threadMessageHolder)
-                clear(threadMessageWrapper.id, ConstraintSet.START)
-                connect(threadMessageWrapper.id, ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END)
-                applyTo(threadMessageHolder)
-            }
-
-            val hasImage = message.attachment?.attachments?.any { it.mimetype.isImageMimeType() } == true
-            threadMessageCarrierWarning.beVisibleIf(hasImage)
-
-            threadMessageBody.apply {
-                updateLayoutParams<RelativeLayout.LayoutParams> {
-                    removeRule(RelativeLayout.END_OF)
-                    addRule(RelativeLayout.ALIGN_PARENT_END)
-                }
-
-                val backgroundDrawable = AppCompatResources.getDrawable(activity, R.drawable.item_sent_background)
-                if (backgroundDrawable is GradientDrawable) {
-                    backgroundDrawable.setColor(activity.config.sentBubbleColor)
-                } else if (backgroundDrawable != null) {
-                    backgroundDrawable.applyColorFilter(activity.config.sentBubbleColor)
-                }
-                background = backgroundDrawable
-
-                setTextColor(activity.config.sentBubbleTextColor)
-                setLinkTextColor(activity.config.sentBubbleTextColor)
-
-                val customTypeface = (activity as SimpleActivity).getCustomTypeface()
-                val style = if (message.isScheduled) Typeface.ITALIC else Typeface.NORMAL
-                typeface = Typeface.create(customTypeface, style)
-
-                if (message.isScheduled) {
-                    val scheduledDrawable = AppCompatResources.getDrawable(activity, org.fossify.commons.R.drawable.ic_clock_vector)?.apply {
-                        applyColorFilter(activity.config.sentBubbleTextColor)
-                        val size = lineHeight
-                        setBounds(0, 0, size, size)
-                    }
-
-                    setCompoundDrawables(null, null, scheduledDrawable, null)
-                } else {
-                    setCompoundDrawables(null, null, null, null)
-                }
             }
         }
     }
@@ -503,6 +483,7 @@ class ThreadAdapter(
     private fun setupDateTime(view: View, dateTime: ThreadDateTime) {
         ItemThreadDateTimeBinding.bind(view).apply {
             threadDateTime.apply {
+                visibility = View.VISIBLE
                 text = (dateTime.date * 1000L).formatDateOrTime(
                     context = context,
                     hideTimeOnOtherDays = false,
@@ -512,14 +493,20 @@ class ThreadAdapter(
                 val customTypeface = (activity as SimpleActivity).getCustomTypeface()
                 typeface = Typeface.create(customTypeface, Typeface.NORMAL)
             }
-            threadDateTime.setTextColor(activity.getProperTextColor())
+            
+            val dateTimeColor = activity.config.mainTextColor
+            if (dateTimeColor != 0 && dateTimeColor != Color.TRANSPARENT) {
+                threadDateTime.setTextColor(dateTimeColor)
+                threadDateTime.alpha = 1.0f
+            }
 
             threadSimIcon.beVisibleIf(hasMultipleSIMCards)
             threadSimNumber.beVisibleIf(hasMultipleSIMCards)
             if (hasMultipleSIMCards) {
                 threadSimNumber.text = dateTime.simID
-                threadSimNumber.setTextColor(activity.getProperTextColor().getContrastColor())
-                threadSimIcon.applyColorFilter(activity.getProperTextColor())
+                val contrastColor = if (dateTimeColor == 0 || dateTimeColor == Color.TRANSPARENT) Color.BLACK else dateTimeColor.getContrastColor()
+                threadSimNumber.setTextColor(contrastColor)
+                threadSimIcon.applyColorFilter(dateTimeColor)
                 threadSimNumber.setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize * 0.6f)
                 
                 threadSimIcon.updateLayoutParams {
