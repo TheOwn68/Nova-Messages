@@ -175,13 +175,15 @@
             android:id="@+id/thread_send_message"
             android:layout_width="@dimen/normal_icon_size"
             android:layout_height="@dimen/normal_icon_size"
+            android:layout_gravity="center_vertical"
             android:alpha="0.4"
             android:background="?selectableItemBackgroundBorderless"
             android:clickable="false"
             android:contentDescription="@string/ok"
-            android:drawableTop="@drawable/ic_send_vector"
-            android:paddingVertical="@dimen/small_margin"
-            android:text="@string/sms"
+            android:drawableStart="@drawable/ic_send_vector"
+            android:gravity="center"
+            android:padding="0dp"
+            android:text=""
             android:textColor="@android:color/white"
             android:textSize="@dimen/smaller_text_size" />
 

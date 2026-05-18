@@ -18,8 +18,7 @@
             android:id="@+id/settings_toolbar"
             android:layout_width="match_parent"
             android:layout_height="70dp"
-            android:background="@android:color/transparent"
-            app:navigationIconTint="#FFFFFF">
+            android:background="@android:color/transparent">
 
             <TextView
                 android:id="@+id/settings_toolbar_title"

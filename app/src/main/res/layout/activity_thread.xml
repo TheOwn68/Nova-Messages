@@ -22,7 +22,6 @@
             app:contentInsetStart="0dp"
             app:contentInsetStartWithNavigation="0dp"
             app:menu="@menu/menu_thread"
-            app:navigationIconTint="#FFFFFF"
             app:popupTheme="@style/NovaPopupTheme">
 
             <TextView
@@ -129,6 +128,7 @@
             android:id="@+id/thread_messages_fastscroller"
             android:layout_width="match_parent"
             android:layout_height="0dp"
+            android:visibility="gone"
             app:layout_constraintBottom_toTopOf="@id/short_code_holder"
             app:layout_constraintTop_toBottomOf="@id/thread_add_contacts"
             app:layout_constraintStart_toStartOf="parent"

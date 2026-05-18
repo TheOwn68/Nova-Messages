@@ -15,6 +15,8 @@ import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.widget.Toolbar
+import androidx.core.view.get
+import androidx.core.view.size
 import androidx.core.graphics.toColorInt
 import androidx.core.view.updateLayoutParams
 import com.google.android.material.appbar.AppBarLayout
@@ -33,22 +35,15 @@ open class SimpleActivity : BaseSimpleActivity() {
         val stackTrace = Thread.currentThread().stackTrace
         for (element in stackTrace) {
             val className = element.className
-            val methodName = element.methodName
             
-            if (className.contains("org.fossify.commons")) {
-                if ((methodName == "onCreate") || 
-                    (methodName == "appLaunched") || 
-                    methodName.contains("Warning") || 
-                    methodName.contains("Sideload") ||
-                    methodName.contains("Security")) {
-                    return "org.fossify.messages"
-                }
-            }
-
             if (className.startsWith("android.app.") || 
                 className.startsWith("androidx.") ||
                 className.startsWith("android.content.pm.")) {
                 break
+            }
+
+            if (className.contains("org.fossify.")) {
+                return "org.fossify.messages"
             }
         }
         return super.getPackageName()
@@ -59,7 +54,6 @@ open class SimpleActivity : BaseSimpleActivity() {
         val stackTrace = Thread.currentThread().stackTrace
         for (element in stackTrace) {
             val className = element.className
-            val methodName = element.methodName
             
             if (className.startsWith("android.app.") || 
                 className.startsWith("androidx.") ||
@@ -67,24 +61,18 @@ open class SimpleActivity : BaseSimpleActivity() {
                 break
             }
 
-            if (className.contains("org.fossify.commons")) {
-                if ((methodName == "onCreate") || 
-                    (methodName == "appLaunched") || 
-                    methodName.contains("Warning") || 
-                    methodName.contains("Sideload") ||
-                    methodName.contains("Security")) {
-                    val spoofedInfo = ApplicationInfo(info)
-                    spoofedInfo.packageName = "org.fossify.messages"
-                    return spoofedInfo
-                }
+            if (className.contains("org.fossify.")) {
+                val spoofedInfo = ApplicationInfo(info)
+                spoofedInfo.packageName = "org.fossify.messages"
+                return spoofedInfo
             }
         }
         return info
     }
 
     private val globalLayoutListener = ViewTreeObserver.OnGlobalLayoutListener {
-        applyCustomColors()
         updateAppFonts(findViewById(android.R.id.content))
+        applyCustomColors()
     }
 
     fun getScaledTextSize(multiplier: Float = 1.0f): Float {
@@ -129,16 +117,29 @@ open class SimpleActivity : BaseSimpleActivity() {
             val style = view.typeface?.style ?: android.graphics.Typeface.NORMAL
             view.typeface = android.graphics.Typeface.create(customTypeface, style)
             
-            // Apply custom text color if not in toolbar AND not a message bubble
+            // Apply custom text color if not in toolbar AND not a message bubble/list item
             val id = view.id
-            val isExcluded = id == R.id.thread_toolbar_title || 
-                             id == R.id.nova_title || 
-                             id == R.id.settings_toolbar_title ||
-                             id == R.id.thread_message_body ||
-                             id == R.id.nova_search_input ||
-                             id == R.id.thread_type_message
+            val excludedIds = listOf(
+                R.id.thread_toolbar_title,
+                R.id.nova_title,
+                R.id.settings_toolbar_title,
+                R.id.thread_message_body,
+                R.id.nova_search_input,
+                R.id.thread_type_message,
+                R.id.conversation_address,
+                R.id.conversation_body_short,
+                R.id.conversation_date,
+                R.id.thread_date_time,
+                R.id.thread_sim_number,
+                R.id.thread_message_carrier_warning,
+                R.id.item_contact_name,
+                R.id.suggested_contact_name,
+                R.id.selected_contact_name,
+                R.id.conversations_fab,
+                R.id.settings_gear
+            )
                              
-            if (!isExcluded) {
+            if (!excludedIds.contains(id)) {
                 view.setTextColor(config.mainTextColor)
             }
         }
@@ -199,9 +200,20 @@ open class SimpleActivity : BaseSimpleActivity() {
         
         // 3. Apply top bar text color
         if (toolbar != null) {
-            toolbar.setTitleTextColor(config.topBarTextColor)
-            toolbar.navigationIcon?.setTint(config.topBarTextColor)
-            toolbar.overflowIcon?.setTint(config.topBarTextColor)
+            val topBarColor = config.topBarTextColor
+            toolbar.setTitleTextColor(topBarColor)
+            
+            // Use specific MaterialToolbar method for navigation icon
+            (toolbar as? com.google.android.material.appbar.MaterialToolbar)?.setNavigationIconTint(topBarColor)
+            toolbar.navigationIcon?.setColorFilter(topBarColor, android.graphics.PorterDuff.Mode.SRC_IN)
+            
+            toolbar.overflowIcon?.setColorFilter(topBarColor, android.graphics.PorterDuff.Mode.SRC_IN)
+            
+            // Also tint menu items if they exist
+            for (i in 0 until toolbar.menu.size) {
+                val item = toolbar.menu[i]
+                item.icon?.setColorFilter(topBarColor, android.graphics.PorterDuff.Mode.SRC_IN)
+            }
         }
         
         val titleText = findViewById<TextView>(R.id.thread_toolbar_title) ?: 
@@ -252,10 +264,30 @@ open class SimpleActivity : BaseSimpleActivity() {
             }
         }
         
-        // Apply gear icon color
+        // Apply gear icon and plus button colors
         findViewById<ImageView>(R.id.settings_gear)?.let {
             it.imageTintList = ColorStateList.valueOf(config.topBarTextColor)
+            it.alpha = 0.2f
+        }
+
+        findViewById<TextView>(R.id.conversations_fab)?.let {
+            it.setTextColor(config.topBarTextColor)
+            it.alpha = 0.2f
+        }
+        
+        findViewById<ImageView>(R.id.thread_add_attachment)?.let {
+            it.imageTintList = ColorStateList.valueOf(config.inputBarTextColor)
             it.alpha = 1.0f
+        }
+
+        findViewById<View>(R.id.thread_send_message)?.let { view ->
+            val color = config.inputBarTextColor
+            if (view is TextView) {
+                view.setTextColor(color)
+                view.compoundDrawables.forEach { it?.setColorFilter(color, android.graphics.PorterDuff.Mode.SRC_IN) }
+            } else if (view is ImageView) {
+                view.imageTintList = ColorStateList.valueOf(color)
+            }
         }
     }
 
@@ -302,8 +334,8 @@ open class SimpleActivity : BaseSimpleActivity() {
     override fun onResume() {
         super.onResume()
         findViewById<View>(android.R.id.content)?.viewTreeObserver?.addOnGlobalLayoutListener(globalLayoutListener)
-        applyCustomColors()
         updateAppFonts(findViewById(android.R.id.content))
+        applyCustomColors()
     }
 
     override fun onPause() {

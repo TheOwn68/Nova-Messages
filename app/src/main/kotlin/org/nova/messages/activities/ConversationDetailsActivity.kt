@@ -82,6 +82,7 @@ class ConversationDetailsActivity : SimpleActivity() {
         ).forEach {
             it.setTextColor(primaryColor)
         }
+        applyCustomColors()
     }
 
     private fun setupCustomNotifications() {

@@ -193,6 +193,9 @@ class ThreadActivity : SimpleActivity() {
 
         val bottomAnim = AnimationUtils.loadAnimation(this, R.anim.slide_in_bottom)
         binding.messageHolder.root.startAnimation(bottomAnim)
+        
+        updateAppFonts(binding.root)
+        applyCustomColors()
     }
 
     override fun onPause() {
@@ -473,22 +476,24 @@ class ThreadActivity : SimpleActivity() {
 
     private fun setupButtons() = binding.apply {
         updateTextColors(threadMessagesList)
-        val textColor = Color.WHITE
+        val iconColor = config.topBarTextColor
+        val inputBarColor = config.inputBarTextColor
 
         binding.messageHolder.apply {
-            threadSendMessage.setTextColor(textColor)
+            threadSendMessage.setTextColor(inputBarColor)
             threadSendMessage.compoundDrawables.forEach {
-                it?.applyColorFilter(textColor)
+                it?.applyColorFilter(inputBarColor)
             }
 
             confirmManageContacts.applyColorFilter(getProperTextColor())
-            threadAddAttachment.applyColorFilter(textColor)
+            threadAddAttachment.applyColorFilter(inputBarColor)
+            threadAddAttachment.alpha = 1.0f
 
             val properPrimaryColor = getProperPrimaryColor()
             threadMessagesFastscroller.updateColors(properPrimaryColor)
 
-            threadCharacterCounter.beVisibleIf(config.showCharacterCounter)
-            threadCharacterCounter.setTextColor(textColor)
+            threadCharacterCounter.beGone()
+            threadCharacterCounter.setTextColor(iconColor)
             threadCharacterCounter.setTextSize(TypedValue.COMPLEX_UNIT_PX, getScaledTextSize())
 
             threadTypeMessage.setTextSize(TypedValue.COMPLEX_UNIT_PX, getScaledTextSize())
@@ -1108,9 +1113,7 @@ class ThreadActivity : SimpleActivity() {
     }
 
     private fun updateMessageType() {
-        val text = binding.messageHolder.threadTypeMessage.text.toString()
-        val stringId = if (isMmsMessage(text)) R.string.mms else R.string.sms
-        binding.messageHolder.threadSendMessage.text = getString(stringId)
+        binding.messageHolder.threadSendMessage.text = ""
     }
 
     @SuppressLint("MissingPermission")

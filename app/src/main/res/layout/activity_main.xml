@@ -19,7 +19,6 @@
             android:layout_width="match_parent"
             android:layout_height="70dp"
             android:background="@android:color/transparent"
-            app:navigationIconTint="#FFFFFF"
             app:popupTheme="@style/NovaPopupTheme">
 
             <TextView
@@ -101,7 +100,8 @@
                 <com.qtalk.recyclerviewfastscroller.RecyclerViewFastScroller
                     android:id="@+id/conversations_fastscroller"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content">
+                    android:layout_height="wrap_content"
+                    android:visibility="gone">
 
                     <org.fossify.commons.views.MyRecyclerView
                         android:id="@+id/conversations_list"
@@ -161,7 +161,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:clipToPadding="false"
-                android:scrollbars="vertical"
+                android:scrollbars="none"
                 app:layoutManager="org.fossify.commons.views.MyLinearLayoutManager" />
 
         </RelativeLayout>
@@ -216,7 +216,7 @@
         app:layout_anchorGravity="top|center_horizontal"
         android:layout_marginTop="55dp"
         android:src="@drawable/ic_settings_cog_vector"
-        android:alpha="0.3"
+        android:alpha="0.2"
         android:padding="8dp"
         android:background="?selectableItemBackgroundBorderless"
         android:clickable="true"

@@ -85,6 +85,7 @@ class MainActivity : SimpleActivity() {
 
         updateAppFonts(binding.root)
         updateTextColors(binding.mainCoordinator)
+        applyCustomColors()
         binding.novaTitle.updateLayoutParams<Toolbar.LayoutParams> {
             marginEnd = 60.getScaledPx()
         }

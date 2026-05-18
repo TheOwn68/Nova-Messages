@@ -49,6 +49,7 @@ class RecycleBinConversationsActivity : SimpleActivity() {
         super.onResume()
         setupTopAppBar(binding.recycleBinAppbar, NavigationIcon.Arrow)
         loadRecycleBinConversations()
+        applyCustomColors()
     }
 
     override fun onDestroy() {

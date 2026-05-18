@@ -87,6 +87,7 @@ class NewConversationActivity : SimpleActivity() {
         binding.noContactsPlaceholder2.setTextColor(getProperPrimaryColor())
         binding.noContactsPlaceholder2.underlineText()
         binding.suggestionsLabel.setTextColor(getProperPrimaryColor())
+        applyCustomColors()
     }
 
     private fun initContacts() {

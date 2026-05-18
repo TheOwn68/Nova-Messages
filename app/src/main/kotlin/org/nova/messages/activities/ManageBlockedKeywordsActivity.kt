@@ -58,6 +58,7 @@ class ManageBlockedKeywordsActivity : SimpleActivity(), RefreshRecyclerViewListe
     override fun onResume() {
         super.onResume()
         setupTopAppBar(binding.blockKeywordsAppbar, NavigationIcon.Arrow)
+        applyCustomColors()
     }
 
     private fun setupOptionsMenu() {

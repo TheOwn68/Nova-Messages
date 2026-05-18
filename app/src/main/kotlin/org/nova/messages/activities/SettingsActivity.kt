@@ -42,8 +42,8 @@ class SettingsActivity : SimpleActivity() {
         (binding.settingsAppbar as? MyAppBarLayout)?.let { appBar ->
             setupTopAppBar(appBar, NavigationIcon.Arrow, Color.TRANSPARENT)
         }
-        binding.settingsToolbar.navigationIcon?.setTint(Color.WHITE)
-        binding.settingsToolbar.setTitleTextColor(Color.WHITE)
+        binding.settingsToolbar.navigationIcon?.setTint(config.topBarTextColor)
+        binding.settingsToolbar.setTitleTextColor(config.topBarTextColor)
         setupScaledToolbar(binding.settingsToolbar)
 
         setupUIScale()
@@ -58,6 +58,8 @@ class SettingsActivity : SimpleActivity() {
         binding.settingsBubbleCustomizationLabel.setTextColor(primaryColor)
         binding.settingsGeneralLabel.setTextColor(primaryColor)
         binding.settingsResetDefaults.setTextColor(primaryColor)
+        
+        applyCustomColors()
     }
 
     private fun setupCustomization() = binding.apply {

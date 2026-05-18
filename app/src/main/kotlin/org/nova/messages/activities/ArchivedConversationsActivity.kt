@@ -50,6 +50,7 @@ class ArchivedConversationsActivity : SimpleActivity() {
         super.onResume()
         setupTopAppBar(binding.archiveAppbar, NavigationIcon.Arrow)
         loadArchivedConversations()
+        applyCustomColors()
     }
 
     override fun onDestroy() {

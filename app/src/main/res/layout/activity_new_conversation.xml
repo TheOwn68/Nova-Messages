@@ -135,7 +135,8 @@
             android:layout_alignTop="@+id/contacts_list"
             android:layout_alignParentEnd="true"
             android:paddingTop="@dimen/big_margin"
-            android:paddingBottom="@dimen/big_margin" />
+            android:paddingBottom="@dimen/big_margin"
+            android:visibility="gone" />
 
         <com.reddit.indicatorfastscroll.FastScrollerThumbView
             android:id="@+id/contacts_letter_fastscroller_thumb"
@@ -144,7 +145,8 @@
             android:layout_alignTop="@+id/contacts_letter_fastscroller"
             android:layout_alignBottom="@+id/contacts_letter_fastscroller"
             android:layout_marginEnd="@dimen/activity_margin"
-            android:layout_toStartOf="@+id/contacts_letter_fastscroller" />
+            android:layout_toStartOf="@+id/contacts_letter_fastscroller"
+            android:visibility="gone" />
 
     </RelativeLayout>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
