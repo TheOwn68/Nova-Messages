@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="more_options" type="id" />
+    <item name="dial_number" type="id" />
+    <item name="archive" type="id" />
+    <item name="unarchive" type="id" />
+    <item name="delete" type="id" />
+    <item name="restore" type="id" />
+    <item name="mark_as_unread" type="id" />
+    <item name="block_number" type="id" />
+    <item name="rename_conversation" type="id" />
+    <item name="conversation_details" type="id" />
+    <item name="manage_people" type="id" />
+    <item name="copy_number" type="id" />
+    <item name="add_number_to_contact" type="id" />
+</resources>

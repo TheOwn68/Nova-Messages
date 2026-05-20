@@ -51,13 +51,12 @@ class SettingsActivity : SimpleActivity() {
         setupFont()
         setupCustomization()
         updateAppFonts(binding.root)
-        updateTextColors(binding.settingsNestedScrollview)
 
-        val primaryColor = getProperPrimaryColor()
-        binding.settingsCustomizationLabel.setTextColor(primaryColor)
-        binding.settingsBubbleCustomizationLabel.setTextColor(primaryColor)
-        binding.settingsGeneralLabel.setTextColor(primaryColor)
-        binding.settingsResetDefaults.setTextColor(primaryColor)
+        val mainTextColor = config.mainTextColor
+        binding.settingsCustomizationLabel.setTextColor(mainTextColor)
+        binding.settingsBubbleCustomizationLabel.setTextColor(mainTextColor)
+        binding.settingsGeneralLabel.setTextColor(mainTextColor)
+        binding.settingsResetDefaults.setTextColor(mainTextColor)
 
         applyCustomColors()
     }

@@ -5,6 +5,9 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.WindowManager
 import android.widget.Toast
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
 import com.google.gson.Gson
 import com.reddit.indicatorfastscroll.FastScrollItemIndicator
 import org.fossify.commons.extensions.applyColorFilter
@@ -37,8 +40,7 @@ import org.nova.messages.R
 import org.nova.messages.adapters.ContactsAdapter
 import org.nova.messages.databinding.ActivityNewConversationBinding
 import org.nova.messages.databinding.ItemSuggestedContactBinding
-import org.nova.messages.extensions.getSuggestedContacts
-import org.nova.messages.extensions.getThreadId
+import org.nova.messages.extensions.*
 import org.nova.messages.helpers.SmsIntentParser
 import org.nova.messages.helpers.THREAD_ATTACHMENT_URI
 import org.nova.messages.helpers.THREAD_ATTACHMENT_URIS
@@ -63,6 +65,7 @@ class NewConversationActivity : SimpleActivity() {
         updateTextColors(binding.newConversationHolder)
 
         setupEdgeToEdge(padBottomImeAndSystem = listOf(binding.contactsList))
+        setupSearchEdgeToEdge()
         setupMaterialScrollListener(
             scrollingView = binding.contactsList,
             topAppBar = binding.newConversationAppbar
@@ -83,11 +86,16 @@ class NewConversationActivity : SimpleActivity() {
         binding.newConversationToolbar.setNavigationOnClickListener {
             finish()
         }
+        binding.newConversationToolbar.title = "" // Clear standard title to use custom TextView
 
         binding.noContactsPlaceholder2.setTextColor(getProperPrimaryColor())
         binding.noContactsPlaceholder2.underlineText()
-        binding.suggestionsLabel.setTextColor(getProperPrimaryColor())
+        binding.suggestionsLabel.setTextColor(config.mainTextColor)
         applyCustomColors()
+        
+        binding.newConversationAddress.setTextColor(config.mainTextColor)
+        binding.newConversationAddress.setHintTextColor(config.mainTextColor.withAlpha(0.5f))
+        binding.newConversationConfirm.applyColorFilter(config.mainTextColor)
     }
 
     private fun initContacts() {
@@ -170,6 +178,22 @@ class NewConversationActivity : SimpleActivity() {
                     setupAdapter(allContacts)
                 }
             }
+        }
+    }
+
+    private fun setupSearchEdgeToEdge() {
+        ViewCompat.setOnApplyWindowInsetsListener(binding.newConversationAddress) { _, insets ->
+            val imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime())
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+
+            binding.newConversationSearchContainer.updateLayoutParams<androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams> {
+                bottomMargin = if (imeInsets.bottom > 0) {
+                    imeInsets.bottom + 16.getScaledPx()
+                } else {
+                    systemBars.bottom + 16.getScaledPx()
+                }
+            }
+            insets
         }
     }
 

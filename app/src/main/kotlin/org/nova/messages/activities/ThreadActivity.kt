@@ -90,6 +90,7 @@ class ThreadActivity : SimpleActivity() {
     private var isScheduledMessage: Boolean = false
     private var messageToResend: Long? = null
     private lateinit var scheduledDateTime: DateTime
+    private var isRefreshing = false
 
     private val binding by viewBinding(ActivityThreadBinding::inflate)
 
@@ -131,6 +132,7 @@ class ThreadActivity : SimpleActivity() {
         bus = EventBus.getDefault()
         bus!!.register(this)
 
+        binding.threadMessagesList.itemAnimator = null
         loadConversation()
     }
 
@@ -314,24 +316,21 @@ class ThreadActivity : SimpleActivity() {
     }
 
     private fun setupAdapter() {
+        if (isRefreshing) return
+        isRefreshing = true
         ensureBackgroundThread {
             val items = getThreadItems()
             runOnUiThread {
-                if (isFinishing || isDestroyed) return@runOnUiThread
+                if (isFinishing || isDestroyed) {
+                    isRefreshing = false
+                    return@runOnUiThread
+                }
                 threadItems = items
                 refreshMenuItems()
                 getOrCreateThreadAdapter().apply {
-                    val isFirstLoad = currentList.isEmpty()
-                    
-                    if (isFirstLoad && areSystemAnimationsEnabled) {
-                        binding.threadMessagesList.layoutAnimation = AnimationUtils.loadLayoutAnimation(this@ThreadActivity, R.anim.layout_animation_bubbles)
-                    }
-
                     updateMessages(threadItems) {
+                        isRefreshing = false
                         if (isFinishing || isDestroyed) return@updateMessages
-                        if (isFirstLoad) {
-                            binding.threadMessagesList.scheduleLayoutAnimation()
-                        }
                         scrollToBottom()
                     }
                 }
@@ -474,9 +473,8 @@ class ThreadActivity : SimpleActivity() {
     }
 
     private fun setupButtons() = binding.apply {
-        updateTextColors(threadMessagesList)
-        val iconColor = config.topBarTextColor
         val inputBarColor = config.inputBarTextColor
+        val mainTextColor = config.mainTextColor
 
         binding.messageHolder.apply {
             threadSendMessage.setTextColor(inputBarColor)
@@ -484,7 +482,7 @@ class ThreadActivity : SimpleActivity() {
                 it?.applyColorFilter(inputBarColor)
             }
 
-            confirmManageContacts.applyColorFilter(getProperTextColor())
+            confirmManageContacts.applyColorFilter(mainTextColor)
             threadAddAttachment.applyColorFilter(inputBarColor)
             threadAddAttachment.alpha = 1.0f
 
@@ -492,7 +490,6 @@ class ThreadActivity : SimpleActivity() {
             // threadMessagesFastscroller removed
 
             threadCharacterCounter.beGone()
-            threadCharacterCounter.setTextColor(iconColor)
             threadCharacterCounter.setTextSize(TypedValue.COMPLEX_UNIT_PX, getScaledTextSize())
 
             threadTypeMessage.setTextSize(TypedValue.COMPLEX_UNIT_PX, getScaledTextSize())
@@ -575,10 +572,9 @@ class ThreadActivity : SimpleActivity() {
                 scrollToBottom()
             }
             scrollToBottomFab.backgroundTintList = ColorStateList.valueOf(getBottomBarColor())
-
         }
-
         setupScheduleSendUi()
+        binding
     }
 
     private fun showAttachmentPickerDialog() {
@@ -653,8 +649,81 @@ class ThreadActivity : SimpleActivity() {
     }
 
     private fun setupOptionsMenu() {
-        binding.threadToolbar.setOnMenuItemClickListener { menuItem ->
+        val toolbar = binding.threadToolbar
+        toolbar.menu.clear()
+        
+        // Add frequently used icons if needed (e.g. Call)
+        if (participants.size == 1 && !isSpecialNumber() && !isRecycleBin) {
+            val callItem = toolbar.menu.add(0, org.nova.messages.R.id.dial_number, 0, getString(org.fossify.commons.R.string.dial_number))
+            callItem.setIcon(org.fossify.commons.R.drawable.ic_phone_vector)
+            callItem.setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_ALWAYS)
+        }
+
+        // Add a single custom overflow item
+        val moreItem = toolbar.menu.add(0, org.nova.messages.R.id.more_options, 1, "More")
+        moreItem.setIcon(org.fossify.commons.R.drawable.ic_three_dots_vector)
+        moreItem.setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_ALWAYS)
+
+        toolbar.setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
+                org.nova.messages.R.id.dial_number -> dialNumber()
+                org.nova.messages.R.id.more_options -> {
+                    // Trigger modern menu for everything else
+                    val overflowView = toolbar.findViewById<android.view.View>(menuItem.itemId) ?: toolbar
+                    showThreadModernMenu(overflowView)
+                }
+            }
+            true
+        }
+        
+        applyCustomColors() // Ensure the new programmatically added icons are tinted
+    }
+
+    private fun showThreadModernMenu(anchor: android.view.View) {
+        val items = mutableListOf<Pair<Int, String>>()
+        val firstPhoneNumber = participants.firstOrNull()?.phoneNumbers?.firstOrNull()?.value
+        val archiveAvailable = config.isArchiveAvailable
+
+        if (threadItems.isNotEmpty()) {
+            items.add(R.id.delete to getString(org.fossify.commons.R.string.delete))
+            items.add(R.id.mark_as_unread to getString(R.string.mark_as_unread))
+        }
+
+        if (threadItems.isNotEmpty() && archiveAvailable) {
+            if (conversation?.isArchived == false && !isRecycleBin) {
+                items.add(R.id.archive to getString(R.string.archive))
+            } else if (conversation?.isArchived == true && !isRecycleBin) {
+                items.add(R.id.unarchive to getString(R.string.unarchive))
+            }
+        }
+
+        if (conversation != null && !isRecycleBin) {
+            items.add(R.id.conversation_details to getString(R.string.conversation_details))
+            items.add(R.id.rename_conversation to getString(R.string.rename_conversation))
+        }
+
+        if (!isRecycleBin) {
+            items.add(R.id.block_number to getString(org.fossify.commons.R.string.block_number))
+            if (!isSpecialNumber()) {
+                items.add(R.id.manage_people to getString(R.string.add_person))
+            }
+        }
+
+        if (isRecycleBin && threadItems.isNotEmpty()) {
+            items.add(R.id.restore to getString(R.string.restore))
+        }
+
+        if (participants.size == 1 && !isRecycleBin) {
+            if (participants.first().name == firstPhoneNumber) {
+                items.add(R.id.add_number_to_contact to getString(org.fossify.commons.R.string.add_number_to_contact))
+            }
+            if (!firstPhoneNumber.isNullOrEmpty()) {
+                items.add(R.id.copy_number to getString(org.fossify.commons.R.string.copy_to_clipboard))
+            }
+        }
+
+        showModernMenu(anchor, items) { itemId ->
+            when (itemId) {
                 R.id.dial_number -> dialNumber()
                 R.id.archive -> archiveThread()
                 R.id.unarchive -> unarchiveThread()
@@ -667,9 +736,7 @@ class ThreadActivity : SimpleActivity() {
                 R.id.block_number -> tryBlocking()
                 R.id.delete -> askConfirmDelete()
                 R.id.restore -> restoreMessages()
-                else -> return@setOnMenuItemClickListener false
             }
-            true
         }
     }
 
@@ -935,7 +1002,6 @@ class ThreadActivity : SimpleActivity() {
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 clearCurrentMessage()
-                scrollToBottom()
             }
         }
     }
@@ -1072,7 +1138,13 @@ class ThreadActivity : SimpleActivity() {
         if (adapter.itemCount > 0) {
             binding.threadMessagesList.post {
                 if (!isFinishing && !isDestroyed) {
-                    binding.threadMessagesList.scrollToPosition(adapter.itemCount - 1)
+                    val layoutManager = binding.threadMessagesList.layoutManager as LinearLayoutManager
+                    val lastVisibleItemPosition = layoutManager.findLastVisibleItemPosition()
+                    val isNearBottom = lastVisibleItemPosition >= adapter.itemCount - 3
+                    
+                    if (isNearBottom) {
+                        binding.threadMessagesList.smoothScrollToPosition(adapter.itemCount - 1)
+                    }
                 }
             }
         }

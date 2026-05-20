@@ -21,15 +21,13 @@
             android:background="@android:color/transparent"
             app:contentInsetStart="0dp"
             app:contentInsetStartWithNavigation="0dp"
-            app:menu="@menu/menu_thread"
             app:popupTheme="@style/NovaPopupTheme">
 
             <TextView
                 android:id="@+id/thread_toolbar_title"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_vertical"
-                android:layout_marginEnd="100dp"
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:textColor="#FFFFFF"

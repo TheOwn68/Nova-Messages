@@ -14,6 +14,9 @@ import android.view.ViewTreeObserver
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
+import androidx.appcompat.widget.ListPopupWindow
 import androidx.appcompat.widget.Toolbar
 import androidx.core.view.get
 import androidx.core.view.size
@@ -85,8 +88,7 @@ open class SimpleActivity : BaseSimpleActivity() {
     }
 
     private val globalLayoutListener = ViewTreeObserver.OnGlobalLayoutListener {
-        updateAppFonts(findViewById(android.R.id.content))
-        applyCustomColors()
+        // Removed to fix infinite layout loop and jitter
     }
 
     fun getScaledTextSize(multiplier: Float = 1.0f): Float {
@@ -182,11 +184,13 @@ open class SimpleActivity : BaseSimpleActivity() {
         // 2. Apply top bar color (HARD RECURSIVE SHAPE GUARD)
         val appBar = findViewById<AppBarLayout>(R.id.settings_appbar) ?: 
                      findViewById<AppBarLayout>(R.id.thread_appbar) ?: 
-                     findViewById<AppBarLayout>(R.id.main_appbar)
+                     findViewById<AppBarLayout>(R.id.main_appbar) ?:
+                     findViewById<AppBarLayout>(R.id.new_conversation_appbar)
                      
         val toolbar = findViewById<Toolbar>(R.id.settings_toolbar) ?: 
                       findViewById<Toolbar>(R.id.thread_toolbar) ?: 
-                      findViewById<Toolbar>(R.id.main_toolbar)
+                      findViewById<Toolbar>(R.id.main_toolbar) ?:
+                      findViewById<Toolbar>(R.id.new_conversation_toolbar)
         
         if (appBar != null) {
             val barColor = if (config.topBarColor != -1) config.topBarColor else Color.BLACK
@@ -237,11 +241,14 @@ open class SimpleActivity : BaseSimpleActivity() {
         
         val titleText = findViewById<TextView>(R.id.thread_toolbar_title) ?: 
                          findViewById<TextView>(R.id.nova_title) ?: 
-                         findViewById<TextView>(R.id.settings_toolbar_title)
+                         findViewById<TextView>(R.id.settings_toolbar_title) ?:
+                         findViewById<TextView>(R.id.new_conversation_toolbar_title)
         titleText?.setTextColor(config.topBarTextColor)
         
         // 4. Apply input bar colors (Maintaining Rounded Shape)
-        val inputBar = findViewById<View>(R.id.nova_search_bar) ?: findViewById<View>(R.id.nova_message_input_bar)
+        val inputBar = findViewById<View>(R.id.nova_search_bar) ?: 
+                       findViewById<View>(R.id.nova_message_input_bar) ?:
+                       findViewById<View>(R.id.new_conversation_search_container)
         if (inputBar != null) {
             val inputBgColor = config.inputBarBackgroundColor
             val inputRadius = 28 * density 
@@ -363,7 +370,7 @@ open class SimpleActivity : BaseSimpleActivity() {
         }
     }
 
-    private fun Int.withAlpha(alpha: Float): Int {
+    fun Int.withAlpha(alpha: Float): Int {
         val a = (alpha * 255).toInt().coerceIn(0, 255)
         return (this and 0x00FFFFFF) or (a shl 24)
     }
@@ -385,14 +392,12 @@ open class SimpleActivity : BaseSimpleActivity() {
 
     override fun onResume() {
         super.onResume()
-        findViewById<View>(android.R.id.content)?.viewTreeObserver?.addOnGlobalLayoutListener(globalLayoutListener)
         updateAppFonts(findViewById(android.R.id.content))
         applyCustomColors()
     }
 
     override fun onPause() {
         super.onPause()
-        findViewById<View>(android.R.id.content)?.viewTreeObserver?.removeOnGlobalLayoutListener(globalLayoutListener)
     }
 
     private fun requestHighRefreshRate() {
@@ -434,4 +439,55 @@ open class SimpleActivity : BaseSimpleActivity() {
     override fun getAppLauncherName() = getString(R.string.app_launcher_name)
 
     override fun getRepositoryName() = "Messages"
+
+    fun showModernMenu(anchor: View, items: List<Pair<Int, String>>, callback: (Int) -> Unit) {
+        val popup = ListPopupWindow(this)
+        
+        val barColor = if (config.topBarColor == -1) Color.BLACK else config.topBarColor
+        val barTextColor = config.topBarTextColor
+        
+        // Safety: Ensure text is visible against the background
+        val finalTextColor = if (barTextColor == barColor || barTextColor == Color.TRANSPARENT) {
+            if (barColor == Color.WHITE) Color.BLACK else Color.WHITE
+        } else {
+            barTextColor
+        }
+
+        val adapter = object : ArrayAdapter<Pair<Int, String>>(this, android.R.layout.simple_list_item_1, items) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = super.getView(position, convertView, parent) as TextView
+                view.text = items[position].second
+                view.setTextColor(finalTextColor)
+                view.setPadding(24.getScaledPx(), 16.getScaledPx(), 24.getScaledPx(), 16.getScaledPx())
+                view.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, getScaledTextSize(0.85f))
+                view.typeface = android.graphics.Typeface.create(getCustomTypeface(), android.graphics.Typeface.BOLD)
+                return view
+            }
+        }
+
+        popup.setAdapter(adapter)
+        popup.anchorView = anchor
+        popup.width = 240.getScaledPx()
+        popup.isModal = true
+        popup.setDropDownGravity(android.view.Gravity.END)
+        popup.horizontalOffset = (-10).getScaledPx()
+        
+        val radius = 18f * resources.displayMetrics.density
+        val background = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = radius
+            setColor(barColor)
+            // Add a subtle border for depth
+            val strokeColor = if (barColor == Color.BLACK) Color.DKGRAY else barColor.withAlpha(0.8f)
+            setStroke(1.getScaledPx(), strokeColor)
+        }
+        popup.setBackgroundDrawable(background)
+        
+        popup.setOnItemClickListener { _, _, position, _ ->
+            callback(items[position].first)
+            popup.dismiss()
+        }
+        
+        popup.show()
+    }
 }

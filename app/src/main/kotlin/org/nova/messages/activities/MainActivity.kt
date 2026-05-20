@@ -78,8 +78,9 @@ class MainActivity : SimpleActivity() {
         isActivityVisible = true
 
         initMessenger()
+        val mainTextColor = config.mainTextColor
         getOrCreateConversationsAdapter().apply {
-            if (storedTextColor != getProperTextColor()) updateTextColor(getProperTextColor())
+            if (storedTextColor != mainTextColor) updateTextColor(mainTextColor)
             updateDrafts()
         }
 
