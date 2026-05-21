@@ -156,7 +156,7 @@ class ThreadAdapter(
         val item = currentList[position]
         val binding = (holder as ThreadViewHolder).binding
         when (item) {
-            is Message -> setupView(holder, binding.root, item)
+            is Message -> setupView(holder, binding as ItemMessageBinding, item)
             is ThreadDateTime -> setupDateTime(binding.root, item)
             is ThreadError -> setupThreadError(binding.root)
             is ThreadSending -> setupThreadSending(binding.root)
@@ -280,21 +280,46 @@ class ThreadAdapter(
         }
     }
 
-    private fun setupView(holder: ViewHolder, view: View, message: Message) {
-        ItemMessageBinding.bind(view).apply {
-            threadMessageHolder.isSelected = selectedKeys.contains(message.getSelectionKey())
+    private fun setupView(holder: ViewHolder, binding: ItemMessageBinding, message: Message) {
+        binding.apply {
+            val isSelected = selectedKeys.contains(message.getSelectionKey())
             threadMessageHolder.visibility = View.VISIBLE
             threadMessageWrapper.visibility = View.VISIBLE
 
-            threadMessageWrapper.updateLayoutParams<androidx.constraintlayout.widget.ConstraintLayout.LayoutParams> {
-                if (message.isReceivedMessage()) {
-                    startToStart = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
-                    endToEnd = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET
-                    horizontalBias = 0f
+            // Selection Overlay Logic
+            selectionOverlay.beVisibleIf(isSelected)
+            if (isSelected) {
+                val simpleActivity = activity as SimpleActivity
+                val highlightColor = if (simpleActivity.config.topBarColor != 0) {
+                    simpleActivity.run { simpleActivity.config.topBarColor.withAlpha(0.3f) }
                 } else {
-                    startToStart = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET
-                    endToEnd = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
-                    horizontalBias = 1f
+                    simpleActivity.run { Color.BLACK.withAlpha(0.1f) }
+                }
+                
+                // Set background shape (matching bubble radius)
+                val radius = 20f * root.resources.displayMetrics.density
+                val shape = GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    cornerRadius = radius
+                    setColor(highlightColor)
+                }
+                selectionOverlay.background = shape
+            }
+
+            // Safer alignment using direct LayoutParams access (with Anti-Loop Guard)
+            val params = threadMessageWrapper.layoutParams as? androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
+            if (params != null) {
+                val isReceived = message.isReceivedMessage()
+                val targetStart = if (isReceived) androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID else androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET
+                val targetEnd = if (isReceived) androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET else androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
+                val targetBias = if (isReceived) 0f else 1f
+
+                // ONLY update if it actually changed to prevent illegal layout loops on physical devices
+                if (params.startToStart != targetStart || params.endToEnd != targetEnd || params.horizontalBias != targetBias) {
+                    params.startToStart = targetStart
+                    params.endToEnd = targetEnd
+                    params.horizontalBias = targetBias
+                    threadMessageWrapper.layoutParams = params
                 }
             }
 

@@ -56,6 +56,7 @@ class NotificationHelper(private val context: Context) {
         val notificationId = threadId.hashCode()
         val contentIntent = Intent(context, ThreadActivity::class.java).apply {
             putExtra(THREAD_ID, threadId)
+            putExtra(IS_FROM_NOTIFICATION, true)
         }
         val contentPendingIntent =
             PendingIntent.getActivity(

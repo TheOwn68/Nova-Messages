@@ -77,5 +77,14 @@
             android:textSize="10sp"
             android:visibility="gone"
             tools:visibility="visible" />
+
+        <View
+            android:id="@+id/selection_overlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_alignTop="@id/thread_message_attachments_holder"
+            android:layout_alignBottom="@id/thread_message_body"
+            android:visibility="gone"
+            tools:visibility="visible" />
     </RelativeLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

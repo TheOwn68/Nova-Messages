@@ -114,18 +114,7 @@ open class SimpleActivity : BaseSimpleActivity() {
         }
     }
 
-    fun getCustomTypeface(): android.graphics.Typeface {
-        return when (config.fontFamilyNova) {
-            1 -> android.graphics.Typeface.SERIF
-            2 -> android.graphics.Typeface.MONOSPACE
-            3 -> android.graphics.Typeface.create("cursive", android.graphics.Typeface.NORMAL)
-            4 -> android.graphics.Typeface.create("casual", android.graphics.Typeface.NORMAL)
-            5 -> android.graphics.Typeface.SANS_SERIF
-            6 -> android.graphics.Typeface.create("sans-serif-light", android.graphics.Typeface.NORMAL)
-            7 -> android.graphics.Typeface.create("sans-serif-condensed", android.graphics.Typeface.NORMAL)
-            else -> android.graphics.Typeface.DEFAULT
-        }
-    }
+    fun getCustomTypeface() = org.fossify.commons.helpers.FontHelper.getTypeface(this, config.fontFamilyNova, "")
 
     fun updateAppFonts(view: View?) {
         if (view == null) return
@@ -207,27 +196,11 @@ open class SimpleActivity : BaseSimpleActivity() {
             appBar.isLiftOnScroll = false
             appBar.elevation = 0f
             appBar.background = barShape
+            appBar.stateListAnimator = null
             
             // Force title tinting for main screen icons if they exist
             findViewById<TextView>(R.id.conversations_fab)?.setTextColor(config.topBarTextColor)
             findViewById<ImageView>(R.id.settings_gear)?.applyColorFilter(config.topBarTextColor)
-            
-            // Attach a scroll listener that FORCES the shape at every pixel of scroll
-            if (appBar.tag != "shape_guard_attached") {
-                appBar.addOnOffsetChangedListener { _, _ ->
-                    // Re-calculate color dynamically in case it changed
-                    val currentBarColor = if (config.topBarColor != 0) config.topBarColor else Color.BLACK
-                    val currentBarShape = GradientDrawable().apply {
-                        shape = GradientDrawable.RECTANGLE
-                        cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, barRadius, barRadius, barRadius, barRadius)
-                        setColor(currentBarColor)
-                    }
-                    appBar.background = currentBarShape
-                    appBar.elevation = 0f
-                    appBar.stateListAnimator = null // Kill the "lift" animator completely
-                }
-                appBar.tag = "shape_guard_attached"
-            }
         }
         
         toolbar?.setBackgroundColor(Color.TRANSPARENT)
@@ -410,6 +383,110 @@ open class SimpleActivity : BaseSimpleActivity() {
         applyCustomColors()
     }
 
+    override fun onSupportActionModeStarted(mode: androidx.appcompat.view.ActionMode) {
+        super.onSupportActionModeStarted(mode)
+        try {
+            val density = resources.displayMetrics.density
+            val barColor = if (config.topBarColor != 0) config.topBarColor else Color.BLACK
+            val barTextColor = config.topBarTextColor
+            val barRadius = 26 * density
+
+            // 1. Tint the Menu items directly via the mode object
+            val menu = mode.menu
+            for (i in 0 until menu.size) {
+                try {
+                    menu.getItem(i).icon?.mutate()?.setColorFilter(barTextColor, android.graphics.PorterDuff.Mode.SRC_IN)
+                } catch (e: Exception) {
+                    android.util.Log.e("SimpleActivity", "Failed to tint menu item $i", e)
+                }
+            }
+
+            val barShape = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, barRadius, barRadius, barRadius, barRadius)
+                setColor(barColor)
+            }
+
+            // Find the action bar view and apply perfect twin styling + deep tint
+            window.decorView.findViewById<View>(androidx.appcompat.R.id.action_mode_bar)?.let { bar ->
+                bar.background = barShape
+                bar.elevation = 0f
+                
+                // Safe height match
+                try {
+                    val baseHeight = 70.getScaledPx()
+                    val minHeightRequired = (48 * resources.displayMetrics.density).toInt()
+                    val finalHeight = kotlin.math.max(baseHeight, minHeightRequired)
+                    val params = bar.layoutParams
+                    if (params != null && params.height != finalHeight) {
+                        params.height = finalHeight
+                        bar.layoutParams = params
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("SimpleActivity", "Failed to update CAB height safely", e)
+                }
+
+                // Deep Recursive Tinting Helper (Force Mutation)
+                fun tintAllChildren(parent: View) {
+                    try {
+                        if (parent is ViewGroup) {
+                            if (parent is androidx.appcompat.widget.ActionMenuView) {
+                                parent.popupTheme = R.style.NovaPopupTheme
+                                parent.overflowIcon?.mutate()?.setColorFilter(barTextColor, android.graphics.PorterDuff.Mode.SRC_IN)
+                            }
+                            for (i in 0 until parent.childCount) {
+                                tintAllChildren(parent.getChildAt(i))
+                            }
+                        }
+                        
+                        if (parent is ImageView) {
+                            parent.drawable?.mutate()?.setColorFilter(barTextColor, android.graphics.PorterDuff.Mode.SRC_IN)
+                            parent.imageTintList = android.content.res.ColorStateList.valueOf(barTextColor)
+                        }
+                        
+                        if (parent is TextView) {
+                            parent.setTextColor(barTextColor)
+                            // Tint any icons attached to text (common in Action Mode items)
+                            parent.compoundDrawables.forEach { it?.mutate()?.setColorFilter(barTextColor, android.graphics.PorterDuff.Mode.SRC_IN) }
+                            parent.compoundDrawablesRelative.forEach { it?.mutate()?.setColorFilter(barTextColor, android.graphics.PorterDuff.Mode.SRC_IN) }
+                        }
+                        
+                        // Specific fix for Action Mode buttons that might be generic Views or specific internal types
+                        if (parent.contentDescription?.toString()?.contains("Delete", true) == true ||
+                            parent.contentDescription?.toString()?.contains("Copy", true) == true ||
+                            parent.contentDescription?.toString()?.contains("Forward", true) == true ||
+                            parent.contentDescription?.toString()?.contains("Share", true) == true) {
+                            if (parent is ImageView) {
+                                 parent.setColorFilter(barTextColor, android.graphics.PorterDuff.Mode.SRC_IN)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        // Fail silently for individual view tinting to prevent crashes
+                    }
+                }
+
+                // Post to ensure the menu is inflated and views are ready
+                bar.post {
+                    tintAllChildren(bar)
+                    // Direct Menu Icon Force-Tint
+                    for (i in 0 until mode.menu.size) {
+                        mode.menu.getItem(i).icon?.mutate()?.setColorFilter(barTextColor, android.graphics.PorterDuff.Mode.SRC_IN)
+                    }
+                }
+                
+                // Safety: Run again after a small delay to catch late inflations
+                bar.postDelayed({
+                    tintAllChildren(bar)
+                    for (i in 0 until mode.menu.size) {
+                        mode.menu.getItem(i).icon?.mutate()?.setColorFilter(barTextColor, android.graphics.PorterDuff.Mode.SRC_IN)
+                    }
+                }, 200) // Slightly longer delay for stability on physical devices
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("SimpleActivity", "Critical failure during Action Mode styling", e)
+        }
+    }
+
     override fun onPause() {
         super.onPause()
     }
@@ -436,9 +513,9 @@ open class SimpleActivity : BaseSimpleActivity() {
         R.mipmap.ic_launcher_indigo,
         R.mipmap.ic_launcher_blue,
         R.mipmap.ic_launcher_light_blue,
+        R.mipmap.ic_launcher,
         R.mipmap.ic_launcher_cyan,
         R.mipmap.ic_launcher_teal,
-        R.mipmap.ic_launcher,
         R.mipmap.ic_launcher_light_green,
         R.mipmap.ic_launcher_lime,
         R.mipmap.ic_launcher_yellow,
@@ -485,6 +562,7 @@ open class SimpleActivity : BaseSimpleActivity() {
         popup.isModal = true
         popup.setDropDownGravity(android.view.Gravity.END)
         popup.horizontalOffset = (-10).getScaledPx()
+        popup.verticalOffset = 16.getScaledPx()
         
         val radius = 18f * resources.displayMetrics.density
         val background = GradientDrawable().apply {

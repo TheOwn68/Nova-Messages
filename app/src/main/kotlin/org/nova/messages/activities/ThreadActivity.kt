@@ -86,6 +86,7 @@ class ThreadActivity : SimpleActivity() {
     private var isJumpingToMessage = false
     private var isRecycleBin = false
     private var isLaunchedFromShortcut = false
+    private var isFromNotification = false
 
     private var isScheduledMessage: Boolean = false
     private var messageToResend: Long? = null
@@ -129,13 +130,14 @@ class ThreadActivity : SimpleActivity() {
         }
         isRecycleBin = intent.getBooleanExtra(IS_RECYCLE_BIN, false)
         isLaunchedFromShortcut = intent.getBooleanExtra(IS_LAUNCHED_FROM_SHORTCUT, false)
+        isFromNotification = intent.getBooleanExtra(IS_FROM_NOTIFICATION, false)
 
         bus = EventBus.getDefault()
         bus!!.register(this)
 
         binding.threadMessagesList.itemAnimator = null
         binding.threadMessagesList.setItemViewCacheSize(20)
-        binding.threadMessagesList.setHasFixedSize(false)
+        (binding.threadMessagesList.layoutManager as LinearLayoutManager).stackFromEnd = true
         loadConversation()
     }
 
@@ -330,11 +332,13 @@ class ThreadActivity : SimpleActivity() {
                 }
                 threadItems = items
                 refreshMenuItems()
+                val forceScrollOnOpen = isFromNotification
+                isFromNotification = false
                 getOrCreateThreadAdapter().apply {
                     updateMessages(threadItems) {
                         isRefreshing = false
                         if (isFinishing || isDestroyed) return@updateMessages
-                        scrollToBottom(forceScroll)
+                        scrollToBottom(forceScroll || forceScrollOnOpen)
                     }
                 }
             }
@@ -1149,30 +1153,19 @@ class ThreadActivity : SimpleActivity() {
     private fun scrollToBottom(forceScroll: Boolean = false) {
         val adapter = getOrCreateThreadAdapter()
         if (adapter.itemCount > 0) {
-            val performScroll = {
-                if (!isFinishing && !isDestroyed) {
-                    val layoutManager = binding.threadMessagesList.layoutManager as LinearLayoutManager
-                    val lastVisibleItemPosition = layoutManager.findLastVisibleItemPosition()
-                    
-                    // Always scroll if forced (e.g. after sending a message)
-                    // Otherwise, only scroll if the user is near the bottom
-                    val isAtBottom = lastVisibleItemPosition >= adapter.itemCount - 3
-                    
-                    if (forceScroll || isAtBottom) {
-                        // Use scrollToPositionWithOffset for an absolute, non-jittery snap
-                        layoutManager.scrollToPositionWithOffset(adapter.itemCount - 1, 0)
+            val layoutManager = binding.threadMessagesList.layoutManager as LinearLayoutManager
+            
+            // Re-calculate the "at bottom" check immediately before posting to get most current state
+            val lastVisible = layoutManager.findLastVisibleItemPosition()
+            val isAtBottom = lastVisible >= adapter.itemCount - 10 // More lenient check
+            
+            if (forceScroll || isAtBottom) {
+                binding.threadMessagesList.post {
+                    if (!isFinishing && !isDestroyed) {
+                        // Use scrollToPosition for a solid, high-performance bottom snap
+                        binding.threadMessagesList.scrollToPosition(adapter.itemCount - 1)
                     }
                 }
-            }
-
-            // Double-Snap Technique:
-            // 1. Immediate snap to handle current state
-            binding.threadMessagesList.post {
-                performScroll()
-                // 2. Delayed snap to handle late layout passes or keyboard resizing
-                binding.threadMessagesList.postDelayed({
-                    performScroll()
-                }, 100)
             }
         }
     }

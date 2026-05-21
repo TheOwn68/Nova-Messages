@@ -67,7 +67,7 @@ class SettingsActivity : SimpleActivity() {
             drawable.setColor(color)
         }
 
-        updatePreview(settingsTopBarColorPreview, if (config.topBarColor == -1) Color.BLACK else config.topBarColor)
+        updatePreview(settingsTopBarColorPreview, if (config.topBarColor == 0) Color.BLACK else config.topBarColor)
         updatePreview(settingsTopBarTextColorPreview, config.topBarTextColor)
         updatePreview(settingsMainBackgroundColorPreview, config.mainBackgroundColor)
         updatePreview(settingsMainTextColorPreview, config.mainTextColor)
@@ -80,7 +80,7 @@ class SettingsActivity : SimpleActivity() {
         updatePreview(settingsReceivedBubbleTextColorPreview, config.receivedBubbleTextColor)
 
         settingsTopBarColorHolder.setOnClickListener {
-            showColorWheel(if (config.topBarColor == -1) Color.BLACK else config.topBarColor) { config.topBarColor = it; applyCustomColors(); recreate() }
+            showColorWheel(if (config.topBarColor == 0) Color.BLACK else config.topBarColor) { config.topBarColor = it; applyCustomColors(); recreate() }
         }
 
         settingsTopBarTextColorHolder.setOnClickListener {
@@ -120,7 +120,7 @@ class SettingsActivity : SimpleActivity() {
         }
 
         settingsResetDefaults.setOnClickListener {
-            config.topBarColor = -1
+            config.topBarColor = 0
             config.topBarTextColor = Color.WHITE
             config.mainBackgroundColor = Color.WHITE
             config.mainTextColor = Color.BLACK

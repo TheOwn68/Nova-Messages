@@ -78,6 +78,9 @@ class MainActivity : SimpleActivity() {
         isActivityVisible = true
 
         initMessenger()
+        // Force high-priority sync on resume to handle background incoming messages
+        syncConversations(ArrayList())
+
         val mainTextColor = config.mainTextColor
         getOrCreateConversationsAdapter().apply {
             if (storedTextColor != mainTextColor) updateTextColor(mainTextColor)
