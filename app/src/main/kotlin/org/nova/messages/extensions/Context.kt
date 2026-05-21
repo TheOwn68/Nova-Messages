@@ -1181,8 +1181,16 @@ fun Context.updateLastConversationMessage(threadIds: Iterable<Long>) {
     try {
         contentResolver.delete(uri, selection, null)
         for (threadId in threadIds) {
-            val newConversation = getConversations(threadId)[0]
-            insertOrUpdateConversation(newConversation)
+            val systemConvs = getConversations(threadId)
+            if (systemConvs.isNotEmpty()) {
+                val newConversation = systemConvs[0]
+                // Force fresh date from current time if system is lagging
+                val now = (System.currentTimeMillis() / 1000).toInt()
+                if (newConversation.date < now - 30) {
+                    newConversation.date = now
+                }
+                insertOrUpdateConversation(newConversation)
+            }
         }
     } catch (_: Exception) {
     }
@@ -1247,11 +1255,19 @@ fun Context.insertOrUpdateConversation(
     cachedConv: Conversation? = conversationsDB.getConversationWithThreadId(conversation.threadId),
 ) {
     var updatedConv = conversation
-    if (cachedConv != null && cachedConv.usesCustomTitle) {
-        updatedConv = updatedConv.copy(
-            title = cachedConv.title,
-            usesCustomTitle = true
-        )
+    if (cachedConv != null) {
+        // Anti-Regression: If the cached conversation has a NEWER date than the sync data, keep the newer date.
+        // This handles system provider lag during active messaging.
+        if (cachedConv.date > updatedConv.date) {
+            updatedConv.date = cachedConv.date
+        }
+
+        if (cachedConv.usesCustomTitle) {
+            updatedConv = updatedConv.copy(
+                title = cachedConv.title,
+                usesCustomTitle = true
+            )
+        }
     }
     conversationsDB.insertOrUpdate(updatedConv)
 }

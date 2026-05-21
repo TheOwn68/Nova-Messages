@@ -286,19 +286,15 @@ class ThreadAdapter(
             threadMessageHolder.visibility = View.VISIBLE
             threadMessageWrapper.visibility = View.VISIBLE
 
-            if (message.isReceivedMessage()) {
-                with(ConstraintSet()) {
-                    clone(threadMessageHolder)
-                    clear(threadMessageWrapper.id, ConstraintSet.END)
-                    connect(threadMessageWrapper.id, ConstraintSet.START, ConstraintSet.PARENT_ID, ConstraintSet.START)
-                    applyTo(threadMessageHolder)
-                }
-            } else {
-                with(ConstraintSet()) {
-                    clone(threadMessageHolder)
-                    clear(threadMessageWrapper.id, ConstraintSet.START)
-                    connect(threadMessageWrapper.id, ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END)
-                    applyTo(threadMessageHolder)
+            threadMessageWrapper.updateLayoutParams<androidx.constraintlayout.widget.ConstraintLayout.LayoutParams> {
+                if (message.isReceivedMessage()) {
+                    startToStart = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
+                    endToEnd = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET
+                    horizontalBias = 0f
+                } else {
+                    startToStart = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET
+                    endToEnd = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
+                    horizontalBias = 1f
                 }
             }
 
@@ -368,20 +364,27 @@ class ThreadAdapter(
 
             if (message.attachment?.attachments?.isNotEmpty() == true) {
                 threadMessageAttachmentsHolder.beVisible()
-                threadMessageAttachmentsHolder.removeAllViews()
-                for (attachment in message.attachment.attachments) {
-                    val mimetype = attachment.mimetype
-                    when {
-                        mimetype.isImageMimeType() || mimetype.isVideoMimeType() -> setupImageView(holder, binding = this, message, attachment)
-                        mimetype.isVCardMimeType() -> setupVCardView(holder, threadMessageAttachmentsHolder, message, attachment)
-                        else -> setupFileView(holder, threadMessageAttachmentsHolder, message, attachment)
+                // Only clear and re-add if needed (Simple check using tag to avoid jitter)
+                val attachmentCount = message.attachment.attachments.size
+                if (threadMessageAttachmentsHolder.tag != message.id) {
+                    threadMessageAttachmentsHolder.removeAllViews()
+                    for (attachment in message.attachment.attachments) {
+                        val mimetype = attachment.mimetype
+                        when {
+                            mimetype.isImageMimeType() || mimetype.isVideoMimeType() -> setupImageView(holder, binding = this, message, attachment)
+                            mimetype.isVCardMimeType() -> setupVCardView(holder, threadMessageAttachmentsHolder, message, attachment)
+                            else -> setupFileView(holder, threadMessageAttachmentsHolder, message, attachment)
+                        }
                     }
-
-                    threadMessagePlayOutline.beVisibleIf(mimetype.startsWith("video/"))
+                    threadMessageAttachmentsHolder.tag = message.id
                 }
+                
+                val hasVideo = message.attachment.attachments.any { it.mimetype.startsWith("video/") }
+                threadMessagePlayOutline.beVisibleIf(hasVideo)
             } else {
                 threadMessageAttachmentsHolder.beGone()
                 threadMessagePlayOutline.beGone()
+                threadMessageAttachmentsHolder.tag = null
             }
         }
     }
@@ -392,6 +395,12 @@ class ThreadAdapter(
 
         val imageView = ItemAttachmentImageBinding.inflate(layoutInflater)
         threadMessageAttachmentsHolder.addView(imageView.root)
+
+        // Set stable placeholder height to prevent jitter
+        imageView.attachmentImage.updateLayoutParams<ViewGroup.LayoutParams> {
+            width = maxChatBubbleWidth
+            height = (maxChatBubbleWidth * 0.6f).toInt() // Stable aspect ratio placeholder
+        }
 
         val placeholderDrawable = Color.TRANSPARENT.toDrawable()
         val options = RequestOptions()
@@ -407,13 +416,24 @@ class ThreadAdapter(
             .downsample(DownsampleStrategy.AT_MOST)
             .listener(object : RequestListener<Drawable> {
                 override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean): Boolean {
+                    imageView.attachmentImage.updateLayoutParams<ViewGroup.LayoutParams> {
+                        width = maxChatBubbleWidth
+                        height = (maxChatBubbleWidth * 0.6f).toInt()
+                    }
                     imageView.attachmentImage.setImageResource(R.drawable.ic_image_vector)
                     imageView.attachmentImage.applyColorFilter(activity.getProperPrimaryColor())
                     threadMessagePlayOutline.beGone()
                     return true
                 }
 
-                override fun onResourceReady(resource: Drawable?, model: Any?, target: Target<Drawable>?, dataSource: DataSource?, isFirstResource: Boolean) = false
+                override fun onResourceReady(resource: Drawable?, model: Any?, target: Target<Drawable>?, dataSource: DataSource?, isFirstResource: Boolean): Boolean {
+                    // Adjust height only after load, but Glide does this smoothly with dontAnimate
+                    imageView.attachmentImage.updateLayoutParams<ViewGroup.LayoutParams> {
+                        width = maxChatBubbleWidth
+                        height = ViewGroup.LayoutParams.WRAP_CONTENT
+                    }
+                    return false
+                }
             })
             .into(imageView.attachmentImage)
 

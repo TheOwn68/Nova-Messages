@@ -164,7 +164,7 @@ class Config(context: Context) : BaseConfig(context) {
         set(fontFamilyNova) = prefs.edit().putInt(FONT_FAMILY_NOVA, fontFamilyNova).apply()
 
     var topBarColor: Int
-        get() = prefs.getInt(TOP_BAR_COLOR, -1)
+        get() = prefs.getInt(TOP_BAR_COLOR, 0)
         set(topBarColor) = prefs.edit().putInt(TOP_BAR_COLOR, topBarColor).apply()
 
     var topBarTextColor: Int

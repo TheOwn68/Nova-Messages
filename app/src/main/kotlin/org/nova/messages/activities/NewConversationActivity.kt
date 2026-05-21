@@ -93,9 +93,9 @@ class NewConversationActivity : SimpleActivity() {
         binding.suggestionsLabel.setTextColor(config.mainTextColor)
         applyCustomColors()
         
-        binding.newConversationAddress.setTextColor(config.mainTextColor)
-        binding.newConversationAddress.setHintTextColor(config.mainTextColor.withAlpha(0.5f))
-        binding.newConversationConfirm.applyColorFilter(config.mainTextColor)
+        binding.newConversationAddress.setTextColor(config.inputBarTextColor)
+        binding.newConversationAddress.setHintTextColor(config.inputBarTextColor.withAlpha(0.5f))
+        binding.newConversationConfirm.applyColorFilter(config.inputBarTextColor)
     }
 
     private fun initContacts() {

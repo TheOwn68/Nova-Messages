@@ -26,6 +26,7 @@ import com.google.android.material.appbar.AppBarLayout
 import org.fossify.commons.activities.BaseSimpleActivity
 import org.fossify.commons.helpers.isRPlus
 import org.fossify.commons.extensions.getTextSize
+import org.fossify.commons.extensions.applyColorFilter
 import org.nova.messages.R
 import org.nova.messages.extensions.config
 import kotlin.math.max
@@ -141,6 +142,7 @@ open class SimpleActivity : BaseSimpleActivity() {
                 R.id.settings_toolbar_title,
                 R.id.thread_message_body,
                 R.id.nova_search_input,
+                R.id.new_conversation_address,
                 R.id.thread_type_message,
                 R.id.conversation_address,
                 R.id.conversation_body_short,
@@ -193,7 +195,7 @@ open class SimpleActivity : BaseSimpleActivity() {
                       findViewById<Toolbar>(R.id.new_conversation_toolbar)
         
         if (appBar != null) {
-            val barColor = if (config.topBarColor != -1) config.topBarColor else Color.BLACK
+            val barColor = if (config.topBarColor != 0) config.topBarColor else Color.BLACK
             val barRadius = 26 * density
             
             val barShape = GradientDrawable().apply {
@@ -206,10 +208,21 @@ open class SimpleActivity : BaseSimpleActivity() {
             appBar.elevation = 0f
             appBar.background = barShape
             
+            // Force title tinting for main screen icons if they exist
+            findViewById<TextView>(R.id.conversations_fab)?.setTextColor(config.topBarTextColor)
+            findViewById<ImageView>(R.id.settings_gear)?.applyColorFilter(config.topBarTextColor)
+            
             // Attach a scroll listener that FORCES the shape at every pixel of scroll
             if (appBar.tag != "shape_guard_attached") {
                 appBar.addOnOffsetChangedListener { _, _ ->
-                    appBar.background = barShape
+                    // Re-calculate color dynamically in case it changed
+                    val currentBarColor = if (config.topBarColor != 0) config.topBarColor else Color.BLACK
+                    val currentBarShape = GradientDrawable().apply {
+                        shape = GradientDrawable.RECTANGLE
+                        cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, barRadius, barRadius, barRadius, barRadius)
+                        setColor(currentBarColor)
+                    }
+                    appBar.background = currentBarShape
                     appBar.elevation = 0f
                     appBar.stateListAnimator = null // Kill the "lift" animator completely
                 }
@@ -264,6 +277,7 @@ open class SimpleActivity : BaseSimpleActivity() {
         // 5. Targeted EditText coloring for live typed text
         val inputEditTexts = listOfNotNull(
             findViewById<EditText>(R.id.nova_search_input),
+            findViewById<EditText>(R.id.new_conversation_address),
             findViewById<EditText>(R.id.thread_type_message),
         )
         
@@ -443,7 +457,7 @@ open class SimpleActivity : BaseSimpleActivity() {
     fun showModernMenu(anchor: View, items: List<Pair<Int, String>>, callback: (Int) -> Unit) {
         val popup = ListPopupWindow(this)
         
-        val barColor = if (config.topBarColor == -1) Color.BLACK else config.topBarColor
+        val barColor = if (config.topBarColor == 0) Color.BLACK else config.topBarColor
         val barTextColor = config.topBarTextColor
         
         // Safety: Ensure text is visible against the background

@@ -146,6 +146,6 @@
         https://github.com/NovaOrg/Commons/tree/master/commons/src/main/res
     -->
     <string name="restart_app_for_changes_to_take_effect">You will have to restart the app for changes to take effect</string>
-    <string name="sideloading_unmodded"> </string>
-    <string name="sideloading_unmodded_title"> </string>
+    <string name="sideloading_unmodded"></string>
+    <string name="sideloading_unmodded_title"></string>
 </resources>

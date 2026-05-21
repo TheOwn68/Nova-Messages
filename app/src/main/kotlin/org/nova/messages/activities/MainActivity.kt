@@ -102,6 +102,12 @@ class MainActivity : SimpleActivity() {
         }
 
         getOrCreateConversationsAdapter().updateScaling()
+        applyCustomColors()
+
+        binding.conversationsFab.setTextColor(config.topBarTextColor)
+        binding.settingsGear.applyColorFilter(config.topBarTextColor)
+        binding.novaSearchInput.setTextColor(config.inputBarTextColor)
+        binding.novaSearchInput.setHintTextColor(config.inputBarTextColor.withAlpha(0.5f))
 
         android.util.Log.d("NAV_TRACE", "MainActivity.onResume finished")
     }
@@ -267,24 +273,22 @@ class MainActivity : SimpleActivity() {
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 setupConversations(conversations, cached = true)
-                getNewConversations((conversations + archived).toMutableList() as ArrayList<Conversation>)
+                syncConversations((conversations + archived).toMutableList() as ArrayList<Conversation>)
             }
 
             conversations.forEach { clearExpiredScheduledMessages(it.threadId) }
         }
     }
 
-    private fun getNewConversations(cached: ArrayList<Conversation>) {
+    private fun syncConversations(cached: ArrayList<Conversation>) {
         val privateCursor = getMyContactsCursor(favoritesOnly = false, withPhoneNumbersOnly = true)
         ensureBackgroundThread {
             val privateContacts = MyContactsContentProvider.getSimpleContacts(this, privateCursor)
             val conversations = getConversations(privateContacts = privateContacts)
 
             conversations.forEach { conv ->
-                if (!cached.map { it.threadId }.contains(conv.threadId)) {
-                    conversationsDB.insertOrUpdate(conv)
-                    cached.add(conv)
-                }
+                // ALWAYS insert or update to get latest date and snippet from system Telephony provider
+                insertOrUpdateConversation(conv)
             }
 
             val all = conversationsDB.getNonArchived() as ArrayList<Conversation>

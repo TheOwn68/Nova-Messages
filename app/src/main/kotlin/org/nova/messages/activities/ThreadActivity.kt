@@ -91,6 +91,7 @@ class ThreadActivity : SimpleActivity() {
     private var messageToResend: Long? = null
     private lateinit var scheduledDateTime: DateTime
     private var isRefreshing = false
+    private var isSendingMessage = false
 
     private val binding by viewBinding(ActivityThreadBinding::inflate)
 
@@ -133,6 +134,8 @@ class ThreadActivity : SimpleActivity() {
         bus!!.register(this)
 
         binding.threadMessagesList.itemAnimator = null
+        binding.threadMessagesList.setItemViewCacheSize(20)
+        binding.threadMessagesList.setHasFixedSize(false)
         loadConversation()
     }
 
@@ -281,7 +284,7 @@ class ThreadActivity : SimpleActivity() {
             }
 
             setupParticipants()
-            setupAdapter()
+            setupAdapter(forceScroll = true)
 
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
@@ -315,7 +318,7 @@ class ThreadActivity : SimpleActivity() {
         return currAdapter as ThreadAdapter
     }
 
-    private fun setupAdapter() {
+    private fun setupAdapter(forceScroll: Boolean = false) {
         if (isRefreshing) return
         isRefreshing = true
         ensureBackgroundThread {
@@ -331,7 +334,7 @@ class ThreadActivity : SimpleActivity() {
                     updateMessages(threadItems) {
                         isRefreshing = false
                         if (isFinishing || isDestroyed) return@updateMessages
-                        scrollToBottom()
+                        scrollToBottom(forceScroll)
                     }
                 }
             }
@@ -388,6 +391,14 @@ class ThreadActivity : SimpleActivity() {
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) tryLoadMoreMessages()
             }
         )
+        
+        // Solid Snap on Layout Change (e.g. Keyboard pop-up)
+        binding.threadMessagesList.addOnLayoutChangeListener { _, _, _, _, bottom, _, _, _, oldBottom ->
+            if (bottom < oldBottom) {
+                // Keyboard opened or size decreased, force snap to bottom
+                scrollToBottom(forceScroll = true)
+            }
+        }
     }
 
     private fun handleItemClick(any: Any) {
@@ -990,12 +1001,14 @@ class ThreadActivity : SimpleActivity() {
         ensureBackgroundThread {
             val subscriptionId = currentSIMCardIndex 
             
+            isSendingMessage = true
             if (attachments.isNotEmpty()) {
                 sendMmsMessage(text, attachments, subscriptionId)
             } else {
                 sendNormalMessage(text, subscriptionId)
             }
             
+            updateLastConversationMessage(threadId)
             refreshMessages()
             refreshConversations()
 
@@ -1133,19 +1146,33 @@ class ThreadActivity : SimpleActivity() {
         return items
     }
 
-    private fun scrollToBottom() {
+    private fun scrollToBottom(forceScroll: Boolean = false) {
         val adapter = getOrCreateThreadAdapter()
         if (adapter.itemCount > 0) {
-            binding.threadMessagesList.post {
+            val performScroll = {
                 if (!isFinishing && !isDestroyed) {
                     val layoutManager = binding.threadMessagesList.layoutManager as LinearLayoutManager
                     val lastVisibleItemPosition = layoutManager.findLastVisibleItemPosition()
-                    val isNearBottom = lastVisibleItemPosition >= adapter.itemCount - 3
                     
-                    if (isNearBottom) {
-                        binding.threadMessagesList.smoothScrollToPosition(adapter.itemCount - 1)
+                    // Always scroll if forced (e.g. after sending a message)
+                    // Otherwise, only scroll if the user is near the bottom
+                    val isAtBottom = lastVisibleItemPosition >= adapter.itemCount - 3
+                    
+                    if (forceScroll || isAtBottom) {
+                        // Use scrollToPositionWithOffset for an absolute, non-jittery snap
+                        layoutManager.scrollToPositionWithOffset(adapter.itemCount - 1, 0)
                     }
                 }
+            }
+
+            // Double-Snap Technique:
+            // 1. Immediate snap to handle current state
+            binding.threadMessagesList.post {
+                performScroll()
+                // 2. Delayed snap to handle late layout passes or keyboard resizing
+                binding.threadMessagesList.postDelayed({
+                    performScroll()
+                }, 100)
             }
         }
     }
@@ -1153,9 +1180,6 @@ class ThreadActivity : SimpleActivity() {
     @Subscribe(threadMode = ThreadMode.MAIN)
     fun refreshMessages(@Suppress("unused") event: Events.RefreshMessages) {
         if (isRecycleBin || isDestroyed || isFinishing) return
-
-        refreshedSinceSent = true
-        allMessagesFetched = false
 
         if (isActivityVisible) {
             notificationManager.cancel(threadId.hashCode())
@@ -1169,13 +1193,23 @@ class ThreadActivity : SimpleActivity() {
             val newThreadId = getThreadId(addresses)
             val newMessages = getMessages(newThreadId, includeScheduledMessages = false)
             
-            messages = newMessages.apply {
-                val scheduledMessages = messagesDB.getScheduledThreadMessages(threadId)
-                    .filterNot { it.isScheduled && it.millis() < System.currentTimeMillis() }
-                addAll(scheduledMessages)
+            val scheduledMessages = messagesDB.getScheduledThreadMessages(threadId)
+                .filterNot { it.isScheduled && it.millis() < System.currentTimeMillis() }
+            
+            val combinedMessages = ArrayList<Message>(newMessages)
+            combinedMessages.addAll(scheduledMessages)
+            
+            // Optimization: Only update if the message count or specific contents changed
+            if (messages.size != combinedMessages.size || messages.hashCode() != combinedMessages.hashCode()) {
+                messages = combinedMessages
+                val forceScroll = isSendingMessage
+                isSendingMessage = false
+                refreshedSinceSent = true
+                allMessagesFetched = false
+                if (!isDestroyed && !isFinishing) setupAdapter(forceScroll)
+            } else {
+                isSendingMessage = false
             }
-
-            if (!isDestroyed && !isFinishing) setupAdapter()
         }
     }
 
