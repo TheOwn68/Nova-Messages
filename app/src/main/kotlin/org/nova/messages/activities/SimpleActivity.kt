@@ -192,10 +192,20 @@ open class SimpleActivity : BaseSimpleActivity() {
             val barRadius = 26 * density
             val useNewUi = config.useNewUi
             
-            val barShape = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, barRadius, barRadius, barRadius, barRadius)
-                setColor(barColor)
+            val barShape = if (useNewUi) {
+                // Modern Multi-Tone Gradient (Matching Contact Pills)
+                val lightened = adjustColor(barColor, 1.2f)
+                val darkened = adjustColor(barColor, 0.8f)
+                GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(lightened, barColor, darkened)).apply {
+                    shape = GradientDrawable.RECTANGLE
+                    cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, barRadius, barRadius, barRadius, barRadius)
+                }
+            } else {
+                GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, barRadius, barRadius, barRadius, barRadius)
+                    setColor(barColor)
+                }
             }
             
             appBar.isLiftOnScroll = false
@@ -222,24 +232,36 @@ open class SimpleActivity : BaseSimpleActivity() {
                 appBar.elevation = 0f
             }
             
-            // Force title tinting for main screen icons if they exist (60% Transparent)
+            // Force title tinting for main screen icons if they exist
             val topTextColor = config.topBarTextColor
             findViewById<ImageView>(R.id.settings_gear)?.let {
                 it.visibility = View.VISIBLE
                 it.imageTintList = ColorStateList.valueOf(topTextColor)
-                it.alpha = 0.4f
-                it.elevation = 20 * density // Float MUCH higher than AppBar shadow
-                it.translationZ = 10 * density
-                it.bringToFront()
+                if (useNewUi) {
+                    it.alpha = 0.4f
+                    it.elevation = 20 * density
+                    it.translationZ = 10 * density
+                    it.bringToFront()
+                } else {
+                    it.alpha = 1.0f
+                    it.elevation = 0f
+                    it.translationZ = 0f
+                }
             }
 
             findViewById<TextView>(R.id.conversations_fab)?.let {
                 it.visibility = View.VISIBLE
                 it.setTextColor(topTextColor)
-                it.alpha = 0.4f
-                it.elevation = 20 * density // Float MUCH higher than AppBar shadow
-                it.translationZ = 10 * density
-                it.bringToFront()
+                if (useNewUi) {
+                    it.alpha = 0.4f
+                    it.elevation = 20 * density
+                    it.translationZ = 10 * density
+                    it.bringToFront()
+                } else {
+                    it.alpha = 1.0f
+                    it.elevation = 0f
+                    it.translationZ = 0f
+                }
             }
         }
         
@@ -381,6 +403,14 @@ open class SimpleActivity : BaseSimpleActivity() {
                 view.setColorFilter(color, android.graphics.PorterDuff.Mode.SRC_IN)
             }
         }
+    }
+
+    private fun adjustColor(color: Int, factor: Float): Int {
+        val a = Color.alpha(color)
+        val r = Math.round(Color.red(color) * factor).coerceIn(0, 255)
+        val g = Math.round(Color.green(color) * factor).coerceIn(0, 255)
+        val b = Math.round(Color.blue(color) * factor).coerceIn(0, 255)
+        return Color.argb(a, r, g, b)
     }
 
     private fun forceTransparentContainers(view: View) {

@@ -74,6 +74,15 @@ class MainActivity : SimpleActivity() {
         
         // Background update check
         org.nova.messages.helpers.UpdateHelper.checkForUpdate(this)
+
+        // Keyboard Sync: Shrink search bar when keyboard goes down
+        ViewCompat.setOnApplyWindowInsetsListener(binding.mainCoordinator) { _, insets ->
+            val isImeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
+            if (!isImeVisible && config.useNewUi && binding.novaSearchInput.text?.isEmpty() == true) {
+                shrinkSearchBar()
+            }
+            insets
+        }
     }
 
     override fun onResume() {
@@ -109,6 +118,7 @@ class MainActivity : SimpleActivity() {
 
         getOrCreateConversationsAdapter().updateScaling()
         applyCustomColors()
+        setupNovaSearchBar() // Force search bar to correct width on every resume
 
         binding.conversationsFab.setTextColor(config.topBarTextColor)
         binding.settingsGear.applyColorFilter(config.topBarTextColor)
@@ -138,7 +148,7 @@ class MainActivity : SimpleActivity() {
         if (config.useNewUi) {
             // New UI: LargerCentered search bar that expands
             binding.novaSearchBar.updateLayoutParams<androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams> {
-                width = 240.getScaledPx() // Increased from 180
+                width = 240.getScaledPx() 
                 gravity = android.view.Gravity.BOTTOM or android.view.Gravity.CENTER_HORIZONTAL
             }
             binding.novaSearchBar.alpha = 0.95f // 95% opacity
@@ -168,19 +178,38 @@ class MainActivity : SimpleActivity() {
             
             // Shrink back when focus lost and empty
             binding.novaSearchInput.setOnFocusChangeListener { _, hasFocus ->
-                if (!hasFocus && binding.novaSearchInput.text.isEmpty()) {
+                if (!hasFocus && binding.novaSearchInput.text?.isEmpty() == true) {
                     shrinkSearchBar()
                 }
             }
         } else {
+            // Classic UI: Full width, always focusable
+            binding.novaSearchBar.updateLayoutParams<androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams> {
+                width = androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams.MATCH_PARENT
+                gravity = android.view.Gravity.BOTTOM
+            }
+            binding.novaSearchBar.alpha = 1.0f
+            binding.novaSearchBar.elevation = 0f
+            binding.novaSearchBar.translationZ = 0f
+            
+            binding.novaSearchInput.isEnabled = true
+            binding.novaSearchInput.isFocusable = true
+            binding.novaSearchInput.isFocusableInTouchMode = true
+            
             binding.novaSearchBar.setOnClickListener {
                 binding.novaSearchInput.requestFocus()
                 showKeyboard(binding.novaSearchInput)
             }
+            binding.novaSearchInput.setOnClickListener(null)
+            binding.novaSearchInput.onFocusChangeListener = null
         }
+        binding.novaSearchBar.requestLayout()
 
-        binding.novaSearchInput.addTextChangedListener { text ->
-            searchTextChanged(text?.toString() ?: "")
+        if (binding.novaSearchInput.tag != "text_watcher_attached") {
+            binding.novaSearchInput.addTextChangedListener { text ->
+                searchTextChanged(text?.toString() ?: "")
+            }
+            binding.novaSearchInput.tag = "text_watcher_attached"
         }
     }
 
@@ -424,18 +453,21 @@ class MainActivity : SimpleActivity() {
              val isCurrentlyNewUi = binding.conversationsList.layoutManager is androidx.recyclerview.widget.GridLayoutManager
              if (isCurrentlyNewUi != useNewUi) {
                  binding.conversationsList.adapter = null
+                 // Clear all decorations when switching UI modes
+                 while (binding.conversationsList.itemDecorationCount > 0) {
+                     binding.conversationsList.removeItemDecorationAt(0)
+                 }
              }
         }
 
         // Sorting logic based on UI mode
         val sorted = if (useNewUi) {
-            // For new UI: Top 2 are absolute most recent, others follow manual order or latest
+            // For new UI: Top 2 are absolute most recent duplicates, others follow manual order or latest
             val allSortedByDate = conversations.sortedByDescending { it.date }
-            if (allSortedByDate.size <= 2) {
+            if (allSortedByDate.isEmpty()) {
                 allSortedByDate
             } else {
                 val top2 = allSortedByDate.take(2)
-                val others = allSortedByDate.drop(2)
                 
                 // Load manual order if exists
                 val manualOrder = config.conversationOrder.split(",").filter { it.isNotEmpty() }.map { it.toLong() }
@@ -443,11 +475,11 @@ class MainActivity : SimpleActivity() {
                 
                 // Add those in manual order first
                 manualOrder.forEach { id ->
-                    others.find { it.threadId == id }?.let { manuallySortedOthers.add(it) }
+                    conversations.find { it.threadId == id }?.let { manuallySortedOthers.add(it) }
                 }
                 
                 // Add any leftovers not in manual order
-                others.forEach { conv ->
+                allSortedByDate.forEach { conv ->
                     if (!manuallySortedOthers.any { it.threadId == conv.threadId }) {
                         manuallySortedOthers.add(conv)
                     }
@@ -493,6 +525,7 @@ class MainActivity : SimpleActivity() {
                 val callback = org.nova.messages.helpers.ModernDragCallback(getOrCreateConversationsAdapter())
                 val touchHelper = androidx.recyclerview.widget.ItemTouchHelper(callback)
                 touchHelper.attachToRecyclerView(binding.conversationsList)
+                getOrCreateConversationsAdapter().itemTouchHelper = touchHelper
             }
         } else {
             if (binding.conversationsList.layoutManager !is org.fossify.commons.views.MyLinearLayoutManager) {

@@ -65,6 +65,7 @@ class ThreadAdapter(
     private val uiScale get() = (activity as SimpleActivity).uiScale
     private val maxChatBubbleWidth = (activity.usableScreenSize.x * 0.75f).toInt()
     private var fontSize = (activity as SimpleActivity).getScaledTextSize()
+    private var lastAnimatedPosition = -1
 
     fun updateScaling() {
         fontSize = (activity as SimpleActivity).getScaledTextSize()
@@ -160,6 +161,22 @@ class ThreadAdapter(
         when (item) {
             is Message -> {
                 setupView(holder, binding, item)
+                
+                // Bubble Entry Animation
+                if (position > lastAnimatedPosition) {
+                    val isReceived = item.isReceivedMessage()
+                    val bodyHolder = if (binding is ItemMessageReceivedBinding) binding.threadMessageBodyHolder else (binding as ItemMessageSentBinding).threadMessageBodyHolder
+                    
+                    val anim = android.view.animation.ScaleAnimation(
+                        0.7f, 1.0f, 0.7f, 1.0f,
+                        android.view.animation.Animation.RELATIVE_TO_SELF, if (isReceived) 0f else 1.0f,
+                        android.view.animation.Animation.RELATIVE_TO_SELF, 1.0f
+                    )
+                    anim.duration = 400
+                    anim.interpolator = android.view.animation.OvershootInterpolator(1.2f)
+                    bodyHolder.startAnimation(anim)
+                    lastAnimatedPosition = position
+                }
             }
             is ThreadDateTime -> setupDateTime(binding.root, item)
             is ThreadError -> setupThreadError(binding.root)
@@ -291,6 +308,7 @@ class ThreadAdapter(
         val wrapper = if (binding is ItemMessageReceivedBinding) binding.threadMessageWrapper else (binding as ItemMessageSentBinding).threadMessageWrapper
         val holderView = if (binding is ItemMessageReceivedBinding) binding.threadMessageHolder else (binding as ItemMessageSentBinding).threadMessageHolder
         val bodyView = if (binding is ItemMessageReceivedBinding) binding.threadMessageBody else (binding as ItemMessageSentBinding).threadMessageBody
+        val bodyHolder = if (binding is ItemMessageReceivedBinding) binding.threadMessageBodyHolder else (binding as ItemMessageSentBinding).threadMessageBodyHolder
         val photoView = if (binding is ItemMessageReceivedBinding) binding.threadMessageSenderPhoto else (binding as ItemMessageSentBinding).threadMessageSenderPhoto
         val attachmentsHolder = if (binding is ItemMessageReceivedBinding) binding.threadMessageAttachmentsHolder else (binding as ItemMessageSentBinding).threadMessageAttachmentsHolder
         val playOutline = if (binding is ItemMessageReceivedBinding) binding.threadMessagePlayOutline else (binding as ItemMessageSentBinding).threadMessagePlayOutline
@@ -320,6 +338,53 @@ class ThreadAdapter(
 
         // NO LayoutParams logic here anymore! Alignment is handled by distinct XML files.
 
+        bodyHolder.apply {
+            val config = activity.config
+            val bgColor = if (isReceived) config.receivedBubbleColor else config.sentBubbleColor
+            
+            val isNewUi = (activity as SimpleActivity).config.useNewUi
+            val backgroundDrawable = AppCompatResources.getDrawable(activity, if (isReceived) R.drawable.item_received_background else R.drawable.item_sent_background)
+            
+            if (isNewUi) {
+                val lightened = adjustColor(bgColor, 1.2f)
+                val darkened = adjustColor(bgColor, 0.8f)
+                val gd = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(lightened, bgColor, darkened))
+                
+                val density = resources.displayMetrics.density
+                val r18 = 18f * density
+                val r4 = 4f * density
+                
+                if (isReceived) {
+                    gd.cornerRadii = floatArrayOf(r18, r18, r18, r18, r18, r18, r4, r4)
+                } else {
+                    gd.cornerRadii = floatArrayOf(r18, r18, r18, r18, r4, r4, r18, r18)
+                }
+                background = gd
+                
+                // Material 3 Depth (Standardized for stability)
+                elevation = 4f * density
+                clipToOutline = false 
+                outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
+            } else {
+                if (backgroundDrawable is GradientDrawable) {
+                    backgroundDrawable.setColor(bgColor)
+                } else if (backgroundDrawable != null) {
+                    backgroundDrawable.applyColorFilter(bgColor)
+                }
+                background = backgroundDrawable
+                elevation = 0f
+            }
+
+            setOnLongClickListener {
+                holder.viewLongClicked()
+                true
+            }
+
+            setOnClickListener {
+                holder.viewClicked(message)
+            }
+        }
+
         bodyView.apply {
             val config = activity.config
             val bgColor = if (isReceived) config.receivedBubbleColor else config.sentBubbleColor
@@ -332,20 +397,8 @@ class ThreadAdapter(
                 textColor
             }
 
-            val backgroundDrawable = AppCompatResources.getDrawable(activity, if (isReceived) R.drawable.item_received_background else R.drawable.item_sent_background)
-            if (backgroundDrawable is GradientDrawable) {
-                backgroundDrawable.setColor(bgColor)
-            } else if (backgroundDrawable != null) {
-                backgroundDrawable.applyColorFilter(bgColor)
-            }
-            background = backgroundDrawable
-            
-            // Material 3 Depth (Standardized for stability)
-            if ((activity as SimpleActivity).config.useNewUi) {
-                elevation = 4f * resources.displayMetrics.density
-                clipToOutline = false 
-                outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
-            }
+            background = null // Managed by bodyHolder
+            elevation = 0f    // Managed by bodyHolder
             
             setTextColor(finalTextColor)
             alpha = 1.0f
@@ -359,14 +412,9 @@ class ThreadAdapter(
             val style = if (message.isScheduled) Typeface.ITALIC else Typeface.NORMAL
             typeface = Typeface.create(customTypeface, style)
 
-            setOnLongClickListener {
-                holder.viewLongClicked()
-                true
-            }
-
-            setOnClickListener {
-                holder.viewClicked(message)
-            }
+            // NO Click listeners here! They are on bodyHolder so links work
+            setOnClickListener(null)
+            setOnLongClickListener(null)
 
             if (!isReceived && message.isScheduled) {
                 val scheduledDrawable = AppCompatResources.getDrawable(activity, org.fossify.commons.R.drawable.ic_clock_vector)?.apply {
@@ -572,6 +620,14 @@ class ThreadAdapter(
             setTextColor(activity.getProperTextColor())
             setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize * 0.8f)
         }
+    }
+
+    private fun adjustColor(color: Int, factor: Float): Int {
+        val a = Color.alpha(color)
+        val r = Math.round(Color.red(color) * factor).coerceIn(0, 255)
+        val g = Math.round(Color.green(color) * factor).coerceIn(0, 255)
+        val b = Math.round(Color.blue(color) * factor).coerceIn(0, 255)
+        return Color.argb(a, r, g, b)
     }
 
     override fun onViewRecycled(holder: ViewHolder) {

@@ -140,13 +140,22 @@ class ThreadActivity : SimpleActivity() {
         (binding.threadMessagesList.layoutManager as LinearLayoutManager).stackFromEnd = true
         loadConversation()
         setupExpandingInputBar()
+
+        // Keyboard Sync: Shrink input bar when keyboard goes down
+        ViewCompat.setOnApplyWindowInsetsListener(binding.threadHolder) { _, insets ->
+            val isImeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
+            if (!isImeVisible && config.useNewUi && binding.messageHolder.threadTypeMessage.text?.isEmpty() == true) {
+                shrinkInputBar()
+            }
+            insets
+        }
     }
 
     private fun setupExpandingInputBar() {
+        val inputBar = binding.messageHolder.novaMessageInputBar
+        val inputField = binding.messageHolder.threadTypeMessage
+        
         if (config.useNewUi) {
-            val inputBar = binding.messageHolder.novaMessageInputBar
-            val inputField = binding.messageHolder.threadTypeMessage
-            
             // New UI: Small centered input bar that expands
             inputBar.updateLayoutParams<androidx.constraintlayout.widget.ConstraintLayout.LayoutParams> {
                 width = 240.getScaledPx()
@@ -178,7 +187,26 @@ class ThreadActivity : SimpleActivity() {
                     shrinkInputBar()
                 }
             }
+        } else {
+            // Classic UI: Full width, always focusable
+            inputBar.updateLayoutParams<androidx.constraintlayout.widget.ConstraintLayout.LayoutParams> {
+                width = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.MATCH_PARENT
+                startToStart = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
+                endToEnd = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
+            }
+            inputBar.alpha = 1.0f
+            inputBar.elevation = 0f
+            inputBar.translationZ = 0f
+            
+            inputField.isFocusable = true
+            inputField.isFocusableInTouchMode = true
+            inputField.isEnabled = true
+            
+            inputBar.setOnClickListener(null)
+            inputField.setOnClickListener(null)
+            inputField.onFocusChangeListener = null
         }
+        inputBar.requestLayout()
     }
 
     private fun expandInputBar() {
@@ -1253,8 +1281,21 @@ class ThreadActivity : SimpleActivity() {
             if (forceScroll || isAtBottom) {
                 binding.threadMessagesList.post {
                     if (!isFinishing && !isDestroyed) {
-                        // Use scrollToPosition for a solid, high-performance bottom snap
-                        binding.threadMessagesList.scrollToPosition(adapter.itemCount - 1)
+                        // Smoothly glide to the bottom instead of instant jump
+                        if (forceScroll) {
+                            // For forced scrolls (sending), use custom smooth scroller for perfect speed
+                            val scroller = object : androidx.recyclerview.widget.LinearSmoothScroller(this) {
+                                override fun getVerticalSnapPreference(): Int = SNAP_TO_END
+                                override fun calculateSpeedPerPixel(displayMetrics: android.util.DisplayMetrics): Float {
+                                    return 120f / displayMetrics.densityDpi
+                                }
+                            }
+                            scroller.targetPosition = adapter.itemCount - 1
+                            binding.threadMessagesList.layoutManager?.startSmoothScroll(scroller)
+                        } else {
+                            // Standard smooth scroll for background receipts
+                            binding.threadMessagesList.smoothScrollToPosition(adapter.itemCount - 1)
+                        }
                     }
                 }
             }

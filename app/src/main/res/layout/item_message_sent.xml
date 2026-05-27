@@ -21,7 +21,7 @@
             android:id="@+id/thread_message_sender_photo"
             android:layout_width="@dimen/list_icon_size_medium"
             android:layout_height="@dimen/list_icon_size_medium"
-            android:layout_alignBottom="@+id/thread_message_body"
+            android:layout_alignBottom="@+id/thread_message_body_holder"
             android:layout_alignParentStart="true"
             android:layout_marginEnd="@dimen/medium_margin"
             android:src="@drawable/ic_person_vector"
@@ -50,27 +50,33 @@
             android:visibility="gone"
             tools:ignore="ContentDescription" />
 
-        <org.fossify.commons.views.MyTextView
-            android:id="@+id/thread_message_body"
+        <FrameLayout
+            android:id="@+id/thread_message_body_holder"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_below="@+id/thread_message_attachments_holder"
             android:layout_marginVertical="@dimen/tiny_margin"
             android:layout_alignParentEnd="true"
-            android:autoLink="email|web"
-            android:background="@drawable/item_sent_background"
-            android:drawablePadding="8dp"
-            android:padding="@dimen/normal_margin"
-            android:textSize="@dimen/normal_text_size"
-            tools:drawableEndCompat="@drawable/scheduled_message_icon"
-            tools:text="Message content" />
+            android:background="@drawable/item_sent_background">
+
+            <org.fossify.commons.views.MyTextView
+                android:id="@+id/thread_message_body"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:autoLink="email|web"
+                android:drawablePadding="8dp"
+                android:padding="@dimen/normal_margin"
+                android:textSize="@dimen/normal_text_size"
+                tools:drawableEndCompat="@drawable/scheduled_message_icon"
+                tools:text="Message content" />
+        </FrameLayout>
 
         <org.fossify.commons.views.MyTextView
             android:id="@+id/thread_message_carrier_warning"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_below="@+id/thread_message_body"
-            android:layout_alignEnd="@+id/thread_message_body"
+            android:layout_below="@+id/thread_message_body_holder"
+            android:layout_alignEnd="@+id/thread_message_body_holder"
             android:layout_marginTop="2dp"
             android:paddingHorizontal="4dp"
             android:text="Some carriers may limit this to 3MB or less"
@@ -83,7 +89,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_alignTop="@id/thread_message_attachments_holder"
-            android:layout_alignBottom="@id/thread_message_body"
+            android:layout_alignBottom="@id/thread_message_body_holder"
             android:visibility="gone"
             tools:visibility="visible" />
     </RelativeLayout>
