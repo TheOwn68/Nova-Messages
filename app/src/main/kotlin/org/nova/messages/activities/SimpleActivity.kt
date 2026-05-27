@@ -222,12 +222,12 @@ open class SimpleActivity : BaseSimpleActivity() {
                 appBar.elevation = 0f
             }
             
-            // Force title tinting for main screen icons if they exist (70% Transparent)
+            // Force title tinting for main screen icons if they exist (60% Transparent)
             val topTextColor = config.topBarTextColor
             findViewById<ImageView>(R.id.settings_gear)?.let {
                 it.visibility = View.VISIBLE
                 it.imageTintList = ColorStateList.valueOf(topTextColor)
-                it.alpha = 0.3f
+                it.alpha = 0.4f
                 it.elevation = 20 * density // Float MUCH higher than AppBar shadow
                 it.translationZ = 10 * density
                 it.bringToFront()
@@ -236,7 +236,7 @@ open class SimpleActivity : BaseSimpleActivity() {
             findViewById<TextView>(R.id.conversations_fab)?.let {
                 it.visibility = View.VISIBLE
                 it.setTextColor(topTextColor)
-                it.alpha = 0.3f
+                it.alpha = 0.4f
                 it.elevation = 20 * density // Float MUCH higher than AppBar shadow
                 it.translationZ = 10 * density
                 it.bringToFront()

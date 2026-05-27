@@ -399,12 +399,6 @@ fun Context.getConversations(
                 date /= 1000
             }
 
-            // drafts are stored locally they take priority over the original date
-            val draft = draftsDB.getDraftById(id)
-            if (draft != null) {
-                date = draft.date / 1000
-            }
-
             val rawIds = cursor.getStringValue(Threads.RECIPIENT_IDS)
             val recipientIds =
                 rawIds.split(" ").filter { it.areDigitsOnly() }.map { it.toInt() }.toMutableList()
@@ -1217,11 +1211,6 @@ fun Context.updateLastConversationMessage(threadIds: Iterable<Long>) {
             val systemConvs = getConversations(threadId)
             if (systemConvs.isNotEmpty()) {
                 val newConversation = systemConvs[0]
-                // Force fresh date from current time if system is lagging
-                val now = (System.currentTimeMillis() / 1000).toInt()
-                if (newConversation.date < now - 30) {
-                    newConversation.date = now
-                }
                 insertOrUpdateConversation(newConversation)
             }
         }

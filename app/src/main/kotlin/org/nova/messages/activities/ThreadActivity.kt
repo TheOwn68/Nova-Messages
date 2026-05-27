@@ -153,8 +153,8 @@ class ThreadActivity : SimpleActivity() {
                 startToStart = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
                 endToEnd = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
             }
-            inputBar.alpha = 0.7f // 70% opacity
-            inputBar.elevation = 12f * resources.displayMetrics.density
+            inputBar.alpha = 0.95f // 95% opacity
+            inputBar.elevation = 10f * resources.displayMetrics.density
             inputBar.translationZ = 4f
             
             inputField.isFocusable = false

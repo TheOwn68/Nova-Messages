@@ -141,8 +141,8 @@ class MainActivity : SimpleActivity() {
                 width = 240.getScaledPx() // Increased from 180
                 gravity = android.view.Gravity.BOTTOM or android.view.Gravity.CENTER_HORIZONTAL
             }
-            binding.novaSearchBar.alpha = 0.7f // 70% opacity / 30% transparent
-            binding.novaSearchBar.elevation = 12f * resources.displayMetrics.density
+            binding.novaSearchBar.alpha = 0.95f // 95% opacity
+            binding.novaSearchBar.elevation = 10f * resources.displayMetrics.density
             binding.novaSearchBar.translationZ = 4f
             
             // Critical: Input must be enabled for text changes to fire, but not focusable until expansion

@@ -340,12 +340,11 @@ class ThreadAdapter(
             }
             background = backgroundDrawable
             
-            // Material 3 Depth (Synchronized with Top Bar style)
+            // Material 3 Depth (Standardized for stability)
             if ((activity as SimpleActivity).config.useNewUi) {
-                elevation = 10f * resources.displayMetrics.density // EXTRA VISIBLE
+                elevation = 4f * resources.displayMetrics.density
                 clipToOutline = false 
                 outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
-                translationZ = 4f // Higher lift
             }
             
             setTextColor(finalTextColor)
