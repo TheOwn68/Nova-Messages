@@ -1117,6 +1117,39 @@ fun Context.getNotificationBitmap(photoUri: String): Bitmap? {
     }
 }
 
+fun Context.getLatestMessageType(threadId: Long): Int {
+    val uri = Sms.CONTENT_URI
+    val projection = arrayOf(Sms.TYPE)
+    val selection = "${Sms.THREAD_ID} = ?"
+    val selectionArgs = arrayOf(threadId.toString())
+    val sortOrder = "${Sms.DATE} DESC LIMIT 1"
+    
+    var type = -1
+    try {
+        val cursor = contentResolver.query(uri, projection, selection, selectionArgs, sortOrder)
+        cursor?.use {
+            if (it.moveToFirst()) {
+                type = it.getIntValue(Sms.TYPE)
+            }
+        }
+    } catch (_: Exception) {}
+    
+    // Also check MMS
+    val mmsUri = Mms.CONTENT_URI
+    val mmsProjection = arrayOf(Mms.MESSAGE_BOX, Mms.DATE)
+    try {
+        val mmsCursor = contentResolver.query(mmsUri, mmsProjection, selection, selectionArgs, "${Mms.DATE} DESC LIMIT 1")
+        mmsCursor?.use {
+            if (it.moveToFirst()) {
+                // Simplified comparison - just take the very latest
+                type = it.getIntValue(Mms.MESSAGE_BOX)
+            }
+        }
+    } catch (_: Exception) {}
+    
+    return type
+}
+
 fun Context.removeDiacriticsIfNeeded(text: String): String {
     return if (config.useSimpleCharacters) text.normalizeString() else text
 }

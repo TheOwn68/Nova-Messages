@@ -105,6 +105,7 @@
                     android:layoutAnimation="@anim/layout_animation"
                     android:overScrollMode="ifContentScrolls"
                     android:scrollbars="none"
+                    android:paddingTop="16dp"
                     android:paddingBottom="100dp"
                     app:layoutManager="org.fossify.commons.views.MyLinearLayoutManager" />
             </RelativeLayout>
@@ -159,7 +160,6 @@
         </RelativeLayout>
     </RelativeLayout>
 
-    <!-- NOVA SEARCH BAR (BOTTOM FLOATING) -->
     <LinearLayout
         android:id="@+id/nova_search_bar"
         android:layout_width="match_parent"
@@ -169,7 +169,8 @@
         android:background="@drawable/nova_searchbar_bg"
         android:gravity="center_vertical"
         android:clickable="true"
-        android:focusable="true">
+        android:focusable="true"
+        android:elevation="6dp">
 
         <EditText
             android:id="@+id/nova_search_input"

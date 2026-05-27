@@ -98,6 +98,7 @@
         android:paddingStart="4dp"
         android:paddingEnd="4dp"
         android:minHeight="55dp"
+        android:elevation="6dp"
         app:layout_constraintBottom_toTopOf="@+id/attachment_picker_divider"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">

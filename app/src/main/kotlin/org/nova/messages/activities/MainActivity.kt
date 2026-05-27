@@ -71,6 +71,9 @@ class MainActivity : SimpleActivity() {
 
         setupNovaSearchBar()
         loadMessages()
+        
+        // Background update check
+        org.nova.messages.helpers.UpdateHelper.checkForUpdate(this)
     }
 
     override fun onResume() {
@@ -132,14 +135,98 @@ class MainActivity : SimpleActivity() {
     // NOVA SEARCH BAR
     // -----------------------------
     private fun setupNovaSearchBar() {
-        binding.novaSearchBar.setOnClickListener {
-            binding.novaSearchInput.requestFocus()
-            showKeyboard(binding.novaSearchInput)
+        if (config.useNewUi) {
+            // New UI: LargerCentered search bar that expands
+            binding.novaSearchBar.updateLayoutParams<androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams> {
+                width = 240.getScaledPx() // Increased from 180
+                gravity = android.view.Gravity.BOTTOM or android.view.Gravity.CENTER_HORIZONTAL
+            }
+            binding.novaSearchBar.alpha = 0.7f // 70% opacity / 30% transparent
+            binding.novaSearchBar.elevation = 12f * resources.displayMetrics.density
+            binding.novaSearchBar.translationZ = 4f
+            
+            // Critical: Input must be enabled for text changes to fire, but not focusable until expansion
+            binding.novaSearchInput.isEnabled = true
+            binding.novaSearchInput.isFocusable = false
+            binding.novaSearchInput.isFocusableInTouchMode = false
+            
+            binding.novaSearchBar.setOnClickListener {
+                if (!binding.novaSearchInput.isFocusable) {
+                    expandSearchBar()
+                } else {
+                    // Already expanded, ensure keyboard is shown if not visible
+                    showKeyboard(binding.novaSearchInput)
+                }
+            }
+            
+            // Allow clicking the input to expand as well
+            binding.novaSearchInput.setOnClickListener {
+                if (!binding.novaSearchInput.isFocusable) {
+                    expandSearchBar()
+                }
+            }
+            
+            // Shrink back when focus lost and empty
+            binding.novaSearchInput.setOnFocusChangeListener { _, hasFocus ->
+                if (!hasFocus && binding.novaSearchInput.text.isEmpty()) {
+                    shrinkSearchBar()
+                }
+            }
+        } else {
+            binding.novaSearchBar.setOnClickListener {
+                binding.novaSearchInput.requestFocus()
+                showKeyboard(binding.novaSearchInput)
+            }
         }
 
         binding.novaSearchInput.addTextChangedListener { text ->
             searchTextChanged(text?.toString() ?: "")
         }
+    }
+
+    private fun expandSearchBar() {
+        val startWidth = binding.novaSearchBar.width
+        val endWidth = binding.mainCoordinator.width - 32.getScaledPx()
+        
+        val animator = android.animation.ValueAnimator.ofInt(startWidth, endWidth)
+        animator.duration = 300
+        animator.interpolator = android.view.animation.DecelerateInterpolator()
+        animator.addUpdateListener { animation ->
+            binding.novaSearchBar.updateLayoutParams {
+                width = animation.animatedValue as Int
+            }
+        }
+        animator.addListener(object : android.animation.AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: android.animation.Animator) {
+                binding.novaSearchInput.isFocusable = true
+                binding.novaSearchInput.isFocusableInTouchMode = true
+                binding.novaSearchInput.requestFocus()
+                showKeyboard(binding.novaSearchInput)
+            }
+        })
+        animator.start()
+    }
+
+    private fun shrinkSearchBar() {
+        val startWidth = binding.novaSearchBar.width
+        val endWidth = 240.getScaledPx()
+        
+        val animator = android.animation.ValueAnimator.ofInt(startWidth, endWidth)
+        animator.duration = 300
+        animator.interpolator = android.view.animation.DecelerateInterpolator()
+        animator.addUpdateListener { animation ->
+            binding.novaSearchBar.updateLayoutParams {
+                width = animation.animatedValue as Int
+            }
+        }
+        animator.addListener(object : android.animation.AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: android.animation.Animator) {
+                binding.novaSearchInput.isFocusable = false
+                binding.novaSearchInput.isFocusableInTouchMode = false
+                hideKeyboard()
+            }
+        })
+        animator.start()
     }
 
     // -----------------------------
@@ -329,16 +416,88 @@ class MainActivity : SimpleActivity() {
     }
 
     private fun setupConversations(conversations: ArrayList<Conversation>, cached: Boolean = false) {
-        val sorted = conversations.sortedWith(
-            compareByDescending<Conversation> { config.pinnedConversations.contains(it.threadId.toString()) }
-                .thenByDescending { it.date }
-        ).toMutableList() as ArrayList<Conversation>
+        val useNewUi = config.useNewUi
+        
+        // Force adapter reset if UI mode changed
+        val currentAdapter = binding.conversationsList.adapter as? ConversationsAdapter
+        if (currentAdapter != null && currentAdapter.itemCount > 0) {
+             val isCurrentlyNewUi = binding.conversationsList.layoutManager is androidx.recyclerview.widget.GridLayoutManager
+             if (isCurrentlyNewUi != useNewUi) {
+                 binding.conversationsList.adapter = null
+             }
+        }
+
+        // Sorting logic based on UI mode
+        val sorted = if (useNewUi) {
+            // For new UI: Top 2 are absolute most recent, others follow manual order or latest
+            val allSortedByDate = conversations.sortedByDescending { it.date }
+            if (allSortedByDate.size <= 2) {
+                allSortedByDate
+            } else {
+                val top2 = allSortedByDate.take(2)
+                val others = allSortedByDate.drop(2)
+                
+                // Load manual order if exists
+                val manualOrder = config.conversationOrder.split(",").filter { it.isNotEmpty() }.map { it.toLong() }
+                val manuallySortedOthers = ArrayList<Conversation>()
+                
+                // Add those in manual order first
+                manualOrder.forEach { id ->
+                    others.find { it.threadId == id }?.let { manuallySortedOthers.add(it) }
+                }
+                
+                // Add any leftovers not in manual order
+                others.forEach { conv ->
+                    if (!manuallySortedOthers.any { it.threadId == conv.threadId }) {
+                        manuallySortedOthers.add(conv)
+                    }
+                }
+                top2 + manuallySortedOthers
+            }
+        } else {
+            conversations.sortedWith(
+                compareByDescending<Conversation> { config.pinnedConversations.contains(it.threadId.toString()) }
+                    .thenByDescending { it.date }
+            )
+        }.toMutableList() as ArrayList<Conversation>
 
         if (cached && config.appRunCount == 1) {
             showOrHideProgress(conversations.isEmpty())
         } else {
             showOrHideProgress(false)
             showOrHidePlaceholder(conversations.isEmpty())
+        }
+
+        // Setup LayoutManager
+        if (useNewUi) {
+            if (binding.conversationsList.layoutManager !is androidx.recyclerview.widget.GridLayoutManager) {
+                val gm = androidx.recyclerview.widget.GridLayoutManager(this, 2)
+                gm.spanSizeLookup = object : androidx.recyclerview.widget.GridLayoutManager.SpanSizeLookup() {
+                    override fun getSpanSize(position: Int): Int {
+                        return if (position < 2) 2 else 1
+                    }
+                }
+                binding.conversationsList.layoutManager = gm
+                
+                // Add ItemDecoration for spacing between Top 2 and Grid
+                binding.conversationsList.addItemDecoration(object : androidx.recyclerview.widget.RecyclerView.ItemDecoration() {
+                    override fun getItemOffsets(outRect: android.graphics.Rect, view: View, parent: androidx.recyclerview.widget.RecyclerView, state: androidx.recyclerview.widget.RecyclerView.State) {
+                        val position = parent.getChildAdapterPosition(view)
+                        if (position == 2 || position == 3) {
+                            outRect.top = 32.getScaledPx() // Increased spacing between Recent and Pills
+                        }
+                    }
+                })
+
+                // Attach Drag & Drop
+                val callback = org.nova.messages.helpers.ModernDragCallback(getOrCreateConversationsAdapter())
+                val touchHelper = androidx.recyclerview.widget.ItemTouchHelper(callback)
+                touchHelper.attachToRecyclerView(binding.conversationsList)
+            }
+        } else {
+            if (binding.conversationsList.layoutManager !is org.fossify.commons.views.MyLinearLayoutManager) {
+                binding.conversationsList.layoutManager = org.fossify.commons.views.MyLinearLayoutManager(this)
+            }
         }
 
         try {

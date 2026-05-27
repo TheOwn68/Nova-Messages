@@ -1,29 +1,17 @@
 package org.nova.messages.activities
 
 import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.widget.SeekBar
-import androidx.appcompat.app.AlertDialog
-import com.google.android.material.slider.Slider
-import org.fossify.commons.dialogs.RadioGroupDialog
-import org.fossify.commons.extensions.getFontSizeText
-import org.fossify.commons.extensions.getProperPrimaryColor
-import org.fossify.commons.extensions.updateTextColors
-import org.fossify.commons.extensions.viewBinding
-import org.fossify.commons.helpers.FONT_SIZE_EXTRA_LARGE
-import org.fossify.commons.helpers.FONT_SIZE_LARGE
-import org.fossify.commons.helpers.FONT_SIZE_MEDIUM
-import org.fossify.commons.helpers.FONT_SIZE_SMALL
+import android.view.View
+import android.widget.TextView
+import org.fossify.commons.extensions.*
 import org.fossify.commons.helpers.NavigationIcon
-import org.fossify.commons.models.RadioItem
+import org.fossify.commons.helpers.PERMISSION_WRITE_STORAGE
 import org.fossify.commons.views.MyAppBarLayout
 import org.nova.messages.R
 import org.nova.messages.databinding.ActivitySettingsBinding
-import org.nova.messages.databinding.DialogColorPickerBinding
+import org.nova.messages.databinding.DialogNewUiColorsBinding
 import org.nova.messages.extensions.config
-import org.nova.messages.helpers.*
 
 class SettingsActivity : SimpleActivity() {
 
@@ -34,37 +22,31 @@ class SettingsActivity : SimpleActivity() {
         setContentView(binding.root)
 
         setupEdgeToEdge(padBottomImeAndSystem = listOf(binding.settingsNestedScrollview))
-    }
+        setupTopAppBar(binding.settingsAppbar, NavigationIcon.Arrow, Color.TRANSPARENT)
 
-    override fun onResume() {
-        super.onResume()
-        // Use a safe cast to avoid ClassCastException
         (binding.settingsAppbar as? MyAppBarLayout)?.let { appBar ->
-            setupTopAppBar(appBar, NavigationIcon.Arrow, Color.TRANSPARENT)
+            appBar.setBackgroundColor(Color.TRANSPARENT)
+            binding.settingsToolbar.navigationIcon?.setTint(config.topBarTextColor)
+            binding.settingsToolbar.setNavigationOnClickListener { finish() }
         }
-        binding.settingsToolbar.navigationIcon?.setTint(config.topBarTextColor)
-        binding.settingsToolbar.setTitleTextColor(config.topBarTextColor)
-        setupScaledToolbar(binding.settingsToolbar)
 
-        setupUIScale()
-        setupFontSize()
-        setupFont()
         setupCustomization()
+        setupUIScale()
+        setupNewUi()
+        setupFontSize()
+        setupFontFamily()
         updateAppFonts(binding.root)
-
-        val mainTextColor = config.mainTextColor
-        binding.settingsCustomizationLabel.setTextColor(mainTextColor)
-        binding.settingsBubbleCustomizationLabel.setTextColor(mainTextColor)
-        binding.settingsGeneralLabel.setTextColor(mainTextColor)
-        binding.settingsResetDefaults.setTextColor(mainTextColor)
-
-        applyCustomColors()
     }
 
     private fun setupCustomization() = binding.apply {
-        fun updatePreview(view: android.view.View, color: Int) {
-            val drawable = view.background as GradientDrawable
-            drawable.setColor(color)
+        val mainTextColor = config.mainTextColor
+        settingsCustomizationLabel.setTextColor(mainTextColor)
+        settingsBubbleCustomizationLabel.setTextColor(mainTextColor)
+        settingsGeneralLabel.setTextColor(mainTextColor)
+        settingsResetDefaults.setTextColor(mainTextColor)
+
+        val updatePreview = { view: View, color: Int ->
+            view.background?.applyColorFilter(color)
         }
 
         updatePreview(settingsTopBarColorPreview, if (config.topBarColor == 0) Color.BLACK else config.topBarColor)
@@ -73,114 +55,181 @@ class SettingsActivity : SimpleActivity() {
         updatePreview(settingsMainTextColorPreview, config.mainTextColor)
         updatePreview(settingsInputBarBackgroundColorPreview, config.inputBarBackgroundColor)
         updatePreview(settingsInputBarTextColorPreview, config.inputBarTextColor)
-        
+
         updatePreview(settingsSentBubbleColorPreview, config.sentBubbleColor)
         updatePreview(settingsSentBubbleTextColorPreview, config.sentBubbleTextColor)
         updatePreview(settingsReceivedBubbleColorPreview, config.receivedBubbleColor)
         updatePreview(settingsReceivedBubbleTextColorPreview, config.receivedBubbleTextColor)
 
         settingsTopBarColorHolder.setOnClickListener {
-            showColorWheel(if (config.topBarColor == 0) Color.BLACK else config.topBarColor) { config.topBarColor = it; applyCustomColors(); recreate() }
+            val color = if (config.topBarColor == 0) Color.BLACK else config.topBarColor
+            org.fossify.commons.dialogs.ColorPickerDialog(this@SettingsActivity, color) { wasPositive, color ->
+                if (wasPositive) {
+                    config.topBarColor = if (color == Color.BLACK) 0 else color
+                    updatePreview(settingsTopBarColorPreview, color)
+                    applyCustomColors()
+                }
+            }
         }
 
         settingsTopBarTextColorHolder.setOnClickListener {
-            showColorWheel(config.topBarTextColor) { config.topBarTextColor = it; applyCustomColors(); recreate() }
+            org.fossify.commons.dialogs.ColorPickerDialog(this@SettingsActivity, config.topBarTextColor) { wasPositive, color ->
+                if (wasPositive) {
+                    config.topBarTextColor = color
+                    updatePreview(settingsTopBarTextColorPreview, color)
+                    applyCustomColors()
+                }
+            }
         }
 
         settingsMainBackgroundColorHolder.setOnClickListener {
-            showColorWheel(config.mainBackgroundColor) { config.mainBackgroundColor = it; applyCustomColors(); recreate() }
+            org.fossify.commons.dialogs.ColorPickerDialog(this@SettingsActivity, config.mainBackgroundColor) { wasPositive, color ->
+                if (wasPositive) {
+                    config.mainBackgroundColor = color
+                    updatePreview(settingsMainBackgroundColorPreview, color)
+                    applyCustomColors()
+                }
+            }
         }
 
         settingsMainTextColorHolder.setOnClickListener {
-            showColorWheel(config.mainTextColor) { config.mainTextColor = it; applyCustomColors(); recreate() }
+            org.fossify.commons.dialogs.ColorPickerDialog(this@SettingsActivity, config.mainTextColor) { wasPositive, color ->
+                if (wasPositive) {
+                    config.mainTextColor = color
+                    updatePreview(settingsMainTextColorPreview, color)
+                    applyCustomColors()
+                    updateAppFonts(binding.root)
+                }
+            }
         }
 
         settingsInputBarBackgroundColorHolder.setOnClickListener {
-            showColorWheel(config.inputBarBackgroundColor) { config.inputBarBackgroundColor = it; applyCustomColors(); recreate() }
+            org.fossify.commons.dialogs.ColorPickerDialog(this@SettingsActivity, config.inputBarBackgroundColor) { wasPositive, color ->
+                if (wasPositive) {
+                    config.inputBarBackgroundColor = color
+                    updatePreview(settingsInputBarBackgroundColorPreview, color)
+                    applyCustomColors()
+                }
+            }
         }
 
         settingsInputBarTextColorHolder.setOnClickListener {
-            showColorWheel(config.inputBarTextColor) { config.inputBarTextColor = it; applyCustomColors(); recreate() }
+            org.fossify.commons.dialogs.ColorPickerDialog(this@SettingsActivity, config.inputBarTextColor) { wasPositive, color ->
+                if (wasPositive) {
+                    config.inputBarTextColor = color
+                    updatePreview(settingsInputBarTextColorPreview, color)
+                    applyCustomColors()
+                }
+            }
         }
 
         settingsSentBubbleColorHolder.setOnClickListener {
-            showColorWheel(config.sentBubbleColor) { config.sentBubbleColor = it; recreate() }
+            org.fossify.commons.dialogs.ColorPickerDialog(this@SettingsActivity, config.sentBubbleColor) { wasPositive, color ->
+                if (wasPositive) {
+                    config.sentBubbleColor = color
+                    updatePreview(settingsSentBubbleColorPreview, color)
+                }
+            }
         }
 
         settingsSentBubbleTextColorHolder.setOnClickListener {
-            showColorWheel(config.sentBubbleTextColor) { config.sentBubbleTextColor = it; recreate() }
+            org.fossify.commons.dialogs.ColorPickerDialog(this@SettingsActivity, config.sentBubbleTextColor) { wasPositive, color ->
+                if (wasPositive) {
+                    config.sentBubbleTextColor = color
+                    updatePreview(settingsSentBubbleTextColorPreview, color)
+                }
+            }
         }
 
         settingsReceivedBubbleColorHolder.setOnClickListener {
-            showColorWheel(config.receivedBubbleColor) { config.receivedBubbleColor = it; recreate() }
+            org.fossify.commons.dialogs.ColorPickerDialog(this@SettingsActivity, config.receivedBubbleColor) { wasPositive, color ->
+                if (wasPositive) {
+                    config.receivedBubbleColor = color
+                    updatePreview(settingsReceivedBubbleColorPreview, color)
+                }
+            }
         }
 
         settingsReceivedBubbleTextColorHolder.setOnClickListener {
-            showColorWheel(config.receivedBubbleTextColor) { config.receivedBubbleTextColor = it; recreate() }
+            org.fossify.commons.dialogs.ColorPickerDialog(this@SettingsActivity, config.receivedBubbleTextColor) { wasPositive, color ->
+                if (wasPositive) {
+                    config.receivedBubbleTextColor = color
+                    updatePreview(settingsReceivedBubbleTextColorPreview, color)
+                }
+            }
         }
 
         settingsResetDefaults.setOnClickListener {
-            config.topBarColor = 0
-            config.topBarTextColor = Color.WHITE
-            config.mainBackgroundColor = Color.WHITE
-            config.mainTextColor = Color.BLACK
-            config.inputBarBackgroundColor = Config.DEFAULT_DARK_GREY
-            config.inputBarTextColor = Color.WHITE
-            config.sentBubbleColor = Config.DEFAULT_SENT_GREY
-            config.receivedBubbleColor = Config.DEFAULT_LIGHT_GREY
-            config.sentBubbleTextColor = Color.BLACK
-            config.receivedBubbleTextColor = Color.BLACK
-            applyCustomColors()
-            recreate()
+            config.resetColors()
+            finish()
+            startActivity(intent)
         }
     }
 
-    private fun showColorWheel(initialColor: Int, callback: (Int) -> Unit) {
-        val pickerBinding = DialogColorPickerBinding.inflate(LayoutInflater.from(this))
-        val dialog = AlertDialog.Builder(this)
-            .setView(pickerBinding.root)
+    private fun setupNewUi() = binding.apply {
+        settingsNewUiSwitch.isChecked = config.useNewUi
+        settingsNewUiColorsHolder.beVisibleIf(config.useNewUi)
+        
+        settingsNewUiHolder.setOnClickListener {
+            settingsNewUiSwitch.toggle()
+            config.useNewUi = settingsNewUiSwitch.isChecked
+            settingsNewUiColorsHolder.beVisibleIf(config.useNewUi)
+        }
+
+        settingsNewUiColorsHolder.setOnClickListener {
+            showNewUiColorsDialog()
+        }
+    }
+
+    private fun showNewUiColorsDialog() {
+        val binding = DialogNewUiColorsBinding.inflate(layoutInflater)
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setView(binding.root)
             .create()
 
-        var selectedColor = initialColor
-        val hsv = FloatArray(3)
-        Color.colorToHSV(initialColor, hsv)
-
-        fun updateColor() {
-            selectedColor = Color.HSVToColor(hsv)
-            val drawable = pickerBinding.colorPickerPreview.background as GradientDrawable
-            drawable.setColor(selectedColor)
+        val updatePreviews = {
+            binding.colorRecentPreview.background?.applyColorFilter(config.recentColor)
+            binding.colorRow1Preview.background?.applyColorFilter(config.row1Color)
+            binding.colorRow2Preview.background?.applyColorFilter(config.row2Color)
+            binding.colorRow3Preview.background?.applyColorFilter(config.row3Color)
         }
 
-        pickerBinding.colorPickerHue.progress = hsv[0].toInt()
-        pickerBinding.colorPickerSaturation.progress = (hsv[1] * 100).toInt()
-        pickerBinding.colorPickerValue.progress = (hsv[2] * 100).toInt()
-        
-        val drawable = pickerBinding.colorPickerPreview.background as GradientDrawable
-        drawable.setColor(initialColor)
+        updatePreviews()
 
-        val listener = object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                if (fromUser) {
-                    when (seekBar?.id) {
-                        R.id.color_picker_hue -> hsv[0] = progress.toFloat()
-                        R.id.color_picker_saturation -> hsv[1] = progress.toFloat() / 100f
-                        R.id.color_picker_value -> hsv[2] = progress.toFloat() / 100f
-                    }
-                    updateColor()
+        binding.colorRecentHolder.setOnClickListener {
+            org.fossify.commons.dialogs.ColorPickerDialog(this, config.recentColor) { wasPositive, color ->
+                if (wasPositive) {
+                    config.recentColor = color
+                    updatePreviews()
                 }
             }
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         }
 
-        pickerBinding.colorPickerHue.setOnSeekBarChangeListener(listener)
-        pickerBinding.colorPickerSaturation.setOnSeekBarChangeListener(listener)
-        pickerBinding.colorPickerValue.setOnSeekBarChangeListener(listener)
+        binding.colorRow1Holder.setOnClickListener {
+            org.fossify.commons.dialogs.ColorPickerDialog(this, config.row1Color) { wasPositive, color ->
+                if (wasPositive) {
+                    config.row1Color = color
+                    updatePreviews()
+                }
+            }
+        }
 
-        pickerBinding.colorPickerCancel.setOnClickListener { dialog.dismiss() }
-        pickerBinding.colorPickerOk.setOnClickListener {
-            callback(selectedColor)
-            dialog.dismiss()
+        binding.colorRow2Holder.setOnClickListener {
+            org.fossify.commons.dialogs.ColorPickerDialog(this, config.row2Color) { wasPositive, color ->
+                if (wasPositive) {
+                    config.row2Color = color
+                    updatePreviews()
+                }
+            }
+        }
+
+        binding.colorRow3Holder.setOnClickListener {
+            org.fossify.commons.dialogs.ColorPickerDialog(this, config.row3Color) { wasPositive, color ->
+                if (wasPositive) {
+                    config.row3Color = color
+                    updatePreviews()
+                }
+            }
         }
 
         dialog.show()
@@ -193,67 +242,64 @@ class SettingsActivity : SimpleActivity() {
                 config.uiScale = value
             }
         }
-        
-        settingsUiScaleSlider.addOnSliderTouchListener(object : Slider.OnSliderTouchListener {
-            override fun onStartTrackingTouch(slider: Slider) {}
-            override fun onStopTrackingTouch(slider: Slider) {
-                recreate()
-            }
-        })
     }
 
     private fun setupFontSize() = binding.apply {
         settingsFontSize.text = getFontSizeText()
         settingsFontSizeHolder.setOnClickListener {
             val items = arrayListOf(
-                RadioItem(FONT_SIZE_SMALL, getString(org.fossify.commons.R.string.small)),
-                RadioItem(FONT_SIZE_MEDIUM, getString(org.fossify.commons.R.string.medium)),
-                RadioItem(FONT_SIZE_LARGE, getString(org.fossify.commons.R.string.large)),
-                RadioItem(
-                    FONT_SIZE_EXTRA_LARGE,
-                    getString(org.fossify.commons.R.string.extra_large)
-                )
+                org.fossify.commons.models.RadioItem(org.fossify.commons.helpers.FONT_SIZE_SMALL, getString(org.fossify.commons.R.string.small)),
+                org.fossify.commons.models.RadioItem(org.fossify.commons.helpers.FONT_SIZE_MEDIUM, getString(org.fossify.commons.R.string.medium)),
+                org.fossify.commons.models.RadioItem(org.fossify.commons.helpers.FONT_SIZE_LARGE, getString(org.fossify.commons.R.string.large)),
+                org.fossify.commons.models.RadioItem(org.fossify.commons.helpers.FONT_SIZE_EXTRA_LARGE, getString(org.fossify.commons.R.string.extra_large))
             )
 
-            RadioGroupDialog(this@SettingsActivity, items, config.fontSize) {
+            org.fossify.commons.dialogs.RadioGroupDialog(this@SettingsActivity, items, config.fontSize) {
                 config.fontSize = it as Int
                 settingsFontSize.text = getFontSizeText()
-                recreate()
+                updateAppFonts(binding.root)
             }
         }
     }
 
-    private fun setupFont() = binding.apply {
+    private fun getFontSizeText() = getString(
+        when (config.fontSize) {
+            org.fossify.commons.helpers.FONT_SIZE_SMALL -> org.fossify.commons.R.string.small
+            org.fossify.commons.helpers.FONT_SIZE_MEDIUM -> org.fossify.commons.R.string.medium
+            org.fossify.commons.helpers.FONT_SIZE_LARGE -> org.fossify.commons.R.string.large
+            else -> org.fossify.commons.R.string.extra_large
+        }
+    )
+
+    private fun setupFontFamily() = binding.apply {
         settingsFont.text = getFontText()
         settingsFontHolder.setOnClickListener {
             val items = arrayListOf(
-                RadioItem(0, "System"),
-                RadioItem(1, "Serif"),
-                RadioItem(2, "Monospace"),
-                RadioItem(3, "Cursive"),
-                RadioItem(4, "Casual"),
-                RadioItem(5, "Sans-serif Light"),
-                RadioItem(6, "Sans-serif Condensed")
+                org.fossify.commons.models.RadioItem(0, "System Default"),
+                org.fossify.commons.models.RadioItem(1, "Monospace"),
+                org.fossify.commons.models.RadioItem(2, "Serif"),
+                org.fossify.commons.models.RadioItem(3, "Sans Serif"),
+                org.fossify.commons.models.RadioItem(4, "Product Sans"),
+                org.fossify.commons.models.RadioItem(5, "Lexend Deca")
             )
 
-            RadioGroupDialog(this@SettingsActivity, items, config.fontFamilyNova) {
+            org.fossify.commons.dialogs.RadioGroupDialog(this@SettingsActivity, items, config.fontFamilyNova) {
                 config.fontFamilyNova = it as Int
                 settingsFont.text = getFontText()
-                org.fossify.commons.helpers.FontHelper.clearCache()
-                recreate()
+                updateAppFonts(binding.root)
+                applyCustomColors()
             }
         }
     }
 
     private fun getFontText(): String {
         return when (config.fontFamilyNova) {
-            1 -> "Serif"
-            2 -> "Monospace"
-            3 -> "Cursive"
-            4 -> "Casual"
-            5 -> "Sans-serif Light"
-            6 -> "Sans-serif Condensed"
-            else -> "System"
+            0 -> "System Default"
+            1 -> "Monospace"
+            2 -> "Serif"
+            3 -> "Sans Serif"
+            4 -> "Product Sans"
+            else -> "Lexend Deca"
         }
     }
 }

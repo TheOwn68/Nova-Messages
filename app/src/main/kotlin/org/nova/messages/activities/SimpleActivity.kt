@@ -142,6 +142,10 @@ open class SimpleActivity : BaseSimpleActivity() {
                 R.id.item_contact_name,
                 R.id.suggested_contact_name,
                 R.id.selected_contact_name,
+                R.id.recent_address,
+                R.id.recent_body,
+                R.id.recent_date,
+                R.id.pill_address,
                 R.id.conversations_fab,
                 R.id.settings_gear
             )
@@ -186,6 +190,7 @@ open class SimpleActivity : BaseSimpleActivity() {
         if (appBar != null) {
             val barColor = if (config.topBarColor != 0) config.topBarColor else Color.BLACK
             val barRadius = 26 * density
+            val useNewUi = config.useNewUi
             
             val barShape = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
@@ -194,13 +199,48 @@ open class SimpleActivity : BaseSimpleActivity() {
             }
             
             appBar.isLiftOnScroll = false
-            appBar.elevation = 0f
             appBar.background = barShape
             appBar.stateListAnimator = null
             
-            // Force title tinting for main screen icons if they exist
-            findViewById<TextView>(R.id.conversations_fab)?.setTextColor(config.topBarTextColor)
-            findViewById<ImageView>(R.id.settings_gear)?.applyColorFilter(config.topBarTextColor)
+            // Material 3 Depth (Rounded only on bottom)
+            if (useNewUi) {
+                appBar.elevation = 14 * density // Extra Stronger shadow
+                appBar.clipToOutline = false 
+                appBar.outlineProvider = object : android.view.ViewOutlineProvider() {
+                    override fun getOutline(view: View, outline: android.graphics.Outline) {
+                        // Start rect ABOVE view so top corners are hidden/flat
+                        outline.setRoundRect(0, -barRadius.toInt(), view.width, view.height, barRadius)
+                    }
+                }
+                appBar.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                // Ensure shadow is visible by disabling clipping on parent
+                (appBar.parent as? ViewGroup)?.let {
+                    it.clipChildren = false
+                    it.clipToPadding = false
+                }
+            } else {
+                appBar.elevation = 0f
+            }
+            
+            // Force title tinting for main screen icons if they exist (70% Transparent)
+            val topTextColor = config.topBarTextColor
+            findViewById<ImageView>(R.id.settings_gear)?.let {
+                it.visibility = View.VISIBLE
+                it.imageTintList = ColorStateList.valueOf(topTextColor)
+                it.alpha = 0.3f
+                it.elevation = 20 * density // Float MUCH higher than AppBar shadow
+                it.translationZ = 10 * density
+                it.bringToFront()
+            }
+
+            findViewById<TextView>(R.id.conversations_fab)?.let {
+                it.visibility = View.VISIBLE
+                it.setTextColor(topTextColor)
+                it.alpha = 0.3f
+                it.elevation = 20 * density // Float MUCH higher than AppBar shadow
+                it.translationZ = 10 * density
+                it.bringToFront()
+            }
         }
         
         toolbar?.setBackgroundColor(Color.TRANSPARENT)
@@ -277,16 +317,24 @@ open class SimpleActivity : BaseSimpleActivity() {
             }
         }
         
-        // Apply gear icon and plus button colors
+        // Apply gear icon and plus button colors (Force 100% Sync with Top Bar Text, 70% Transparent)
         val topTextColor = config.topBarTextColor
         findViewById<ImageView>(R.id.settings_gear)?.let {
             it.imageTintList = ColorStateList.valueOf(topTextColor)
-            it.alpha = 0.2f
+            it.alpha = 0.3f // 70% transparent = 0.3 opacity
+            if (config.useNewUi) {
+                it.elevation = 12 * density
+                it.bringToFront()
+            }
         }
 
         findViewById<TextView>(R.id.conversations_fab)?.let {
             it.setTextColor(topTextColor)
-            it.alpha = 0.2f
+            it.alpha = 0.3f // 70% transparent = 0.3 opacity
+            if (config.useNewUi) {
+                it.elevation = 12 * density
+                it.bringToFront()
+            }
         }
         
         // Force settings labels to follow main text color

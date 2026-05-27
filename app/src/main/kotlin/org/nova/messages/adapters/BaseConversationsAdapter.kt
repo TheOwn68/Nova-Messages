@@ -1,11 +1,14 @@
 package org.nova.messages.adapters
 
 import android.annotation.SuppressLint
+import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.os.Parcelable
 import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.view.updateLayoutParams
 import androidx.recyclerview.widget.DiffUtil
@@ -23,10 +26,10 @@ import org.fossify.commons.helpers.FontHelper
 import org.fossify.commons.helpers.SimpleContactsHelper
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.commons.views.MyRecyclerView
+import org.nova.messages.R
 import org.nova.messages.activities.SimpleActivity
 import org.nova.messages.databinding.ItemConversationBinding
-import org.nova.messages.extensions.config
-import org.nova.messages.extensions.getAllDrafts
+import org.nova.messages.extensions.*
 import org.nova.messages.models.Conversation
 
 @Suppress("LeakingThis")
@@ -103,8 +106,20 @@ abstract class BaseConversationsAdapter(
 
     override fun onActionModeDestroyed() {}
 
+    override fun getItemViewType(position: Int): Int {
+        return if (activity.config.useNewUi) {
+            if (position < 2) VIEW_TYPE_RECENT else VIEW_TYPE_PILL
+        } else {
+            VIEW_TYPE_DEFAULT
+        }
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val binding = ItemConversationBinding.inflate(layoutInflater, parent, false)
+        val binding = when (viewType) {
+            VIEW_TYPE_RECENT -> org.nova.messages.databinding.ItemConversationRecentBinding.inflate(layoutInflater, parent, false)
+            VIEW_TYPE_PILL -> org.nova.messages.databinding.ItemConversationPillBinding.inflate(layoutInflater, parent, false)
+            else -> ItemConversationBinding.inflate(layoutInflater, parent, false)
+        }
         return createViewHolder(binding.root)
     }
 
@@ -115,9 +130,124 @@ abstract class BaseConversationsAdapter(
             allowSingleClick = true,
             allowLongClick = true
         ) { itemView, _ ->
-            setupView(itemView, conversation)
+            if (activity.config.useNewUi) {
+                if (position < 2) setupRecentView(itemView, conversation, position) else setupPillView(itemView, conversation, position)
+            } else {
+                setupView(itemView, conversation)
+            }
         }
         bindViewHolder(holder)
+    }
+
+    fun onItemMoved(from: Int, to: Int) {
+        if (!activity.config.useNewUi || from < 2 || to < 2) return
+        val list = currentList.toArrayList()
+        val movedItem = list.removeAt(from)
+        list.add(to, movedItem)
+        submitList(list)
+        
+        // Save manual order
+        val others = list.drop(2)
+        activity.config.conversationOrder = others.joinToString(",") { conv -> conv.threadId.toString() }
+    }
+
+    private val lastSenderCache = HashMap<Long, Int>()
+
+    private fun setupRecentView(view: View, conversation: Conversation, position: Int) {
+        org.nova.messages.databinding.ItemConversationRecentBinding.bind(view).apply {
+            val mainTextColor = activity.config.mainTextColor
+            recentAddress.text = conversation.title
+            recentAddress.setTextColor(mainTextColor)
+            
+            // Priority: Real messages over drafts for "Recent" cards as per user request
+            val snippet = conversation.snippet
+            ensureBackgroundThread {
+                val type = activity.getLatestMessageType(conversation.threadId)
+                // type 2 is SENT, type 1 is INBOX
+                val isSent = type == 2 || type == 4 || type == 5 || type == 6 
+                activity.runOnUiThread {
+                    if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
+                    recentBody.text = if (isSent) "You: $snippet" else snippet
+                    recentBody.setTextColor(mainTextColor)
+                    recentBody.alpha = 0.8f
+                }
+            }
+
+            recentDate.text = (conversation.date * 1000L).formatDateOrTime(
+                context = activity,
+                hideTimeOnOtherDays = true,
+                showCurrentYear = false
+            )
+            recentDate.setTextColor(mainTextColor)
+            recentDate.alpha = 0.7f
+            
+            recentFrame.setupViewBackground(activity)
+            
+            val baseColor = activity.config.recentColor
+            
+            // Modern Vertical Gradient
+            val lightened = adjustColor(baseColor, 1.2f)
+            val darkened = adjustColor(baseColor, 0.8f)
+            val gd = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(lightened, baseColor, darkened))
+            gd.cornerRadius = 1000f
+            recentFrame.background = gd
+            
+            // Hard Force Elevation (High Visibility)
+            recentFrame.elevation = 14f * resources.displayMetrics.density
+            recentFrame.translationZ = 8f
+            recentFrame.outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
+            recentFrame.clipToOutline = false
+
+            SimpleContactsHelper(activity).loadContactImage(
+                path = conversation.photoUri,
+                imageView = recentImage,
+                placeholderName = conversation.title
+            )
+        }
+    }
+
+    private fun setupPillView(view: View, conversation: Conversation, position: Int) {
+        org.nova.messages.databinding.ItemConversationPillBinding.bind(view).apply {
+            val mainTextColor = activity.config.mainTextColor
+            pillAddress.text = conversation.title
+            pillAddress.setTextColor(mainTextColor) 
+            pillFrame.setupViewBackground(activity)
+            
+            // Sync color by row: position 2-3 are row 0, 4-5 are row 1, etc.
+            val rowIndex = (position - 2) / 2
+            val baseColor = when (rowIndex % 3) {
+                0 -> activity.config.row1Color
+                1 -> activity.config.row2Color
+                else -> activity.config.row3Color
+            }
+            
+            // Modern Vertical Gradient (Slightly Lighter for M3 look)
+            val lightened = adjustColor(baseColor, 1.2f)
+            val darkened = adjustColor(baseColor, 0.8f)
+            val gd = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(lightened, baseColor, darkened))
+            gd.cornerRadius = 1000f
+            pillFrame.background = gd
+            
+            // Hard Force Elevation (High Visibility)
+            pillFrame.elevation = 12f * resources.displayMetrics.density
+            pillFrame.translationZ = 6f
+            pillFrame.outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
+            pillFrame.clipToOutline = false
+
+            SimpleContactsHelper(activity).loadContactImage(
+                path = conversation.photoUri,
+                imageView = pillImage,
+                placeholderName = conversation.title
+            )
+        }
+    }
+
+    private fun adjustColor(color: Int, factor: Float): Int {
+        val a = Color.alpha(color)
+        val r = Math.round(Color.red(color) * factor).coerceIn(0, 255)
+        val g = Math.round(Color.green(color) * factor).coerceIn(0, 255)
+        val b = Math.round(Color.blue(color) * factor).coerceIn(0, 255)
+        return Color.argb(a, r, g, b)
     }
 
     override fun getItemId(position: Int) = getItem(position).threadId
@@ -125,8 +255,16 @@ abstract class BaseConversationsAdapter(
     override fun onViewRecycled(holder: ViewHolder) {
         super.onViewRecycled(holder)
         if (!activity.isDestroyed && !activity.isFinishing) {
-            val itemView = ItemConversationBinding.bind(holder.itemView)
-            Glide.with(activity).clear(itemView.conversationImage)
+            try {
+                // Ultra-Safe Image Clearing: Just find the possible image views directly
+                val recentImg = holder.itemView.findViewById<ImageView>(R.id.recent_image)
+                val pillImg = holder.itemView.findViewById<ImageView>(R.id.pill_image)
+                val convImg = holder.itemView.findViewById<ImageView>(R.id.conversation_image)
+                
+                recentImg?.let { Glide.with(activity).clear(it) }
+                pillImg?.let { Glide.with(activity).clear(it) }
+                convImg?.let { Glide.with(activity).clear(it) }
+            } catch (_: Exception) { }
         }
     }
 
@@ -270,5 +408,9 @@ abstract class BaseConversationsAdapter(
 
     companion object {
         private const val MAX_UNREAD_BADGE_COUNT = 99
+        
+        const val VIEW_TYPE_DEFAULT = 0
+        const val VIEW_TYPE_RECENT = 1
+        const val VIEW_TYPE_PILL = 2
     }
 }

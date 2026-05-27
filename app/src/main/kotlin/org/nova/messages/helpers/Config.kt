@@ -155,9 +155,37 @@ class Config(context: Context) : BaseConfig(context) {
         set(keepConversationsArchived) = prefs.edit()
             .putBoolean(KEEP_CONVERSATIONS_ARCHIVED, keepConversationsArchived).apply()
 
+    var useNewUi: Boolean
+        get() = prefs.getBoolean(USE_NEW_UI, false)
+        set(useNewUi) = prefs.edit().putBoolean(USE_NEW_UI, useNewUi).apply()
+
+    var conversationOrder: String
+        get() = prefs.getString(CONVERSATION_ORDER, "")!!
+        set(conversationOrder) = prefs.edit().putString(CONVERSATION_ORDER, conversationOrder).apply()
+
+    var recentColor: Int
+        get() = prefs.getInt(RECENT_COLOR, Color.parseColor("#FFE4E1"))
+        set(recentColor) = prefs.edit().putInt(RECENT_COLOR, recentColor).apply()
+
+    var row1Color: Int
+        get() = prefs.getInt(ROW1_COLOR, Color.parseColor("#F48FB1"))
+        set(row1Color) = prefs.edit().putInt(ROW1_COLOR, row1Color).apply()
+
+    var row2Color: Int
+        get() = prefs.getInt(ROW2_COLOR, Color.parseColor("#81C784"))
+        set(row2Color) = prefs.edit().putInt(ROW2_COLOR, row2Color).apply()
+
+    var row3Color: Int
+        get() = prefs.getInt(ROW3_COLOR, Color.parseColor("#FFB74D"))
+        set(row3Color) = prefs.edit().putInt(ROW3_COLOR, row3Color).apply()
+
     var uiScale: Float
         get() = prefs.getFloat(UI_SCALE, 1.0f)
         set(uiScale) = prefs.edit().putFloat(UI_SCALE, uiScale).apply()
+
+    fun resetColors() {
+        prefs.edit().remove(TOP_BAR_COLOR).remove(TOP_BAR_TEXT_COLOR).remove(MAIN_BACKGROUND_COLOR).remove(MAIN_TEXT_COLOR).remove(INPUT_BAR_BACKGROUND_COLOR).remove(INPUT_BAR_TEXT_COLOR).remove(SENT_BUBBLE_COLOR).remove(SENT_BUBBLE_TEXT_COLOR).remove(RECEIVED_BUBBLE_COLOR).remove(RECEIVED_BUBBLE_TEXT_COLOR).remove(RECENT_COLOR).remove(ROW1_COLOR).remove(ROW2_COLOR).remove(ROW3_COLOR).apply()
+    }
 
     var fontFamilyNova: Int
         get() = prefs.getInt(FONT_FAMILY_NOVA, 0) // Default to System

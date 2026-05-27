@@ -128,8 +128,8 @@
             android:layout_height="0dp"
             android:clipToPadding="false"
             android:overScrollMode="ifContentScrolls"
-            android:paddingTop="@dimen/big_margin"
-            android:paddingBottom="@dimen/medium_margin"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp"
             android:scrollbars="none"
             app:layout_constraintBottom_toTopOf="@id/short_code_holder"
             app:layout_constraintTop_toBottomOf="@id/thread_add_contacts"
@@ -152,7 +152,7 @@
             android:clickable="true"
             android:focusable="true"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintBottom_toTopOf="@id/short_code_holder" />
+            app:layout_constraintBottom_toTopOf="@id/message_holder" />
 
         <include
             android:id="@+id/short_code_holder"
@@ -163,7 +163,6 @@
             app:layout_constraintBottom_toTopOf="@id/message_holder"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/thread_messages_list"
             tools:visibility="visible" />
 
         <include

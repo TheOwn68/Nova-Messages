@@ -12,6 +12,7 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.RelativeLayout
 import android.widget.TextView
+import android.widget.ImageView
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.graphics.drawable.toDrawable
@@ -142,7 +143,8 @@ class ThreadAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val binding = when (viewType) {
-            THREAD_RECEIVED_MESSAGE, THREAD_SENT_MESSAGE -> ItemMessageBinding.inflate(layoutInflater, parent, false)
+            THREAD_RECEIVED_MESSAGE -> ItemMessageReceivedBinding.inflate(layoutInflater, parent, false)
+            THREAD_SENT_MESSAGE -> ItemMessageSentBinding.inflate(layoutInflater, parent, false)
             THREAD_DATE_TIME -> ItemThreadDateTimeBinding.inflate(layoutInflater, parent, false)
             THREAD_SENT_MESSAGE_ERROR -> ItemThreadErrorBinding.inflate(layoutInflater, parent, false)
             THREAD_SENT_MESSAGE_SENDING -> ItemThreadSendingBinding.inflate(layoutInflater, parent, false)
@@ -156,7 +158,9 @@ class ThreadAdapter(
         val item = currentList[position]
         val binding = (holder as ThreadViewHolder).binding
         when (item) {
-            is Message -> setupView(holder, binding as ItemMessageBinding, item)
+            is Message -> {
+                setupView(holder, binding, item)
+            }
             is ThreadDateTime -> setupDateTime(binding.root, item)
             is ThreadError -> setupThreadError(binding.root)
             is ThreadSending -> setupThreadSending(binding.root)
@@ -280,149 +284,139 @@ class ThreadAdapter(
         }
     }
 
-    private fun setupView(holder: ViewHolder, binding: ItemMessageBinding, message: Message) {
-        binding.apply {
-            val isSelected = selectedKeys.contains(message.getSelectionKey())
-            threadMessageHolder.visibility = View.VISIBLE
-            threadMessageWrapper.visibility = View.VISIBLE
+    private fun setupView(holder: ViewHolder, binding: ViewBinding, message: Message) {
+        val isSelected = selectedKeys.contains(message.getSelectionKey())
+        val isReceived = message.isReceivedMessage()
+        
+        val wrapper = if (binding is ItemMessageReceivedBinding) binding.threadMessageWrapper else (binding as ItemMessageSentBinding).threadMessageWrapper
+        val holderView = if (binding is ItemMessageReceivedBinding) binding.threadMessageHolder else (binding as ItemMessageSentBinding).threadMessageHolder
+        val bodyView = if (binding is ItemMessageReceivedBinding) binding.threadMessageBody else (binding as ItemMessageSentBinding).threadMessageBody
+        val photoView = if (binding is ItemMessageReceivedBinding) binding.threadMessageSenderPhoto else (binding as ItemMessageSentBinding).threadMessageSenderPhoto
+        val attachmentsHolder = if (binding is ItemMessageReceivedBinding) binding.threadMessageAttachmentsHolder else (binding as ItemMessageSentBinding).threadMessageAttachmentsHolder
+        val playOutline = if (binding is ItemMessageReceivedBinding) binding.threadMessagePlayOutline else (binding as ItemMessageSentBinding).threadMessagePlayOutline
+        val overlay = if (binding is ItemMessageReceivedBinding) binding.selectionOverlay else (binding as ItemMessageSentBinding).selectionOverlay
 
-            // Selection Overlay Logic
-            selectionOverlay.beVisibleIf(isSelected)
-            if (isSelected) {
-                val simpleActivity = activity as SimpleActivity
-                val highlightColor = if (simpleActivity.config.topBarColor != 0) {
-                    simpleActivity.run { simpleActivity.config.topBarColor.withAlpha(0.3f) }
-                } else {
-                    simpleActivity.run { Color.BLACK.withAlpha(0.1f) }
-                }
-                
-                // Set background shape (matching bubble radius)
-                val radius = 20f * root.resources.displayMetrics.density
-                val shape = GradientDrawable().apply {
-                    shape = GradientDrawable.RECTANGLE
-                    cornerRadius = radius
-                    setColor(highlightColor)
-                }
-                selectionOverlay.background = shape
-            }
+        holderView.visibility = View.VISIBLE
+        wrapper.visibility = View.VISIBLE
 
-            // Safer alignment using direct LayoutParams access (with Anti-Loop Guard)
-            val params = threadMessageWrapper.layoutParams as? androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
-            if (params != null) {
-                val isReceived = message.isReceivedMessage()
-                val targetStart = if (isReceived) androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID else androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET
-                val targetEnd = if (isReceived) androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET else androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
-                val targetBias = if (isReceived) 0f else 1f
-
-                // ONLY update if it actually changed to prevent illegal layout loops on physical devices
-                if (params.startToStart != targetStart || params.endToEnd != targetEnd || params.horizontalBias != targetBias) {
-                    params.startToStart = targetStart
-                    params.endToEnd = targetEnd
-                    params.horizontalBias = targetBias
-                    threadMessageWrapper.layoutParams = params
-                }
-            }
-
-            threadMessageBody.apply {
-                val config = activity.config
-                val isReceived = message.isReceivedMessage()
-                val bgColor = if (isReceived) config.receivedBubbleColor else config.sentBubbleColor
-                val textColor = if (isReceived) config.receivedBubbleTextColor else config.sentBubbleTextColor
-                
-                updateLayoutParams<RelativeLayout.LayoutParams> {
-                    if (isReceived) {
-                        removeRule(RelativeLayout.ALIGN_PARENT_END)
-                        addRule(RelativeLayout.END_OF, R.id.thread_message_sender_photo)
-                    } else {
-                        removeRule(RelativeLayout.END_OF)
-                        addRule(RelativeLayout.ALIGN_PARENT_END)
-                    }
-                }
-                
-                // Safety: if background and text are too similar or transparent, use defaults
-                val finalTextColor = if (textColor == 0 || textColor == Color.TRANSPARENT || textColor == bgColor) {
-                    if (bgColor == Color.WHITE) Color.BLACK else Color.WHITE
-                } else {
-                    textColor
-                }
-
-                val backgroundDrawable = AppCompatResources.getDrawable(activity, if (message.isReceivedMessage()) R.drawable.item_received_background else R.drawable.item_sent_background)
-                if (backgroundDrawable is GradientDrawable) {
-                    backgroundDrawable.setColor(bgColor)
-                } else if (backgroundDrawable != null) {
-                    backgroundDrawable.applyColorFilter(bgColor)
-                }
-                background = backgroundDrawable
-                
-                setTextColor(finalTextColor)
-                alpha = 1.0f
-                setLinkTextColor(if (message.isReceivedMessage()) activity.getProperPrimaryColor() else finalTextColor)
-
-                text = message.body
-                visibility = if (message.body.isNotEmpty()) View.VISIBLE else View.GONE
-                setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
-                
-                val customTypeface = (activity as SimpleActivity).getCustomTypeface()
-                val style = if (message.isScheduled) Typeface.ITALIC else Typeface.NORMAL
-                typeface = Typeface.create(customTypeface, style)
-
-                setOnLongClickListener {
-                    holder.viewLongClicked()
-                    true
-                }
-
-                setOnClickListener {
-                    holder.viewClicked(message)
-                }
-
-                if (!message.isReceivedMessage() && message.isScheduled) {
-                    val scheduledDrawable = AppCompatResources.getDrawable(activity, org.fossify.commons.R.drawable.ic_clock_vector)?.apply {
-                        applyColorFilter(finalTextColor)
-                        val size = lineHeight
-                        setBounds(0, 0, size, size)
-                    }
-                    setCompoundDrawables(null, null, scheduledDrawable, null)
-                } else {
-                    setCompoundDrawables(null, null, null, null)
-                }
-            }
-
-            if (message.attachment?.attachments?.isNotEmpty() == true) {
-                threadMessageAttachmentsHolder.beVisible()
-                // Only clear and re-add if needed (Simple check using tag to avoid jitter)
-                val attachmentCount = message.attachment.attachments.size
-                if (threadMessageAttachmentsHolder.tag != message.id) {
-                    threadMessageAttachmentsHolder.removeAllViews()
-                    for (attachment in message.attachment.attachments) {
-                        val mimetype = attachment.mimetype
-                        when {
-                            mimetype.isImageMimeType() || mimetype.isVideoMimeType() -> setupImageView(holder, binding = this, message, attachment)
-                            mimetype.isVCardMimeType() -> setupVCardView(holder, threadMessageAttachmentsHolder, message, attachment)
-                            else -> setupFileView(holder, threadMessageAttachmentsHolder, message, attachment)
-                        }
-                    }
-                    threadMessageAttachmentsHolder.tag = message.id
-                }
-                
-                val hasVideo = message.attachment.attachments.any { it.mimetype.startsWith("video/") }
-                threadMessagePlayOutline.beVisibleIf(hasVideo)
+        // Selection Overlay Logic (Theme Perfect)
+        overlay.beVisibleIf(isSelected)
+        if (isSelected) {
+            val simpleActivity = activity as SimpleActivity
+            val highlightColor = if (simpleActivity.config.topBarColor != 0) {
+                simpleActivity.run { simpleActivity.config.topBarColor.withAlpha(0.3f) }
             } else {
-                threadMessageAttachmentsHolder.beGone()
-                threadMessagePlayOutline.beGone()
-                threadMessageAttachmentsHolder.tag = null
+                simpleActivity.run { Color.BLACK.withAlpha(0.1f) }
             }
+            
+            val radius = 20f * simpleActivity.resources.displayMetrics.density
+            val shape = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = radius
+                setColor(highlightColor)
+            }
+            overlay.background = shape
+        }
+
+        // NO LayoutParams logic here anymore! Alignment is handled by distinct XML files.
+
+        bodyView.apply {
+            val config = activity.config
+            val bgColor = if (isReceived) config.receivedBubbleColor else config.sentBubbleColor
+            val textColor = if (isReceived) config.receivedBubbleTextColor else config.sentBubbleTextColor
+            
+            // Safety: if background and text are too similar or transparent, use defaults
+            val finalTextColor = if (textColor == 0 || textColor == Color.TRANSPARENT || textColor == bgColor) {
+                if (bgColor == Color.WHITE) Color.BLACK else Color.WHITE
+            } else {
+                textColor
+            }
+
+            val backgroundDrawable = AppCompatResources.getDrawable(activity, if (isReceived) R.drawable.item_received_background else R.drawable.item_sent_background)
+            if (backgroundDrawable is GradientDrawable) {
+                backgroundDrawable.setColor(bgColor)
+            } else if (backgroundDrawable != null) {
+                backgroundDrawable.applyColorFilter(bgColor)
+            }
+            background = backgroundDrawable
+            
+            // Material 3 Depth (Synchronized with Top Bar style)
+            if ((activity as SimpleActivity).config.useNewUi) {
+                elevation = 10f * resources.displayMetrics.density // EXTRA VISIBLE
+                clipToOutline = false 
+                outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
+                translationZ = 4f // Higher lift
+            }
+            
+            setTextColor(finalTextColor)
+            alpha = 1.0f
+            setLinkTextColor(if (isReceived) activity.getProperPrimaryColor() else finalTextColor)
+
+            text = message.body
+            visibility = if (message.body.isNotEmpty()) View.VISIBLE else View.GONE
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
+            
+            val customTypeface = (activity as SimpleActivity).getCustomTypeface()
+            val style = if (message.isScheduled) Typeface.ITALIC else Typeface.NORMAL
+            typeface = Typeface.create(customTypeface, style)
+
+            setOnLongClickListener {
+                holder.viewLongClicked()
+                true
+            }
+
+            setOnClickListener {
+                holder.viewClicked(message)
+            }
+
+            if (!isReceived && message.isScheduled) {
+                val scheduledDrawable = AppCompatResources.getDrawable(activity, org.fossify.commons.R.drawable.ic_clock_vector)?.apply {
+                    applyColorFilter(finalTextColor)
+                    val size = lineHeight
+                    setBounds(0, 0, size, size)
+                }
+                setCompoundDrawables(null, null, scheduledDrawable, null)
+            } else {
+                setCompoundDrawables(null, null, null, null)
+            }
+        }
+
+        if (message.attachment?.attachments?.isNotEmpty() == true) {
+            attachmentsHolder.beVisible()
+            if (attachmentsHolder.tag != message.id) {
+                attachmentsHolder.removeAllViews()
+                for (attachment in message.attachment.attachments) {
+                    val mimetype = attachment.mimetype
+                    when {
+                        mimetype.isImageMimeType() || mimetype.isVideoMimeType() -> setupImageView(holder, binding, message, attachment)
+                        mimetype.isVCardMimeType() -> setupVCardView(holder, attachmentsHolder, message, attachment)
+                        else -> setupFileView(holder, attachmentsHolder, message, attachment)
+                    }
+                }
+                attachmentsHolder.tag = message.id
+            }
+            
+            val hasVideo = message.attachment.attachments.any { it.mimetype.startsWith("video/") }
+            playOutline.beVisibleIf(hasVideo)
+        } else {
+            attachmentsHolder.beGone()
+            playOutline.beGone()
+            attachmentsHolder.tag = null
         }
     }
 
-    private fun setupImageView(holder: ViewHolder, binding: ItemMessageBinding, message: Message, attachment: Attachment) = binding.apply {
+    private fun setupImageView(holder: ViewHolder, binding: ViewBinding, message: Message, attachment: Attachment) {
+        val attachmentsHolder = if (binding is ItemMessageReceivedBinding) binding.threadMessageAttachmentsHolder else (binding as ItemMessageSentBinding).threadMessageAttachmentsHolder
+        val playOutline = if (binding is ItemMessageReceivedBinding) binding.threadMessagePlayOutline else (binding as ItemMessageSentBinding).threadMessagePlayOutline
+        
         val mimetype = attachment.mimetype
         val uri = attachment.getUri()
 
-        val imageView = ItemAttachmentImageBinding.inflate(layoutInflater)
-        threadMessageAttachmentsHolder.addView(imageView.root)
+        val imageViewBinding = ItemAttachmentImageBinding.inflate(layoutInflater)
+        attachmentsHolder.addView(imageViewBinding.root)
 
         // Set stable placeholder height to prevent jitter
-        imageView.attachmentImage.updateLayoutParams<ViewGroup.LayoutParams> {
+        imageViewBinding.attachmentImage.updateLayoutParams<ViewGroup.LayoutParams> {
             width = maxChatBubbleWidth
             height = (maxChatBubbleWidth * 0.6f).toInt() // Stable aspect ratio placeholder
         }
@@ -433,7 +427,7 @@ class ThreadAdapter(
             .placeholder(placeholderDrawable)
             .transform(FitCenter())
 
-        Glide.with(root.context)
+        Glide.with(activity)
             .load(uri)
             .apply(options)
             .dontAnimate()
@@ -441,40 +435,40 @@ class ThreadAdapter(
             .downsample(DownsampleStrategy.AT_MOST)
             .listener(object : RequestListener<Drawable> {
                 override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean): Boolean {
-                    imageView.attachmentImage.updateLayoutParams<ViewGroup.LayoutParams> {
+                    imageViewBinding.attachmentImage.updateLayoutParams<ViewGroup.LayoutParams> {
                         width = maxChatBubbleWidth
                         height = (maxChatBubbleWidth * 0.6f).toInt()
                     }
-                    imageView.attachmentImage.setImageResource(R.drawable.ic_image_vector)
-                    imageView.attachmentImage.applyColorFilter(activity.getProperPrimaryColor())
-                    threadMessagePlayOutline.beGone()
+                    imageViewBinding.attachmentImage.setImageResource(R.drawable.ic_image_vector)
+                    imageViewBinding.attachmentImage.applyColorFilter(activity.getProperPrimaryColor())
+                    playOutline.beGone()
                     return true
                 }
 
                 override fun onResourceReady(resource: Drawable?, model: Any?, target: Target<Drawable>?, dataSource: DataSource?, isFirstResource: Boolean): Boolean {
                     // Adjust height only after load, but Glide does this smoothly with dontAnimate
-                    imageView.attachmentImage.updateLayoutParams<ViewGroup.LayoutParams> {
+                    imageViewBinding.attachmentImage.updateLayoutParams<ViewGroup.LayoutParams> {
                         width = maxChatBubbleWidth
                         height = ViewGroup.LayoutParams.WRAP_CONTENT
                     }
                     return false
                 }
             })
-            .into(imageView.attachmentImage)
+            .into(imageViewBinding.attachmentImage)
 
-        imageView.attachmentImage.updateLayoutParams<ViewGroup.LayoutParams> {
+        imageViewBinding.attachmentImage.updateLayoutParams<ViewGroup.LayoutParams> {
             width = maxChatBubbleWidth
             height = ViewGroup.LayoutParams.WRAP_CONTENT
         }
 
-        imageView.attachmentImage.setOnClickListener {
+        imageViewBinding.attachmentImage.setOnClickListener {
             if (actModeCallback.isSelectable) {
                 holder.viewClicked(message)
             } else {
                 activity.launchViewIntent(uri, mimetype, attachment.filename)
             }
         }
-        imageView.root.setOnLongClickListener {
+        imageViewBinding.root.setOnLongClickListener {
             holder.viewLongClicked()
             true
         }
@@ -585,8 +579,16 @@ class ThreadAdapter(
         super.onViewRecycled(holder)
         if (!activity.isDestroyed && !activity.isFinishing) {
             val binding = (holder as ThreadViewHolder).binding
-            if (binding is ItemMessageBinding) {
-                Glide.with(activity).clear(binding.threadMessageSenderPhoto)
+            val photoView = if (binding is ItemMessageReceivedBinding) {
+                binding.threadMessageSenderPhoto
+            } else if (binding is ItemMessageSentBinding) {
+                binding.threadMessageSenderPhoto
+            } else {
+                null
+            }
+            
+            photoView?.let {
+                Glide.with(activity).clear(it)
             }
         }
     }

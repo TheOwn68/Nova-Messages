@@ -139,6 +139,97 @@ class ThreadActivity : SimpleActivity() {
         binding.threadMessagesList.setItemViewCacheSize(20)
         (binding.threadMessagesList.layoutManager as LinearLayoutManager).stackFromEnd = true
         loadConversation()
+        setupExpandingInputBar()
+    }
+
+    private fun setupExpandingInputBar() {
+        if (config.useNewUi) {
+            val inputBar = binding.messageHolder.novaMessageInputBar
+            val inputField = binding.messageHolder.threadTypeMessage
+            
+            // New UI: Small centered input bar that expands
+            inputBar.updateLayoutParams<androidx.constraintlayout.widget.ConstraintLayout.LayoutParams> {
+                width = 240.getScaledPx()
+                startToStart = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
+                endToEnd = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
+            }
+            inputBar.alpha = 0.7f // 70% opacity
+            inputBar.elevation = 12f * resources.displayMetrics.density
+            inputBar.translationZ = 4f
+            
+            inputField.isFocusable = false
+            inputField.isFocusableInTouchMode = false
+            inputField.isEnabled = true
+            
+            inputBar.setOnClickListener {
+                if (!inputField.isFocusable) {
+                    expandInputBar()
+                }
+            }
+            
+            inputField.setOnClickListener {
+                if (!inputField.isFocusable) {
+                    expandInputBar()
+                }
+            }
+            
+            inputField.setOnFocusChangeListener { _, hasFocus ->
+                if (!hasFocus && inputField.text?.isEmpty() == true) {
+                    shrinkInputBar()
+                }
+            }
+        }
+    }
+
+    private fun expandInputBar() {
+        val inputBar = binding.messageHolder.novaMessageInputBar
+        val inputField = binding.messageHolder.threadTypeMessage
+        
+        val startWidth = inputBar.width
+        val endWidth = binding.threadHolder.width - 32.getScaledPx()
+        
+        val animator = android.animation.ValueAnimator.ofInt(startWidth, endWidth)
+        animator.duration = 300
+        animator.interpolator = android.view.animation.DecelerateInterpolator()
+        animator.addUpdateListener { animation ->
+            inputBar.updateLayoutParams {
+                width = animation.animatedValue as Int
+            }
+        }
+        animator.addListener(object : android.animation.AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: android.animation.Animator) {
+                inputField.isFocusable = true
+                inputField.isFocusableInTouchMode = true
+                inputField.requestFocus()
+                showKeyboard(inputField)
+            }
+        })
+        animator.start()
+    }
+
+    private fun shrinkInputBar() {
+        val inputBar = binding.messageHolder.novaMessageInputBar
+        val inputField = binding.messageHolder.threadTypeMessage
+        
+        val startWidth = inputBar.width
+        val endWidth = 240.getScaledPx()
+        
+        val animator = android.animation.ValueAnimator.ofInt(startWidth, endWidth)
+        animator.duration = 300
+        animator.interpolator = android.view.animation.DecelerateInterpolator()
+        animator.addUpdateListener { animation ->
+            inputBar.updateLayoutParams {
+                width = animation.animatedValue as Int
+            }
+        }
+        animator.addListener(object : android.animation.AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: android.animation.Animator) {
+                inputField.isFocusable = false
+                inputField.isFocusableInTouchMode = false
+                hideKeyboard()
+            }
+        })
+        animator.start()
     }
 
     override fun onResume() {

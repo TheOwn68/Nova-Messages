@@ -363,6 +363,50 @@
                 android:textSize="22sp"
                 android:textStyle="bold" />
 
+            <!-- New UI Switch -->
+            <RelativeLayout
+                android:id="@+id/settings_new_ui_holder"
+                style="@style/SettingsHolderTextViewStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <org.fossify.commons.views.MyTextView
+                    android:id="@+id/settings_new_ui_label"
+                    style="@style/SettingsTextLabelStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Use Modern Layout" />
+
+                <org.fossify.commons.views.MyMaterialSwitch
+                    android:id="@+id/settings_new_ui_switch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:layout_marginEnd="16dp"
+                    android:clickable="false"
+                    android:focusable="false" />
+
+            </RelativeLayout>
+
+            <!-- Colors for New UI -->
+            <RelativeLayout
+                android:id="@+id/settings_new_ui_colors_holder"
+                style="@style/SettingsHolderTextViewStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <org.fossify.commons.views.MyTextView
+                    android:id="@+id/settings_new_ui_colors_label"
+                    style="@style/SettingsTextLabelStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Colors for New UI" />
+
+            </RelativeLayout>
+
             <!-- UI Scale Slider -->
             <RelativeLayout
                 android:id="@+id/settings_ui_scale_holder"
