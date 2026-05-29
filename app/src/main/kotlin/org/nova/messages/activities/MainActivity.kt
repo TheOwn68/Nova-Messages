@@ -50,6 +50,7 @@ class MainActivity : SimpleActivity() {
     private var isActivityVisible = false
     private var lastRefreshTime = 0L
     private var isInitialized = false
+    private var wasImeVisible = false
 
     private val binding by viewBinding(ActivityMainBinding::inflate)
 
@@ -72,15 +73,16 @@ class MainActivity : SimpleActivity() {
         setupNovaSearchBar()
         loadMessages()
         
-        // Background update check
+        // Background update check (New Clean Implementation)
         org.nova.messages.helpers.UpdateHelper.checkForUpdate(this)
 
         // Keyboard Sync: Shrink search bar when keyboard goes down
         ViewCompat.setOnApplyWindowInsetsListener(binding.mainCoordinator) { _, insets ->
             val isImeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
-            if (!isImeVisible && config.useNewUi && binding.novaSearchInput.text?.isEmpty() == true) {
+            if (wasImeVisible && !isImeVisible && config.useNewUi && binding.novaSearchInput.text?.isEmpty() == true) {
                 shrinkSearchBar()
             }
+            wasImeVisible = isImeVisible
             insets
         }
     }
@@ -217,8 +219,10 @@ class MainActivity : SimpleActivity() {
         val startWidth = binding.novaSearchBar.width
         val endWidth = binding.mainCoordinator.width - 32.getScaledPx()
         
+        if (startWidth >= endWidth - 5) return // Already expanded
+        
         val animator = android.animation.ValueAnimator.ofInt(startWidth, endWidth)
-        animator.duration = 300
+        animator.duration = 200
         animator.interpolator = android.view.animation.DecelerateInterpolator()
         animator.addUpdateListener { animation ->
             binding.novaSearchBar.updateLayoutParams {
@@ -240,8 +244,10 @@ class MainActivity : SimpleActivity() {
         val startWidth = binding.novaSearchBar.width
         val endWidth = 240.getScaledPx()
         
+        if (startWidth <= endWidth + 5) return // Already shrunk
+        
         val animator = android.animation.ValueAnimator.ofInt(startWidth, endWidth)
-        animator.duration = 300
+        animator.duration = 200
         animator.interpolator = android.view.animation.DecelerateInterpolator()
         animator.addUpdateListener { animation ->
             binding.novaSearchBar.updateLayoutParams {

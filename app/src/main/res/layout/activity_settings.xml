@@ -389,23 +389,125 @@
 
             </RelativeLayout>
 
-            <!-- Colors for New UI -->
-            <RelativeLayout
-                android:id="@+id/settings_new_ui_colors_holder"
-                style="@style/SettingsHolderTextViewStyle"
+            <!-- Colors for New UI Section -->
+            <LinearLayout
+                android:id="@+id/settings_new_ui_colors_section"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:orientation="vertical"
                 android:visibility="gone"
                 tools:visibility="visible">
 
-                <org.fossify.commons.views.MyTextView
-                    android:id="@+id/settings_new_ui_colors_label"
-                    style="@style/SettingsTextLabelStyle"
-                    android:layout_width="wrap_content"
+                <TextView
+                    android:id="@+id/settings_new_ui_colors_label_header"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Colors for New UI" />
+                    android:paddingLeft="20dp"
+                    android:paddingRight="20dp"
+                    android:paddingTop="24dp"
+                    android:paddingBottom="16dp"
+                    android:text="Colors for New UI"
+                    android:textColor="@color/colorPrimary"
+                    android:textSize="22sp"
+                    android:textStyle="bold" />
 
-            </RelativeLayout>
+                <!-- Recent Contacts Color -->
+                <RelativeLayout
+                    android:id="@+id/settings_color_recent_holder"
+                    style="@style/SettingsHolderTextViewStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <org.fossify.commons.views.MyTextView
+                        android:id="@+id/settings_color_recent_label"
+                        style="@style/SettingsTextLabelStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Recent Contacts Color" />
+
+                    <View
+                        android:id="@+id/settings_color_recent_preview"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:layout_marginEnd="16dp"
+                        android:background="@drawable/color_preview_bg" />
+                </RelativeLayout>
+
+                <!-- Row 1 Contacts Color -->
+                <RelativeLayout
+                    android:id="@+id/settings_color_row1_holder"
+                    style="@style/SettingsHolderTextViewStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <org.fossify.commons.views.MyTextView
+                        android:id="@+id/settings_color_row1_label"
+                        style="@style/SettingsTextLabelStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Row 1 Contacts Color" />
+
+                    <View
+                        android:id="@+id/settings_color_row1_preview"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:layout_marginEnd="16dp"
+                        android:background="@drawable/color_preview_bg" />
+                </RelativeLayout>
+
+                <!-- Row 2 Contacts Color -->
+                <RelativeLayout
+                    android:id="@+id/settings_color_row2_holder"
+                    style="@style/SettingsHolderTextViewStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <org.fossify.commons.views.MyTextView
+                        android:id="@+id/settings_color_row2_label"
+                        style="@style/SettingsTextLabelStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Row 2 Contacts Color" />
+
+                    <View
+                        android:id="@+id/settings_color_row2_preview"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:layout_marginEnd="16dp"
+                        android:background="@drawable/color_preview_bg" />
+                </RelativeLayout>
+
+                <!-- Row 3 Contacts Color -->
+                <RelativeLayout
+                    android:id="@+id/settings_color_row3_holder"
+                    style="@style/SettingsHolderTextViewStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <org.fossify.commons.views.MyTextView
+                        android:id="@+id/settings_color_row3_label"
+                        style="@style/SettingsTextLabelStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Row 3 Contacts Color" />
+
+                    <View
+                        android:id="@+id/settings_color_row3_preview"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:layout_marginEnd="16dp"
+                        android:background="@drawable/color_preview_bg" />
+                </RelativeLayout>
+
+            </LinearLayout>
 
             <!-- UI Scale Slider -->
             <RelativeLayout

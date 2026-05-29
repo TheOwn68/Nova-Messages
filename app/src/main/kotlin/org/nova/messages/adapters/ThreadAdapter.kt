@@ -364,7 +364,26 @@ class ThreadAdapter(
                 // Material 3 Depth (Standardized for stability)
                 elevation = 4f * density
                 clipToOutline = false 
-                outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
+                outlineProvider = object : android.view.ViewOutlineProvider() {
+                    override fun getOutline(view: View, outline: android.graphics.Outline) {
+                        val path = android.graphics.Path()
+                        val radii = if (isReceived) {
+                            floatArrayOf(r18, r18, r18, r18, r18, r18, r4, r4)
+                        } else {
+                            floatArrayOf(r18, r18, r18, r18, r4, r4, r18, r18)
+                        }
+                        path.addRoundRect(
+                            0f, 0f, view.width.toFloat(), view.height.toFloat(),
+                            radii, android.graphics.Path.Direction.CW
+                        )
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                            outline.setPath(path)
+                        } else {
+                            @Suppress("DEPRECATION")
+                            outline.setConvexPath(path)
+                        }
+                    }
+                }
             } else {
                 if (backgroundDrawable is GradientDrawable) {
                     backgroundDrawable.setColor(bgColor)
@@ -412,9 +431,11 @@ class ThreadAdapter(
             val style = if (message.isScheduled) Typeface.ITALIC else Typeface.NORMAL
             typeface = Typeface.create(customTypeface, style)
 
-            // NO Click listeners here! They are on bodyHolder so links work
-            setOnClickListener(null)
-            setOnLongClickListener(null)
+            // Split interaction: bodyView handles links, but forwards long-press for selection
+            setOnLongClickListener {
+                holder.viewLongClicked()
+                true
+            }
 
             if (!isReceived && message.isScheduled) {
                 val scheduledDrawable = AppCompatResources.getDrawable(activity, org.fossify.commons.R.drawable.ic_clock_vector)?.apply {

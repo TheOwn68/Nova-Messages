@@ -47,6 +47,7 @@ abstract class BaseConversationsAdapter(
 ),
     RecyclerViewFastScroller.OnPopupTextUpdate {
     var itemTouchHelper: androidx.recyclerview.widget.ItemTouchHelper? = null
+    private var lastDragTime = 0L
     private var drafts = HashMap<Long, String>()
     private var fontSize = activity.getScaledTextSize()
     private var iconSize = (activity as SimpleActivity).getScaledDimen(org.fossify.commons.R.dimen.list_icon_size_medium)
@@ -54,7 +55,6 @@ abstract class BaseConversationsAdapter(
     private var recyclerViewState: Parcelable? = null
 
     init {
-        setupDragListener(true)
         setHasStableIds(false) // Must be false because Top 2 are duplicates of items in the grid
         updateDrafts()
 
@@ -163,14 +163,14 @@ abstract class BaseConversationsAdapter(
             recentAddress.setTextColor(mainTextColor)
             
             // Priority: Real messages over drafts for "Recent" cards as per user request
-            val snippet = conversation.snippet
             ensureBackgroundThread {
+                val liveSnippet = activity.getThreadSnippet(conversation.threadId)
                 val type = activity.getLatestMessageType(conversation.threadId)
                 // type 2 is SENT, type 1 is INBOX
                 val isSent = type == 2 || type == 4 || type == 5 || type == 6 
                 activity.runOnUiThread {
                     if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
-                    recentBody.text = if (isSent) "You: $snippet" else snippet
+                    recentBody.text = if (isSent && liveSnippet.isNotEmpty()) "You: $liveSnippet" else liveSnippet.ifEmpty { conversation.snippet }
                     recentBody.setTextColor(mainTextColor)
                     recentBody.alpha = 0.8f
                 }
@@ -201,8 +201,14 @@ abstract class BaseConversationsAdapter(
             recentFrame.outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
             recentFrame.clipToOutline = false
 
-            // Interaction Separation: Body is only for opening/dragging
+            // Selection Glow
+            val isSelected = selectedKeys.contains(conversation.hashCode())
+            recentSelectionGlow.beVisibleIf(isSelected)
+
+            // Interaction Separation: Body is only for opening (fixed cards)
             recentFrame.setOnClickListener {
+                if (System.currentTimeMillis() - lastDragTime < 500) return@setOnClickListener
+                
                 if (isSelectionModeActive()) {
                     holder.viewLongClicked() 
                 } else {
@@ -212,6 +218,7 @@ abstract class BaseConversationsAdapter(
 
             recentFrame.setOnLongClickListener {
                 // Recent cards are fixed, so we just toggle selection on body long-press
+                lastDragTime = System.currentTimeMillis()
                 holder.viewLongClicked()
                 true
             }
@@ -262,7 +269,14 @@ abstract class BaseConversationsAdapter(
             pillFrame.outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
             pillFrame.clipToOutline = false
 
+            // Selection Glow
+            val isSelected = selectedKeys.contains(conversation.hashCode())
+            pillSelectionGlow.beVisibleIf(isSelected)
+
             pillFrame.setOnClickListener {
+                // Click Guard: If we just finished a drag, ignore this click
+                if (System.currentTimeMillis() - lastDragTime < 500) return@setOnClickListener
+                
                 if (isSelectionModeActive()) {
                     holder.viewLongClicked()
                 } else {
@@ -273,23 +287,33 @@ abstract class BaseConversationsAdapter(
             pillFrame.setOnLongClickListener {
                 if (!isSelectionModeActive()) {
                     // Body Long-Press strictly for Dragging
+                    lastDragTime = System.currentTimeMillis()
                     itemTouchHelper?.startDrag(holder)
                     it.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
                     true 
                 } else {
-                    holder.viewLongClicked()
+                    // If selection active, body still acts as a reorder handle
+                    lastDragTime = System.currentTimeMillis()
+                    itemTouchHelper?.startDrag(holder)
+                    it.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
                     true
                 }
             }
 
             pillImage.setOnClickListener {
-                // Tapping image toggles selection
                 holder.viewLongClicked()
             }
 
             pillImage.setOnLongClickListener {
-                // Long-pressing image toggles selection
-                holder.viewLongClicked()
+                if (isSelectionModeActive()) {
+                    // While selecting, holding the picture lets you move it
+                    lastDragTime = System.currentTimeMillis()
+                    itemTouchHelper?.startDrag(holder)
+                    it.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                } else {
+                    // Not selecting, holding image starts selection
+                    holder.viewLongClicked()
+                }
                 true
             }
 
@@ -340,6 +364,8 @@ abstract class BaseConversationsAdapter(
             
             // Manually re-add listeners since we disabled default ones
             root.setOnClickListener {
+                if (System.currentTimeMillis() - lastDragTime < 500) return@setOnClickListener
+                
                 if (isSelectionModeActive()) {
                     holder.viewLongClicked()
                 } else {
@@ -348,6 +374,7 @@ abstract class BaseConversationsAdapter(
             }
             
             root.setOnLongClickListener {
+                lastDragTime = System.currentTimeMillis()
                 holder.viewLongClicked()
                 true
             }
@@ -377,8 +404,16 @@ abstract class BaseConversationsAdapter(
             }
 
             conversationBodyShort.apply {
-                text = smsDraft ?: conversation.snippet
-                setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
+                ensureBackgroundThread {
+                    val liveSnippet = activity.getThreadSnippet(conversation.threadId)
+                    val type = activity.getLatestMessageType(conversation.threadId)
+                    val isSent = type == 2 || type == 4 || type == 5 || type == 6 
+                    activity.runOnUiThread {
+                        if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
+                        text = if (isSent && liveSnippet.isNotEmpty()) "You: $liveSnippet" else liveSnippet.ifEmpty { smsDraft ?: conversation.snippet }
+                        setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
+                    }
+                }
             }
 
             conversationDate.apply {

@@ -558,30 +558,38 @@ fun Context.getLatestMMS(): Message? {
 }
 
 fun Context.getThreadSnippet(threadId: Long): String {
-    val sortOrder = "${Mms.DATE} DESC LIMIT 1"
+    val sortOrder = "date DESC LIMIT 1"
+    
+    // Get latest MMS
     val latestMms = getMMS(threadId, sortOrder).firstOrNull()
-    var snippet = latestMms?.body ?: ""
+    val mmsDate = latestMms?.date ?: 0L
+    val mmsBody = latestMms?.body ?: ""
 
+    // Get latest SMS
+    var smsDate = 0L
+    var smsBody = ""
     val uri = Sms.CONTENT_URI
-    val projection = arrayOf(
-        Sms.BODY
-    )
-
-    val selection = "${Sms.THREAD_ID} = ? AND ${Sms.DATE} > ?"
-    val selectionArgs = arrayOf(
-        threadId.toString(),
-        latestMms?.date?.toString() ?: "0"
-    )
+    val projection = arrayOf(Sms.BODY, Sms.DATE)
+    val selection = "${Sms.THREAD_ID} = ?"
+    val selectionArgs = arrayOf(threadId.toString())
+    
     try {
         val cursor = contentResolver.query(uri, projection, selection, selectionArgs, sortOrder)
         cursor?.use {
             if (cursor.moveToFirst()) {
-                snippet = cursor.getStringValue(Sms.BODY)
+                smsBody = cursor.getStringValue(Sms.BODY) ?: ""
+                smsDate = cursor.getLongValue(Sms.DATE)
+                if (smsDate.toString().length > 10) smsDate /= 1000
             }
         }
-    } catch (_: Exception) {
+    } catch (_: Exception) {}
+
+    // Compare and return the absolute latest
+    return if (mmsDate.toLong() >= smsDate.toLong()) {
+        mmsBody.ifEmpty { smsBody }
+    } else {
+        smsBody.ifEmpty { mmsBody }
     }
-    return snippet
 }
 
 fun Context.getMessageRecipientAddress(messageId: Long): String {

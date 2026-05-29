@@ -93,6 +93,7 @@ class ThreadActivity : SimpleActivity() {
     private lateinit var scheduledDateTime: DateTime
     private var isRefreshing = false
     private var isSendingMessage = false
+    private var wasImeVisible = false
 
     private val binding by viewBinding(ActivityThreadBinding::inflate)
 
@@ -144,9 +145,10 @@ class ThreadActivity : SimpleActivity() {
         // Keyboard Sync: Shrink input bar when keyboard goes down
         ViewCompat.setOnApplyWindowInsetsListener(binding.threadHolder) { _, insets ->
             val isImeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
-            if (!isImeVisible && config.useNewUi && binding.messageHolder.threadTypeMessage.text?.isEmpty() == true) {
+            if (wasImeVisible && !isImeVisible && config.useNewUi && binding.messageHolder.threadTypeMessage.text?.isEmpty() == true) {
                 shrinkInputBar()
             }
+            wasImeVisible = isImeVisible
             insets
         }
     }
@@ -216,8 +218,10 @@ class ThreadActivity : SimpleActivity() {
         val startWidth = inputBar.width
         val endWidth = binding.threadHolder.width - 32.getScaledPx()
         
+        if (startWidth >= endWidth - 5) return // Already expanded
+        
         val animator = android.animation.ValueAnimator.ofInt(startWidth, endWidth)
-        animator.duration = 300
+        animator.duration = 200
         animator.interpolator = android.view.animation.DecelerateInterpolator()
         animator.addUpdateListener { animation ->
             inputBar.updateLayoutParams {
@@ -242,8 +246,10 @@ class ThreadActivity : SimpleActivity() {
         val startWidth = inputBar.width
         val endWidth = 240.getScaledPx()
         
+        if (startWidth <= endWidth + 5) return // Already shrunk
+        
         val animator = android.animation.ValueAnimator.ofInt(startWidth, endWidth)
-        animator.duration = 300
+        animator.duration = 200
         animator.interpolator = android.view.animation.DecelerateInterpolator()
         animator.addUpdateListener { animation ->
             inputBar.updateLayoutParams {

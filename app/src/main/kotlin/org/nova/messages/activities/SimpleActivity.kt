@@ -317,6 +317,11 @@ open class SimpleActivity : BaseSimpleActivity() {
         )
         
         val textColorCSL = ColorStateList.valueOf(config.inputBarTextColor)
+        findViewById<ImageView>(R.id.nova_search_icon)?.let {
+            it.imageTintList = textColorCSL
+            it.alpha = 0.7f
+        }
+
         for (et in inputEditTexts) {
             et.setTextColor(textColorCSL)
             val hintColor = if (config.inputBarTextColor == Color.WHITE) {

@@ -8,10 +8,8 @@ class ModernDragCallback(private val adapter: BaseConversationsAdapter) : ItemTo
 
     override fun getMovementFlags(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder): Int {
         val position = viewHolder.bindingAdapterPosition
-        // Disable dragging if any items are selected (Action Mode active)
-        val isSelectionActive = adapter.isSelectionModeActive()
         
-        return if (position >= 2 && !isSelectionActive) {
+        return if (position >= 2) {
             val dragFlags = ItemTouchHelper.UP or ItemTouchHelper.DOWN or ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT
             makeMovementFlags(dragFlags, 0)
         } else {

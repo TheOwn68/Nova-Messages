@@ -10,7 +10,6 @@ import org.fossify.commons.helpers.PERMISSION_WRITE_STORAGE
 import org.fossify.commons.views.MyAppBarLayout
 import org.nova.messages.R
 import org.nova.messages.databinding.ActivitySettingsBinding
-import org.nova.messages.databinding.DialogNewUiColorsBinding
 import org.nova.messages.extensions.config
 
 class SettingsActivity : SimpleActivity() {
@@ -43,6 +42,7 @@ class SettingsActivity : SimpleActivity() {
         settingsCustomizationLabel.setTextColor(mainTextColor)
         settingsBubbleCustomizationLabel.setTextColor(mainTextColor)
         settingsGeneralLabel.setTextColor(mainTextColor)
+        settingsNewUiColorsLabelHeader.setTextColor(mainTextColor)
         settingsResetDefaults.setTextColor(mainTextColor)
 
         val updatePreview = { view: View, color: Int ->
@@ -60,6 +60,11 @@ class SettingsActivity : SimpleActivity() {
         updatePreview(settingsSentBubbleTextColorPreview, config.sentBubbleTextColor)
         updatePreview(settingsReceivedBubbleColorPreview, config.receivedBubbleColor)
         updatePreview(settingsReceivedBubbleTextColorPreview, config.receivedBubbleTextColor)
+
+        updatePreview(settingsColorRecentPreview, config.recentColor)
+        updatePreview(settingsColorRow1Preview, config.row1Color)
+        updatePreview(settingsColorRow2Preview, config.row2Color)
+        updatePreview(settingsColorRow3Preview, config.row3Color)
 
         settingsTopBarColorHolder.setOnClickListener {
             val color = if (config.topBarColor == 0) Color.BLACK else config.topBarColor
@@ -159,6 +164,42 @@ class SettingsActivity : SimpleActivity() {
             }
         }
 
+        settingsColorRecentHolder.setOnClickListener {
+            org.fossify.commons.dialogs.ColorPickerDialog(this@SettingsActivity, config.recentColor) { wasPositive, color ->
+                if (wasPositive) {
+                    config.recentColor = color
+                    updatePreview(settingsColorRecentPreview, color)
+                }
+            }
+        }
+
+        settingsColorRow1Holder.setOnClickListener {
+            org.fossify.commons.dialogs.ColorPickerDialog(this@SettingsActivity, config.row1Color) { wasPositive, color ->
+                if (wasPositive) {
+                    config.row1Color = color
+                    updatePreview(settingsColorRow1Preview, color)
+                }
+            }
+        }
+
+        settingsColorRow2Holder.setOnClickListener {
+            org.fossify.commons.dialogs.ColorPickerDialog(this@SettingsActivity, config.row2Color) { wasPositive, color ->
+                if (wasPositive) {
+                    config.row2Color = color
+                    updatePreview(settingsColorRow2Preview, color)
+                }
+            }
+        }
+
+        settingsColorRow3Holder.setOnClickListener {
+            org.fossify.commons.dialogs.ColorPickerDialog(this@SettingsActivity, config.row3Color) { wasPositive, color ->
+                if (wasPositive) {
+                    config.row3Color = color
+                    updatePreview(settingsColorRow3Preview, color)
+                }
+            }
+        }
+
         settingsResetDefaults.setOnClickListener {
             config.resetColors()
             finish()
@@ -168,71 +209,13 @@ class SettingsActivity : SimpleActivity() {
 
     private fun setupNewUi() = binding.apply {
         settingsNewUiSwitch.isChecked = config.useNewUi
-        settingsNewUiColorsHolder.beVisibleIf(config.useNewUi)
+        settingsNewUiColorsSection.beVisibleIf(config.useNewUi)
         
         settingsNewUiHolder.setOnClickListener {
             settingsNewUiSwitch.toggle()
             config.useNewUi = settingsNewUiSwitch.isChecked
-            settingsNewUiColorsHolder.beVisibleIf(config.useNewUi)
+            settingsNewUiColorsSection.beVisibleIf(config.useNewUi)
         }
-
-        settingsNewUiColorsHolder.setOnClickListener {
-            showNewUiColorsDialog()
-        }
-    }
-
-    private fun showNewUiColorsDialog() {
-        val binding = DialogNewUiColorsBinding.inflate(layoutInflater)
-        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
-            .setView(binding.root)
-            .create()
-
-        val updatePreviews = {
-            binding.colorRecentPreview.background?.applyColorFilter(config.recentColor)
-            binding.colorRow1Preview.background?.applyColorFilter(config.row1Color)
-            binding.colorRow2Preview.background?.applyColorFilter(config.row2Color)
-            binding.colorRow3Preview.background?.applyColorFilter(config.row3Color)
-        }
-
-        updatePreviews()
-
-        binding.colorRecentHolder.setOnClickListener {
-            org.fossify.commons.dialogs.ColorPickerDialog(this, config.recentColor) { wasPositive, color ->
-                if (wasPositive) {
-                    config.recentColor = color
-                    updatePreviews()
-                }
-            }
-        }
-
-        binding.colorRow1Holder.setOnClickListener {
-            org.fossify.commons.dialogs.ColorPickerDialog(this, config.row1Color) { wasPositive, color ->
-                if (wasPositive) {
-                    config.row1Color = color
-                    updatePreviews()
-                }
-            }
-        }
-
-        binding.colorRow2Holder.setOnClickListener {
-            org.fossify.commons.dialogs.ColorPickerDialog(this, config.row2Color) { wasPositive, color ->
-                if (wasPositive) {
-                    config.row2Color = color
-                    updatePreviews()
-                }
-            }
-        }
-
-        binding.colorRow3Holder.setOnClickListener {
-            org.fossify.commons.dialogs.ColorPickerDialog(this, config.row3Color) { wasPositive, color ->
-                if (wasPositive) {
-                    config.row3Color = color
-                    updatePreviews()
-                }
-            }
-        }
-
-        dialog.show()
     }
 
     private fun setupUIScale() = binding.apply {

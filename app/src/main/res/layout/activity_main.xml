@@ -101,12 +101,14 @@
                     android:id="@+id/conversations_list"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:clipToPadding="false"
                     android:layoutAnimation="@anim/layout_animation"
                     android:overScrollMode="ifContentScrolls"
                     android:scrollbars="none"
                     android:paddingTop="16dp"
                     android:paddingBottom="100dp"
+                    android:paddingHorizontal="4dp"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
                     app:layoutManager="org.fossify.commons.views.MyLinearLayoutManager" />
             </RelativeLayout>
         </androidx.coordinatorlayout.widget.CoordinatorLayout>
@@ -170,14 +172,24 @@
         android:gravity="center_vertical"
         android:clickable="true"
         android:focusable="true"
-        android:elevation="6dp">
+        android:elevation="6dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp">
+
+        <ImageView
+            android:id="@+id/nova_search_icon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_search_vector"
+            android:alpha="0.7"
+            app:tint="@android:color/white" />
 
         <EditText
             android:id="@+id/nova_search_input"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:paddingStart="20dp"
-            android:paddingEnd="20dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="12dp"
             android:hint="Search"
             android:textColor="@android:color/white"
             android:textColorHint="#888888"
