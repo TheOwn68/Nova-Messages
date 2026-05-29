@@ -37,10 +37,6 @@ class RecycleBinConversationsActivity : SimpleActivity() {
         setupOptionsMenu()
 
         setupEdgeToEdge(padBottomImeAndSystem = listOf(binding.conversationsList))
-        setupMaterialScrollListener(
-            scrollingView = binding.conversationsList,
-            topAppBar = binding.recycleBinAppbar
-        )
 
         loadRecycleBinConversations()
     }

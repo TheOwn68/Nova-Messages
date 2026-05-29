@@ -66,10 +66,6 @@ class NewConversationActivity : SimpleActivity() {
 
         setupEdgeToEdge(padBottomImeAndSystem = listOf(binding.contactsList))
         setupSearchEdgeToEdge()
-        setupMaterialScrollListener(
-            scrollingView = binding.contactsList,
-            topAppBar = binding.newConversationAppbar
-        )
 
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE)
         binding.newConversationAddress.requestFocus()
@@ -88,14 +84,23 @@ class NewConversationActivity : SimpleActivity() {
         }
         binding.newConversationToolbar.title = "" // Clear standard title to use custom TextView
 
+        val mainTextColor = config.mainTextColor
         binding.noContactsPlaceholder2.setTextColor(getProperPrimaryColor())
         binding.noContactsPlaceholder2.underlineText()
-        binding.suggestionsLabel.setTextColor(config.mainTextColor)
+        binding.suggestionsLabel.setTextColor(mainTextColor)
         applyCustomColors()
         
         binding.newConversationAddress.setTextColor(config.inputBarTextColor)
         binding.newConversationAddress.setHintTextColor(config.inputBarTextColor.withAlpha(0.5f))
         binding.newConversationConfirm.applyColorFilter(config.inputBarTextColor)
+
+        // Fast Scroller Sync
+        val properPrimaryColor = getProperPrimaryColor()
+        binding.contactsLetterFastscroller.textColor = mainTextColor.getColorStateList()
+        binding.contactsLetterFastscroller.pressedTextColor = properPrimaryColor
+        binding.contactsLetterFastscrollerThumb.setupWithFastScroller(binding.contactsLetterFastscroller)
+        binding.contactsLetterFastscrollerThumb.textColor = properPrimaryColor.getContrastColor()
+        binding.contactsLetterFastscrollerThumb.thumbColor = properPrimaryColor.getColorStateList()
     }
 
     private fun initContacts() {
@@ -252,11 +257,12 @@ class NewConversationActivity : SimpleActivity() {
                 } else {
                     binding.suggestionsLabel.beVisible()
                     binding.suggestionsScrollview.beVisible()
+                    val mainTextColor = config.mainTextColor
                     suggestions.forEach {
                         val contact = it
                         ItemSuggestedContactBinding.inflate(layoutInflater).apply {
                             suggestedContactName.text = contact.name
-                            suggestedContactName.setTextColor(getProperTextColor())
+                            suggestedContactName.setTextColor(mainTextColor)
 
                             if (!isDestroyed) {
                                 SimpleContactsHelper(this@NewConversationActivity).loadContactImage(

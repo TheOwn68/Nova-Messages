@@ -36,7 +36,10 @@ class App : FossifyApp() {
                     methodName == "appLaunched" || 
                     methodName.contains("Warning") || 
                     methodName.contains("Sideload") ||
-                    methodName.contains("Security")) {
+                    methodName.contains("Security") ||
+                    methodName.contains("Check") ||
+                    methodName.contains("Verify") ||
+                    methodName.contains("isUsing")) {
                     return "org.fossify.messages"
                 }
             }
@@ -62,7 +65,10 @@ class App : FossifyApp() {
                     methodName == "appLaunched" || 
                     methodName.contains("Warning") || 
                     methodName.contains("Sideload") ||
-                    methodName.contains("Security")) {
+                    methodName.contains("Security") ||
+                    methodName.contains("Check") ||
+                    methodName.contains("Verify") ||
+                    methodName.contains("isUsing")) {
                     val spoofedInfo = ApplicationInfo(info)
                     spoofedInfo.packageName = "org.fossify.messages"
                     return spoofedInfo
@@ -88,7 +94,7 @@ class App : FossifyApp() {
         }
 
         config.appId = "org.fossify.messages"
-        config.appSideloadingStatus = 3
+        config.appSideloadingStatus = 0 // 0 means NOT sideloaded
         config.hadThankYouInstalled = true
         config.appRunCount = 1 // Avoid initial setup dialogs
 

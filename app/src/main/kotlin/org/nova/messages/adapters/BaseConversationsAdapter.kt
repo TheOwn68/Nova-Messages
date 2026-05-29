@@ -49,6 +49,12 @@ abstract class BaseConversationsAdapter(
     var itemTouchHelper: androidx.recyclerview.widget.ItemTouchHelper? = null
     private var lastDragTime = 0L
     private var drafts = HashMap<Long, String>()
+
+    // Drag State for Direct Swap
+    private var isDragging = false
+    private var initialDragPosition = -1
+    private var originalListBeforeDrag = ArrayList<Conversation>()
+
     private var fontSize = activity.getScaledTextSize()
     private var iconSize = (activity as SimpleActivity).getScaledDimen(org.fossify.commons.R.dimen.list_icon_size_medium)
 
@@ -142,16 +148,34 @@ abstract class BaseConversationsAdapter(
         bindViewHolder(holder)
     }
 
-    fun onItemMoved(from: Int, to: Int) {
-        if (!activity.config.useNewUi || from < 2 || to < 2) return
-        val list = currentList.toArrayList()
-        java.util.Collections.swap(list, from, to)
-        submitList(list)
+    fun onDragStarted(position: Int) {
+        if (!activity.config.useNewUi || position < 2) return
+        isDragging = true
+        initialDragPosition = position
+        originalListBeforeDrag = ArrayList(currentList)
+    }
+
+    fun onItemSwapped(toPosition: Int) {
+        if (!isDragging || initialDragPosition < 2 || toPosition < 2) return
         
-        // Save manual order
-        val others = list.drop(2)
+        // Always start from the original list to ensure only the dragged item and the target item trade places
+        val newList = ArrayList(originalListBeforeDrag)
+        if (initialDragPosition < newList.size && toPosition < newList.size) {
+            java.util.Collections.swap(newList, initialDragPosition, toPosition)
+            submitList(newList)
+        }
+    }
+
+    fun onDragEnded() {
+        if (!isDragging) return
+        isDragging = false
+        
+        // Save the final order
+        val others = currentList.drop(2)
         activity.config.conversationOrder = others.joinToString(",") { it.threadId.toString() }
-        notifyItemMoved(from, to)
+        
+        initialDragPosition = -1
+        originalListBeforeDrag.clear()
     }
 
     private val lastSenderCache = HashMap<Long, Int>()

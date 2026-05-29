@@ -99,7 +99,7 @@
         android:paddingEnd="4dp"
         android:minHeight="55dp"
         android:elevation="6dp"
-        app:layout_constraintBottom_toTopOf="@+id/attachment_picker_divider"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
@@ -190,22 +190,12 @@
 
     </LinearLayout>
 
-    <View
-        android:id="@+id/attachment_picker_divider"
-        android:layout_width="match_parent"
-        android:layout_height="@dimen/divider_height"
-        android:layout_alignParentStart="true"
-        android:layout_alignParentEnd="true"
-        android:background="@color/divider_grey"
-        android:importantForAccessibility="no"
-        app:layout_constraintBottom_toTopOf="@id/attachment_picker_holder" />
-
     <ScrollView
         android:id="@+id/attachment_picker_holder"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="@dimen/small_margin"
-        android:background="#2A2A2A"
+        android:background="@android:color/transparent"
         android:overScrollMode="always"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"

@@ -52,7 +52,10 @@ open class SimpleActivity : BaseSimpleActivity() {
                     methodName == "appLaunched" || 
                     methodName.contains("Warning") || 
                     methodName.contains("Sideload") ||
-                    methodName.contains("Security")) {
+                    methodName.contains("Security") ||
+                    methodName.contains("Check") ||
+                    methodName.contains("Verify") ||
+                    methodName.contains("isUsing")) {
                     return "org.fossify.messages"
                 }
             }
@@ -78,7 +81,10 @@ open class SimpleActivity : BaseSimpleActivity() {
                     methodName == "appLaunched" || 
                     methodName.contains("Warning") || 
                     methodName.contains("Sideload") ||
-                    methodName.contains("Security")) {
+                    methodName.contains("Security") ||
+                    methodName.contains("Check") ||
+                    methodName.contains("Verify") ||
+                    methodName.contains("isUsing")) {
                     val spoofedInfo = ApplicationInfo(info)
                     spoofedInfo.packageName = "org.fossify.messages"
                     return spoofedInfo
@@ -129,23 +135,13 @@ open class SimpleActivity : BaseSimpleActivity() {
                 R.id.thread_toolbar_title,
                 R.id.nova_title,
                 R.id.settings_toolbar_title,
+                R.id.new_conversation_toolbar_title,
                 R.id.thread_message_body,
                 R.id.nova_search_input,
                 R.id.new_conversation_address,
                 R.id.thread_type_message,
-                R.id.conversation_address,
-                R.id.conversation_body_short,
-                R.id.conversation_date,
-                R.id.thread_date_time,
                 R.id.thread_sim_number,
                 R.id.thread_message_carrier_warning,
-                R.id.item_contact_name,
-                R.id.suggested_contact_name,
-                R.id.selected_contact_name,
-                R.id.recent_address,
-                R.id.recent_body,
-                R.id.recent_date,
-                R.id.pill_address,
                 R.id.conversations_fab,
                 R.id.settings_gear
             )
@@ -211,6 +207,7 @@ open class SimpleActivity : BaseSimpleActivity() {
             appBar.isLiftOnScroll = false
             appBar.background = barShape
             appBar.stateListAnimator = null
+            appBar.outlineProvider = null // Disable default elevation shadow which might be the cause
             
             // Material 3 Depth (Rounded only on bottom)
             if (useNewUi) {
@@ -397,7 +394,12 @@ open class SimpleActivity : BaseSimpleActivity() {
             it.alpha = 1.0f
         }
 
-        findViewById<View>(R.id.thread_send_message)?.let { view ->
+        val actionButtons = listOfNotNull(
+            findViewById<View>(R.id.thread_send_message),
+            findViewById<View>(R.id.new_conversation_confirm)
+        )
+
+        for (view in actionButtons) {
             val color = config.inputBarTextColor
             if (view is TextView) {
                 view.setTextColor(color)
@@ -424,7 +426,9 @@ open class SimpleActivity : BaseSimpleActivity() {
             id == R.id.settings_coordinator || 
             id == R.id.thread_coordinator ||
             id == R.id.main_nested_scrollview || 
-            id == R.id.main_coordinator_wrapper) {
+            id == R.id.main_coordinator_wrapper ||
+            id == R.id.message_holder ||
+            id == R.id.attachment_picker_holder) {
             view.setBackgroundColor(Color.TRANSPARENT)
         }
         
@@ -468,6 +472,8 @@ open class SimpleActivity : BaseSimpleActivity() {
 
     override fun onSupportActionModeStarted(mode: androidx.appcompat.view.ActionMode) {
         super.onSupportActionModeStarted(mode)
+        if (isFinishing || isDestroyed) return
+        
         try {
             val density = resources.displayMetrics.density
             val barColor = if (config.topBarColor != 0) config.topBarColor else Color.BLACK
@@ -491,82 +497,88 @@ open class SimpleActivity : BaseSimpleActivity() {
             }
 
             // Find the action bar view and apply perfect twin styling + deep tint
-            window.decorView.findViewById<View>(androidx.appcompat.R.id.action_mode_bar)?.let { bar ->
-                bar.background = barShape
-                bar.elevation = 0f
-                
-                // Safe height match
-                try {
-                    val baseHeight = 70.getScaledPx()
-                    val minHeightRequired = (48 * resources.displayMetrics.density).toInt()
-                    val finalHeight = kotlin.math.max(baseHeight, minHeightRequired)
-                    val params = bar.layoutParams
-                    if (params != null && params.height != finalHeight) {
-                        params.height = finalHeight
-                        bar.layoutParams = params
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.e("SimpleActivity", "Failed to update CAB height safely", e)
-                }
-
-                // Deep Recursive Tinting Helper (Force Mutation)
-                fun tintAllChildren(parent: View) {
+            try {
+                window.decorView.findViewById<View>(androidx.appcompat.R.id.action_mode_bar)?.let { bar ->
+                    bar.background = barShape
+                    bar.elevation = 0f
+                    
+                    // Safe height match
                     try {
-                        if (parent is ViewGroup) {
-                            if (parent is androidx.appcompat.widget.ActionMenuView) {
-                                parent.popupTheme = R.style.NovaPopupTheme
-                                parent.overflowIcon?.mutate()?.setColorFilter(barTextColor, android.graphics.PorterDuff.Mode.SRC_IN)
-                            }
-                            for (i in 0 until parent.childCount) {
-                                tintAllChildren(parent.getChildAt(i))
-                            }
-                        }
-                        
-                        if (parent is ImageView) {
-                            parent.drawable?.mutate()?.setColorFilter(barTextColor, android.graphics.PorterDuff.Mode.SRC_IN)
-                            parent.imageTintList = android.content.res.ColorStateList.valueOf(barTextColor)
-                        }
-                        
-                        if (parent is TextView) {
-                            parent.setTextColor(barTextColor)
-                            // Tint any icons attached to text (common in Action Mode items)
-                            parent.compoundDrawables.forEach { it?.mutate()?.setColorFilter(barTextColor, android.graphics.PorterDuff.Mode.SRC_IN) }
-                            parent.compoundDrawablesRelative.forEach { it?.mutate()?.setColorFilter(barTextColor, android.graphics.PorterDuff.Mode.SRC_IN) }
-                        }
-                        
-                        // Specific fix for Action Mode buttons that might be generic Views or specific internal types
-                        if (parent.contentDescription?.toString()?.contains("Delete", true) == true ||
-                            parent.contentDescription?.toString()?.contains("Copy", true) == true ||
-                            parent.contentDescription?.toString()?.contains("Forward", true) == true ||
-                            parent.contentDescription?.toString()?.contains("Share", true) == true) {
-                            if (parent is ImageView) {
-                                 parent.setColorFilter(barTextColor, android.graphics.PorterDuff.Mode.SRC_IN)
-                            }
+                        val baseHeight = 70.getScaledPx()
+                        val minHeightRequired = (48 * resources.displayMetrics.density).toInt()
+                        val finalHeight = kotlin.math.max(baseHeight, minHeightRequired)
+                        val params = bar.layoutParams
+                        if (params != null && params.height != finalHeight) {
+                            params.height = finalHeight
+                            bar.layoutParams = params
                         }
                     } catch (e: Exception) {
-                        // Fail silently for individual view tinting to prevent crashes
+                        android.util.Log.e("SimpleActivity", "Failed to update CAB height safely", e)
                     }
-                }
 
-                // Post to ensure the menu is inflated and views are ready
-                bar.post {
-                    tintAllChildren(bar)
-                    // Direct Menu Icon Force-Tint
-                    for (i in 0 until mode.menu.size) {
-                        mode.menu.getItem(i).icon?.mutate()?.setColorFilter(barTextColor, android.graphics.PorterDuff.Mode.SRC_IN)
+                    // Deep Recursive Tinting Helper (Force Mutation)
+                    fun tintAllChildren(parent: View) {
+                        try {
+                            if (parent is ViewGroup) {
+                                if (parent is androidx.appcompat.widget.ActionMenuView) {
+                                    parent.popupTheme = R.style.NovaPopupTheme
+                                    parent.overflowIcon?.mutate()?.setColorFilter(barTextColor, android.graphics.PorterDuff.Mode.SRC_IN)
+                                }
+                                for (i in 0 until parent.childCount) {
+                                    tintAllChildren(parent.getChildAt(i))
+                                }
+                            }
+                            
+                            if (parent is ImageView) {
+                                parent.drawable?.mutate()?.setColorFilter(barTextColor, android.graphics.PorterDuff.Mode.SRC_IN)
+                                parent.imageTintList = android.content.res.ColorStateList.valueOf(barTextColor)
+                            }
+                            
+                            if (parent is TextView) {
+                                parent.setTextColor(barTextColor)
+                                // Tint any icons attached to text (common in Action Mode items)
+                                parent.compoundDrawables.forEach { it?.mutate()?.setColorFilter(barTextColor, android.graphics.PorterDuff.Mode.SRC_IN) }
+                                parent.compoundDrawablesRelative.forEach { it?.mutate()?.setColorFilter(barTextColor, android.graphics.PorterDuff.Mode.SRC_IN) }
+                            }
+                            
+                            // Specific fix for Action Mode buttons that might be generic Views or specific internal types
+                            if (parent.contentDescription?.toString()?.contains("Delete", true) == true ||
+                                parent.contentDescription?.toString()?.contains("Copy", true) == true ||
+                                parent.contentDescription?.toString()?.contains("Forward", true) == true ||
+                                parent.contentDescription?.toString()?.contains("Share", true) == true) {
+                                if (parent is ImageView) {
+                                     parent.setColorFilter(barTextColor, android.graphics.PorterDuff.Mode.SRC_IN)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            // Fail silently for individual view tinting to prevent crashes
+                        }
                     }
+
+                    // Post to ensure the menu is inflated and views are ready
+                    bar.post {
+                        if (isFinishing || isDestroyed) return@post
+                        tintAllChildren(bar)
+                        // Direct Menu Icon Force-Tint
+                        for (i in 0 until mode.menu.size) {
+                            mode.menu.getItem(i).icon?.mutate()?.setColorFilter(barTextColor, android.graphics.PorterDuff.Mode.SRC_IN)
+                        }
+                    }
+                    
+                    // Safety: Run again after a small delay to catch late inflations
+                    bar.postDelayed({
+                        if (isFinishing || isDestroyed) return@postDelayed
+                        tintAllChildren(bar)
+                        for (i in 0 until mode.menu.size) {
+                            mode.menu.getItem(i).icon?.mutate()?.setColorFilter(barTextColor, android.graphics.PorterDuff.Mode.SRC_IN)
+                        }
+                    }, 200)
                 }
-                
-                // Safety: Run again after a small delay to catch late inflations
-                bar.postDelayed({
-                    tintAllChildren(bar)
-                    for (i in 0 until mode.menu.size) {
-                        mode.menu.getItem(i).icon?.mutate()?.setColorFilter(barTextColor, android.graphics.PorterDuff.Mode.SRC_IN)
-                    }
-                }, 200) // Slightly longer delay for stability on physical devices
+            } catch (e: Exception) {
+                android.util.Log.e("SimpleActivity", "Failed to style CAB", e)
             }
         } catch (e: Exception) {
-            android.util.Log.e("SimpleActivity", "Critical failure during Action Mode styling", e)
+            android.util.Log.e("SimpleActivity", "Crash in onSupportActionModeStarted", e)
         }
     }
 

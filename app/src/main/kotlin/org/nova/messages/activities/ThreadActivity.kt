@@ -116,7 +116,6 @@ class ThreadActivity : SimpleActivity() {
             )
         )
         setupMessagingEdgeToEdge()
-        setupMaterialScrollListener(null, binding.threadAppbar)
 
         val extras = intent.extras
         if (extras == null) {

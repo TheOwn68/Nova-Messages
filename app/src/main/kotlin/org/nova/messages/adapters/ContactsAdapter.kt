@@ -14,6 +14,7 @@ import org.fossify.commons.helpers.SimpleContactsHelper
 import org.fossify.commons.models.SimpleContact
 import org.fossify.commons.views.MyRecyclerView
 import org.nova.messages.activities.SimpleActivity
+import org.nova.messages.extensions.config
 
 class ContactsAdapter(
     activity: SimpleActivity, var contacts: ArrayList<SimpleContact>, recyclerView: MyRecyclerView, itemClick: (Any) -> Unit
@@ -65,16 +66,19 @@ class ContactsAdapter(
     private fun setupView(view: View, contact: SimpleContact) {
         ItemContactWithNumberBinding.bind(view).apply {
             val customTypeface = (activity as SimpleActivity).getCustomTypeface()
+            val mainTextColor = (activity as SimpleActivity).config.mainTextColor
+            
             itemContactName.apply {
                 text = contact.name
-                setTextColor(textColor)
+                setTextColor(mainTextColor)
                 setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize * 1.2f)
                 typeface = Typeface.create(customTypeface, Typeface.NORMAL)
             }
 
             itemContactNumber.apply {
                 text = TextUtils.join(", ", contact.phoneNumbers.map { it.normalizedNumber })
-                setTextColor(textColor)
+                setTextColor(mainTextColor)
+                alpha = 0.7f
                 setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
                 typeface = Typeface.create(customTypeface, Typeface.NORMAL)
             }

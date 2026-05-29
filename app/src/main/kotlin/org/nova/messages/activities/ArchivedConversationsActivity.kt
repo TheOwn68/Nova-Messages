@@ -38,10 +38,6 @@ class ArchivedConversationsActivity : SimpleActivity() {
         setupOptionsMenu()
 
         setupEdgeToEdge(padBottomImeAndSystem = listOf(binding.conversationsList))
-        setupMaterialScrollListener(
-            scrollingView = binding.conversationsList,
-            topAppBar = binding.archiveAppbar
-        )
 
         loadArchivedConversations()
     }

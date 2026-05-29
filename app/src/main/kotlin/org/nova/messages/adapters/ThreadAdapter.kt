@@ -354,11 +354,12 @@ class ThreadAdapter(
                 val r18 = 18f * density
                 val r4 = 4f * density
                 
-                if (isReceived) {
-                    gd.cornerRadii = floatArrayOf(r18, r18, r18, r18, r18, r18, r4, r4)
+                val radii = if (isReceived) {
+                    floatArrayOf(r18, r18, r18, r18, r18, r18, r4, r4)
                 } else {
-                    gd.cornerRadii = floatArrayOf(r18, r18, r18, r18, r4, r4, r18, r18)
+                    floatArrayOf(r18, r18, r18, r18, r4, r4, r18, r18)
                 }
+                gd.cornerRadii = radii
                 background = gd
                 
                 // Material 3 Depth (Standardized for stability)
@@ -367,11 +368,6 @@ class ThreadAdapter(
                 outlineProvider = object : android.view.ViewOutlineProvider() {
                     override fun getOutline(view: View, outline: android.graphics.Outline) {
                         val path = android.graphics.Path()
-                        val radii = if (isReceived) {
-                            floatArrayOf(r18, r18, r18, r18, r18, r18, r4, r4)
-                        } else {
-                            floatArrayOf(r18, r18, r18, r18, r4, r4, r18, r18)
-                        }
                         path.addRoundRect(
                             0f, 0f, view.width.toFloat(), view.height.toFloat(),
                             radii, android.graphics.Path.Direction.CW
@@ -431,11 +427,9 @@ class ThreadAdapter(
             val style = if (message.isScheduled) Typeface.ITALIC else Typeface.NORMAL
             typeface = Typeface.create(customTypeface, style)
 
-            // Split interaction: bodyView handles links, but forwards long-press for selection
-            setOnLongClickListener {
-                holder.viewLongClicked()
-                true
-            }
+            // NO LONG-CLICK HERE. Handled by bodyHolder to prevent RenderThread/Native crashes
+            setOnClickListener(null)
+            setOnLongClickListener(null)
 
             if (!isReceived && message.isScheduled) {
                 val scheduledDrawable = AppCompatResources.getDrawable(activity, org.fossify.commons.R.drawable.ic_clock_vector)?.apply {

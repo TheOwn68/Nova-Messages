@@ -18,21 +18,25 @@ class ModernDragCallback(private val adapter: BaseConversationsAdapter) : ItemTo
     }
 
     override fun onMove(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean {
-        val from = viewHolder.bindingAdapterPosition
         val to = target.bindingAdapterPosition
-        if (from < 2 || to < 2) return false
+        if (to < 2) return false
         
-        adapter.onItemMoved(from, to)
+        adapter.onItemSwapped(to)
         return true
     }
 
     override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
         super.onSelectedChanged(viewHolder, actionState)
         if (actionState == ItemTouchHelper.ACTION_STATE_DRAG) {
+            viewHolder?.bindingAdapterPosition?.let { pos ->
+                adapter.onDragStarted(pos)
+            }
             viewHolder?.itemView?.let { view ->
                 view.animate().scaleX(1.1f).scaleY(1.1f).setDuration(150).start()
                 view.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
             }
+        } else if (actionState == ItemTouchHelper.ACTION_STATE_IDLE) {
+            adapter.onDragEnded()
         }
     }
 

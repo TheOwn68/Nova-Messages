@@ -13,6 +13,7 @@ import org.fossify.commons.helpers.SimpleContactsHelper
 import org.fossify.commons.views.MyRecyclerView
 import org.nova.messages.activities.SimpleActivity
 import org.nova.messages.databinding.ItemSearchResultBinding
+import org.nova.messages.extensions.config
 import org.nova.messages.models.SearchResult
 
 class SearchResultsAdapter(
@@ -69,23 +70,27 @@ class SearchResultsAdapter(
     private fun setupView(view: View, searchResult: SearchResult) {
         ItemSearchResultBinding.bind(view).apply {
             val customTypeface = (activity as SimpleActivity).getCustomTypeface()
+            val mainTextColor = (activity as SimpleActivity).config.mainTextColor
+            
             searchResultTitle.apply {
                 text = searchResult.title.highlightTextPart(textToHighlight, properPrimaryColor)
-                setTextColor(textColor)
+                setTextColor(mainTextColor)
                 setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize * 1.2f)
                 typeface = Typeface.create(customTypeface, Typeface.NORMAL)
             }
 
             searchResultSnippet.apply {
                 text = searchResult.snippet.highlightTextPart(textToHighlight, properPrimaryColor)
-                setTextColor(textColor)
+                setTextColor(mainTextColor)
+                alpha = 0.7f
                 setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
                 typeface = Typeface.create(customTypeface, Typeface.NORMAL)
             }
 
             searchResultDate.apply {
                 text = searchResult.date
-                setTextColor(textColor)
+                setTextColor(mainTextColor)
+                alpha = 0.6f
                 setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize * 0.8f)
                 typeface = Typeface.create(customTypeface, Typeface.NORMAL)
             }
