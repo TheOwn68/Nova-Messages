@@ -1362,13 +1362,42 @@ class ThreadActivity : SimpleActivity() {
     }
 
     private fun setupMessagingEdgeToEdge() {
-        ViewCompat.setOnApplyWindowInsetsListener(binding.messageHolder.threadTypeMessage) { _, insets ->
-            val type = WindowInsetsCompat.Type.ime()
-            if (insets.isVisible(type)) {
-                val keyboardHeight = insets.getInsets(type).bottom
-                val bottomBarHeight = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom
-                config.keyboardHeight = if (keyboardHeight > 150) keyboardHeight - bottomBarHeight else getDefaultKeyboardHeight()
+        ViewCompat.setOnApplyWindowInsetsListener(binding.threadMessagesList) { view, insets ->
+            val imeType = WindowInsetsCompat.Type.ime()
+            val systemBarsType = WindowInsetsCompat.Type.systemBars()
+            
+            val isImeVisible = insets.isVisible(imeType)
+            val imeHeight = insets.getInsets(imeType).bottom
+            val systemBarsHeight = insets.getInsets(systemBarsType).bottom
+            
+            // Modern Floating Sync: Messages must push up precisely with the keyboard
+            // 86dp is the standard floating bar bottom padding we established
+            val basePadding = 86.getScaledPx()
+            val finalBottomPadding = if (isImeVisible) {
+                // When keyboard is up, we need to add the keyboard height but subtract 
+                // the overlapping system bar height to get pure delta
+                imeHeight + basePadding - systemBarsHeight
+            } else {
+                basePadding
             }
+            
+            view.setPadding(
+                view.paddingLeft,
+                view.paddingTop,
+                view.paddingRight,
+                finalBottomPadding
+            )
+
+            if (isImeVisible) {
+                // Force sync scroll to keep latest messages in view above the keyboard
+                scrollToBottom(forceScroll = true)
+            }
+
+            // Keep the library's keyboard height tracker updated
+            if (isImeVisible && imeHeight > 150) {
+                config.keyboardHeight = imeHeight - systemBarsHeight
+            }
+
             insets
         }
     }

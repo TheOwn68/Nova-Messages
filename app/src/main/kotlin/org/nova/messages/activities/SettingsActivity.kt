@@ -46,7 +46,12 @@ class SettingsActivity : SimpleActivity() {
         settingsResetDefaults.setTextColor(mainTextColor)
 
         val updatePreview = { view: View, color: Int ->
-            view.background?.applyColorFilter(color)
+            val bg = view.background as? android.graphics.drawable.LayerDrawable
+            if (bg != null) {
+                bg.findDrawableByLayerId(R.id.color_preview_main)?.mutate()?.setColorFilter(color, android.graphics.PorterDuff.Mode.SRC_IN)
+            } else {
+                view.background?.applyColorFilter(color)
+            }
         }
 
         updatePreview(settingsTopBarColorPreview, if (config.topBarColor == 0) Color.BLACK else config.topBarColor)

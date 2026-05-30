@@ -50,10 +50,11 @@ abstract class BaseConversationsAdapter(
     private var lastDragTime = 0L
     private var drafts = HashMap<Long, String>()
 
-    // Drag State for Direct Swap
+    // Drag State for Delayed Swap
     private var isDragging = false
     private var initialDragPosition = -1
-    private var originalListBeforeDrag = ArrayList<Conversation>()
+    private var lastTargetPosition = -1
+    private var pendingUpdate: ArrayList<Conversation>? = null
 
     private var fontSize = activity.getScaledTextSize()
     private var iconSize = (activity as SimpleActivity).getScaledDimen(org.fossify.commons.R.dimen.list_icon_size_medium)
@@ -78,6 +79,11 @@ abstract class BaseConversationsAdapter(
         newConversations: ArrayList<Conversation>,
         commitCallback: (() -> Unit)? = null,
     ) {
+        if (isDragging) {
+            pendingUpdate = newConversations
+            return
+        }
+
         saveRecyclerViewState()
         submitList(newConversations.toList(), commitCallback)
     }
@@ -152,30 +158,49 @@ abstract class BaseConversationsAdapter(
         if (!activity.config.useNewUi || position < 2) return
         isDragging = true
         initialDragPosition = position
-        originalListBeforeDrag = ArrayList(currentList)
+        lastTargetPosition = position
     }
 
     fun onItemSwapped(toPosition: Int) {
-        if (!isDragging || initialDragPosition < 2 || toPosition < 2) return
-        
-        // Always start from the original list to ensure only the dragged item and the target item trade places
-        val newList = ArrayList(originalListBeforeDrag)
-        if (initialDragPosition < newList.size && toPosition < newList.size) {
-            java.util.Collections.swap(newList, initialDragPosition, toPosition)
-            submitList(newList)
-        }
+        if (!isDragging || toPosition < 2) return
+        lastTargetPosition = toPosition
     }
 
     fun onDragEnded() {
-        if (!isDragging) return
+        if (!isDragging || initialDragPosition == -1 || lastTargetPosition == -1) {
+            isDragging = false
+            initialDragPosition = -1
+            lastTargetPosition = -1
+            pendingUpdate?.let { 
+                val update = it
+                pendingUpdate = null
+                updateConversations(update)
+            }
+            return
+        }
+        
+        if (initialDragPosition != lastTargetPosition) {
+            val list = currentList.toArrayList()
+            if (initialDragPosition < list.size && lastTargetPosition < list.size) {
+                java.util.Collections.swap(list, initialDragPosition, lastTargetPosition)
+                submitList(list)
+                
+                // Save the final order
+                val others = list.drop(2)
+                activity.config.conversationOrder = others.joinToString(",") { it.threadId.toString() }
+            }
+        }
+
         isDragging = false
-        
-        // Save the final order
-        val others = currentList.drop(2)
-        activity.config.conversationOrder = others.joinToString(",") { it.threadId.toString() }
-        
         initialDragPosition = -1
-        originalListBeforeDrag.clear()
+        lastTargetPosition = -1
+
+        // Process any refresh that happened during the drag
+        pendingUpdate?.let { 
+            val update = it
+            pendingUpdate = null
+            updateConversations(update)
+        }
     }
 
     private val lastSenderCache = HashMap<Long, Int>()

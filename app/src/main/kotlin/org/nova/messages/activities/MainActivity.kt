@@ -106,12 +106,12 @@ class MainActivity : SimpleActivity() {
         }
         setupScaledToolbar(binding.mainToolbar)
         binding.conversationsFab.updateLayoutParams<androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams> {
-            topMargin = 11.getScaledPx()
-            marginEnd = 20.getScaledPx()
+            topMargin = 3.getScaledPx()
+            marginEnd = 12.getScaledPx()
         }
 
         binding.settingsGear.updateLayoutParams<androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams> {
-            topMargin = 56.getScaledPx()
+            topMargin = 48.getScaledPx()
         }
 
         binding.novaSearchBar.updateLayoutParams {

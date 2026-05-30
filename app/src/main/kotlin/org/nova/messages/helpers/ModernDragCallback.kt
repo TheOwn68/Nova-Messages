@@ -1,12 +1,16 @@
 package org.nova.messages.helpers
 
+import android.graphics.Canvas
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import org.nova.messages.adapters.BaseConversationsAdapter
 
 class ModernDragCallback(private val adapter: BaseConversationsAdapter) : ItemTouchHelper.Callback() {
 
+    private var recyclerView: RecyclerView? = null
+
     override fun getMovementFlags(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder): Int {
+        this.recyclerView = recyclerView
         val position = viewHolder.bindingAdapterPosition
         
         return if (position >= 2) {
@@ -37,6 +41,42 @@ class ModernDragCallback(private val adapter: BaseConversationsAdapter) : ItemTo
             }
         } else if (actionState == ItemTouchHelper.ACTION_STATE_IDLE) {
             adapter.onDragEnded()
+        }
+    }
+
+    override fun onChildDraw(
+        c: Canvas,
+        recyclerView: RecyclerView,
+        viewHolder: RecyclerView.ViewHolder,
+        dX: Float,
+        dY: Float,
+        actionState: Int,
+        isCurrentlyActive: Boolean
+    ) {
+        super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
+        
+        if (actionState == ItemTouchHelper.ACTION_STATE_DRAG && isCurrentlyActive) {
+            val itemView = viewHolder.itemView
+            val density = recyclerView.resources.displayMetrics.density
+            val scrollThreshold = (60 * density).toInt() // 60dp from top/bottom
+            val scrollAmount = (12 * density).toInt()    // 12dp to scroll per frame
+            
+            // Raw screen Y coordinates for absolute precision
+            val itemLocation = IntArray(2)
+            itemView.getLocationOnScreen(itemLocation)
+            val itemTop = itemLocation[1]
+            val itemBottom = itemTop + itemView.height
+
+            val rvLocation = IntArray(2)
+            recyclerView.getLocationOnScreen(rvLocation)
+            val rvTop = rvLocation[1]
+            val rvBottom = rvTop + recyclerView.height
+            
+            if (itemTop < rvTop + scrollThreshold) {
+                recyclerView.scrollBy(0, -scrollAmount)
+            } else if (itemBottom > rvBottom - scrollThreshold) {
+                recyclerView.scrollBy(0, scrollAmount)
+            }
         }
     }
 
