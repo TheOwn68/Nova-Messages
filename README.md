@@ -46,4 +46,4 @@ This resolves the issue on most devices.
 
 ![App Screenshot](images/img1.png)
 ![App Screenshot](images/img2.png)
-![App Screenshot](images/img3.png)
+![App Screenshot](images/img4.png)
