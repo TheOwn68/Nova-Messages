@@ -77,6 +77,16 @@ class ConversationsAdapter(
         }
     }
 
+    override fun getCustomActions(): List<Int> {
+        return listOf(
+            R.id.cab_select_all,
+            R.id.cab_delete,
+            R.id.cab_archive,
+            R.id.cab_pin_conversation,
+            R.id.cab_unpin_conversation
+        )
+    }
+
     override fun actionItemPressed(id: Int) {
         if (selectedKeys.isEmpty()) {
             return

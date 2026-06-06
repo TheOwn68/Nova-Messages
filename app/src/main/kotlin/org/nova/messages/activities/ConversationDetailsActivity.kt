@@ -3,34 +3,21 @@ package org.nova.messages.activities
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Intent
+import android.graphics.drawable.GradientDrawable
 import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.RingtoneManager
 import android.os.Bundle
 import android.provider.Settings
-import androidx.core.content.res.ResourcesCompat
-import org.fossify.commons.extensions.applyColorFilter
-import org.fossify.commons.extensions.beGone
-import org.fossify.commons.extensions.beVisible
-import org.fossify.commons.extensions.beVisibleIf
-import org.fossify.commons.extensions.getProperPrimaryColor
-import org.fossify.commons.extensions.getProperTextColor
-import org.fossify.commons.extensions.notificationManager
-import org.fossify.commons.extensions.updateTextColors
-import org.fossify.commons.extensions.viewBinding
+import org.fossify.commons.extensions.*
 import org.fossify.commons.helpers.NavigationIcon
+import org.fossify.commons.helpers.SimpleContactsHelper
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.commons.models.SimpleContact
 import org.nova.messages.adapters.ContactsAdapter
 import org.nova.messages.databinding.ActivityConversationDetailsBinding
 import org.nova.messages.dialogs.RenameConversationDialog
-import org.nova.messages.extensions.config
-import org.nova.messages.extensions.conversationsDB
-import org.nova.messages.extensions.getContactFromAddress
-import org.nova.messages.extensions.getThreadParticipants
-import org.nova.messages.extensions.messagesDB
-import org.nova.messages.extensions.renameConversation
-import org.nova.messages.extensions.startContactDetailsIntent
+import org.nova.messages.extensions.*
 import org.nova.messages.helpers.THREAD_ID
 import org.nova.messages.models.Conversation
 
@@ -47,10 +34,6 @@ class ConversationDetailsActivity : SimpleActivity() {
         setContentView(binding.root)
 
         setupEdgeToEdge(padBottomSystem = listOf(binding.conversationDetailsNestedScrollview))
-        setupMaterialScrollListener(
-            scrollingView = binding.conversationDetailsNestedScrollview,
-            topAppBar = binding.conversationDetailsAppbar,
-        )
 
         threadId = intent.getLongExtra(THREAD_ID, 0L)
         ensureBackgroundThread {
@@ -62,7 +45,9 @@ class ConversationDetailsActivity : SimpleActivity() {
                 getThreadParticipants(threadId, null)
             }
             runOnUiThread {
-                setupTextViews()
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                setupHeroSection()
+                setupRenaming()
                 setupParticipants()
                 setupCustomNotifications()
             }
@@ -72,40 +57,66 @@ class ConversationDetailsActivity : SimpleActivity() {
     override fun onResume() {
         super.onResume()
         setupTopAppBar(binding.conversationDetailsAppbar, NavigationIcon.Arrow)
-        updateTextColors(binding.conversationDetailsHolder)
-
-        val primaryColor = getProperPrimaryColor()
-        arrayOf(
-            binding.notificationsHeading,
-            binding.conversationNameHeading,
-            binding.membersHeading
-        ).forEach {
-            it.setTextColor(primaryColor)
-        }
         applyCustomColors()
+        
+        // Final force-binding for modernization
+        val mainTextColor = config.mainTextColor
+        binding.membersHeadingLabel.setTextColor(mainTextColor)
+        
+        // Setup Hero Gradient
+        val baseColor = config.recentColor
+        val lightened = adjustColor(baseColor, 1.2f)
+        val darkened = adjustColor(baseColor, 0.8f)
+        val gd = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(lightened, baseColor, darkened))
+        gd.cornerRadius = 24.getScaledPx().toFloat()
+        binding.detailsHeroGradient.background = gd
+        
+        // Hero Shadows
+        binding.detailsHeroSection.elevation = 10f * resources.displayMetrics.density
+        binding.detailsHeroSection.outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
+    }
+
+    private fun setupHeroSection() {
+        val title = conversation?.title ?: participants.getThreadTitle()
+        binding.detailsHeroName.text = title
+        
+        SimpleContactsHelper(this).loadContactImage(
+            path = participants.firstOrNull()?.photoUri ?: "",
+            imageView = binding.detailsHeroImage,
+            placeholderName = title
+        )
+    }
+
+    private fun setupRenaming() {
+        binding.detailsRenamePill.setOnClickListener {
+            RenameConversationDialog(this, conversation!!) { title ->
+                binding.detailsHeroName.text = title
+                ensureBackgroundThread {
+                    conversation = renameConversation(conversation!!, newTitle = title)
+                }
+            }
+        }
     }
 
     private fun setupCustomNotifications() {
         binding.apply {
-            notificationsHeading.beVisible()
-            customNotificationsHolder.beVisible()
-            customNotifications.isChecked = config.customNotifications.contains(threadId.toString())
-            customNotificationsButton.beVisibleIf(customNotifications.isChecked)
+            customNotificationsSwitch.isChecked = config.customNotifications.contains(threadId.toString())
+            detailsCustomizePill.beVisibleIf(customNotificationsSwitch.isChecked)
 
-            customNotificationsHolder.setOnClickListener {
-                customNotifications.toggle()
-                if (customNotifications.isChecked) {
-                    customNotificationsButton.beVisible()
+            detailsNotificationsPill.setOnClickListener {
+                customNotificationsSwitch.toggle()
+                if (customNotificationsSwitch.isChecked) {
+                    detailsCustomizePill.beVisible()
                     config.addCustomNotificationsByThreadId(threadId)
                     createNotificationChannel()
                 } else {
-                    customNotificationsButton.beGone()
+                    detailsCustomizePill.beGone()
                     config.removeCustomNotificationsByThreadId(threadId)
                     removeNotificationChannel()
                 }
             }
 
-            customNotificationsButton.setOnClickListener {
+            detailsCustomizePill.setOnClickListener {
                 Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
                     putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
                     putExtra(Settings.EXTRA_CHANNEL_ID, threadId.toString())
@@ -139,34 +150,11 @@ class ConversationDetailsActivity : SimpleActivity() {
         notificationManager.deleteNotificationChannel(threadId.toString())
     }
 
-    private fun setupTextViews() {
-        binding.conversationName.apply {
-            ResourcesCompat.getDrawable(
-                resources,
-                org.fossify.commons.R.drawable.ic_edit_vector,
-                theme
-            )?.apply {
-                applyColorFilter(getProperTextColor())
-                setCompoundDrawablesWithIntrinsicBounds(null, null, this, null)
-            }
-
-            text = conversation?.title
-            setOnClickListener {
-                RenameConversationDialog(
-                    this@ConversationDetailsActivity,
-                    conversation!!
-                ) { title ->
-                    text = title
-                    ensureBackgroundThread {
-                        conversation = renameConversation(conversation!!, newTitle = title)
-                    }
-                }
-            }
-        }
-    }
-
     private fun setupParticipants() {
-        val adapter = ContactsAdapter(this, participants, binding.participantsRecyclerview) {
+        // Force 2-column grid layout for members
+        binding.participantsGrid.layoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 2)
+        
+        val adapter = ContactsAdapter(this, participants, binding.participantsGrid) {
             val contact = it as SimpleContact
             val address = contact.phoneNumbers.first().normalizedNumber
             getContactFromAddress(address) { simpleContact ->
@@ -175,6 +163,6 @@ class ConversationDetailsActivity : SimpleActivity() {
                 }
             }
         }
-        binding.participantsRecyclerview.adapter = adapter
+        binding.participantsGrid.adapter = adapter
     }
 }

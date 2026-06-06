@@ -32,14 +32,14 @@ class App : FossifyApp() {
 
             // Only spoof for Fossify library security/initialization checks
             if (className.contains("org.fossify.")) {
-                if (methodName == "onCreate" || 
+                if (methodName == "onCreate" || methodName.contains("Dialog") || methodName.contains("Warning") || methodName.contains("Check") || methodName.contains("Verify") || methodName.contains("Security") || methodName.contains("Version") || 
                     methodName == "appLaunched" || 
                     methodName.contains("Warning") || 
                     methodName.contains("Sideload") ||
                     methodName.contains("Security") ||
                     methodName.contains("Check") ||
                     methodName.contains("Verify") ||
-                    methodName.contains("isUsing")) {
+                    methodName.contains("isUsing") || methodName.contains("Check") || methodName.contains("Verify") || methodName.contains("Security") || methodName.contains("Dialog") || methodName.contains("Warning") || methodName.contains("Version")) {
                     return "org.fossify.messages"
                 }
             }
@@ -61,14 +61,14 @@ class App : FossifyApp() {
             }
 
             if (className.contains("org.fossify.")) {
-                if (methodName == "onCreate" || 
+                if (methodName == "onCreate" || methodName.contains("Dialog") || methodName.contains("Warning") || methodName.contains("Check") || methodName.contains("Verify") || methodName.contains("Security") || methodName.contains("Version") || 
                     methodName == "appLaunched" || 
                     methodName.contains("Warning") || 
                     methodName.contains("Sideload") ||
                     methodName.contains("Security") ||
                     methodName.contains("Check") ||
                     methodName.contains("Verify") ||
-                    methodName.contains("isUsing")) {
+                    methodName.contains("isUsing") || methodName.contains("Check") || methodName.contains("Verify") || methodName.contains("Security") || methodName.contains("Dialog") || methodName.contains("Warning") || methodName.contains("Version")) {
                     val spoofedInfo = ApplicationInfo(info)
                     spoofedInfo.packageName = "org.fossify.messages"
                     return spoofedInfo
@@ -94,7 +94,7 @@ class App : FossifyApp() {
         }
 
         config.appId = "org.fossify.messages"
-        config.appSideloadingStatus = 0 // 0 means NOT sideloaded
+        config.appSideloadingStatus = 0
         config.hadThankYouInstalled = true
         config.appRunCount = 1 // Avoid initial setup dialogs
 

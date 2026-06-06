@@ -55,6 +55,7 @@ abstract class BaseConversationsAdapter(
     private var initialDragPosition = -1
     private var lastTargetPosition = -1
     private var pendingUpdate: ArrayList<Conversation>? = null
+    private var pendingNotify = false
 
     private var fontSize = activity.getScaledTextSize()
     private var iconSize = (activity as SimpleActivity).getScaledDimen(org.fossify.commons.R.dimen.list_icon_size_medium)
@@ -66,12 +67,25 @@ abstract class BaseConversationsAdapter(
         updateDrafts()
 
         registerAdapterDataObserver(object : RecyclerView.AdapterDataObserver() {
-            override fun onChanged() = restoreRecyclerViewState()
-            override fun onItemRangeMoved(fromPosition: Int, toPosition: Int, itemCount: Int) =
+            override fun onChanged() {
                 restoreRecyclerViewState()
+                updateCustomSelectionBar()
+            }
+            override fun onItemRangeMoved(fromPosition: Int, toPosition: Int, itemCount: Int) {
+                restoreRecyclerViewState()
+            }
 
-            override fun onItemRangeInserted(positionStart: Int, itemCount: Int) =
+            override fun onItemRangeInserted(positionStart: Int, itemCount: Int) {
                 restoreRecyclerViewState()
+            }
+            
+            override fun onItemRangeChanged(positionStart: Int, itemCount: Int) {
+                updateCustomSelectionBar()
+            }
+            
+            override fun onItemRangeRemoved(positionStart: Int, itemCount: Int) {
+                updateCustomSelectionBar()
+            }
         })
     }
 
@@ -97,7 +111,7 @@ abstract class BaseConversationsAdapter(
                 if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
                 if (drafts.hashCode() != newDrafts.hashCode()) {
                     drafts = newDrafts
-                    notifyDataSetChanged()
+                    safeNotifyDataSetChanged()
                 }
             }
         }
@@ -115,9 +129,32 @@ abstract class BaseConversationsAdapter(
 
     override fun getItemKeyPosition(key: Int) = currentList.indexOfFirst { it.hashCode() == key }
 
-    override fun onActionModeCreated() {}
+    override fun onActionModeCreated() {
+        updateCustomSelectionBar()
+    }
 
-    override fun onActionModeDestroyed() {}
+    override fun onActionModeDestroyed() {
+        (activity as? SimpleActivity)?.toggleCustomSelectionBar(false)
+    }
+
+    private fun updateCustomSelectionBar() {
+        val simpleActivity = activity as? SimpleActivity ?: return
+        val count = selectedKeys.size
+        if (count > 0) {
+            val actions = getCustomActions()
+            simpleActivity.toggleCustomSelectionBar(true, count, actions) { actionId ->
+                if (actionId == R.id.selection_cancel) {
+                    finishActMode()
+                } else {
+                    actionItemPressed(actionId)
+                }
+            }
+        } else {
+            simpleActivity.toggleCustomSelectionBar(false)
+        }
+    }
+
+    abstract fun getCustomActions(): List<Int>
 
     fun isSelectionModeActive() = selectedKeys.isNotEmpty()
 
@@ -157,49 +194,51 @@ abstract class BaseConversationsAdapter(
     fun onDragStarted(position: Int) {
         if (!activity.config.useNewUi || position < 2) return
         isDragging = true
+        pendingNotify = false
         initialDragPosition = position
         lastTargetPosition = position
     }
 
     fun onItemSwapped(toPosition: Int) {
         if (!isDragging || toPosition < 2) return
+        
+        // Instant visual swap for buttery smooth feedback
+        val list = currentList.toArrayList()
+        val from = lastTargetPosition
+        if (from != -1 && from < list.size && toPosition < list.size) {
+            java.util.Collections.swap(list, from, toPosition)
+            submitList(list)
+        }
+        
         lastTargetPosition = toPosition
     }
 
     fun onDragEnded() {
-        if (!isDragging || initialDragPosition == -1 || lastTargetPosition == -1) {
-            isDragging = false
-            initialDragPosition = -1
-            lastTargetPosition = -1
-            pendingUpdate?.let { 
-                val update = it
-                pendingUpdate = null
-                updateConversations(update)
-            }
-            return
-        }
+        if (!isDragging) return
         
-        if (initialDragPosition != lastTargetPosition) {
-            val list = currentList.toArrayList()
-            if (initialDragPosition < list.size && lastTargetPosition < list.size) {
-                java.util.Collections.swap(list, initialDragPosition, lastTargetPosition)
-                submitList(list)
-                
-                // Save the final order
-                val others = list.drop(2)
-                activity.config.conversationOrder = others.joinToString(",") { it.threadId.toString() }
-            }
-        }
-
+        val start = initialDragPosition
+        val end = lastTargetPosition
+        
         isDragging = false
         initialDragPosition = -1
         lastTargetPosition = -1
+        
+        if (start != -1 && end != -1 && start != end) {
+            // Save the final order (The list is already visually swapped by onItemSwapped)
+            val others = currentList.drop(2)
+            activity.config.conversationOrder = others.joinToString(",") { it.threadId.toString() }
+        }
 
         // Process any refresh that happened during the drag
         pendingUpdate?.let { 
             val update = it
             pendingUpdate = null
             updateConversations(update)
+        }
+        
+        if (pendingNotify) {
+            pendingNotify = false
+            notifyDataSetChanged()
         }
     }
 
@@ -213,12 +252,13 @@ abstract class BaseConversationsAdapter(
             
             // Priority: Real messages over drafts for "Recent" cards as per user request
             ensureBackgroundThread {
+                if (isDragging) return@ensureBackgroundThread
                 val liveSnippet = activity.getThreadSnippet(conversation.threadId)
                 val type = activity.getLatestMessageType(conversation.threadId)
                 // type 2 is SENT, type 1 is INBOX
                 val isSent = type == 2 || type == 4 || type == 5 || type == 6 
                 activity.runOnUiThread {
-                    if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
+                    if (activity.isFinishing || activity.isDestroyed || isDragging) return@runOnUiThread
                     recentBody.text = if (isSent && liveSnippet.isNotEmpty()) "You: $liveSnippet" else liveSnippet.ifEmpty { conversation.snippet }
                     recentBody.setTextColor(mainTextColor)
                     recentBody.alpha = 0.8f
@@ -454,11 +494,12 @@ abstract class BaseConversationsAdapter(
 
             conversationBodyShort.apply {
                 ensureBackgroundThread {
+                    if (isDragging) return@ensureBackgroundThread
                     val liveSnippet = activity.getThreadSnippet(conversation.threadId)
                     val type = activity.getLatestMessageType(conversation.threadId)
                     val isSent = type == 2 || type == 4 || type == 5 || type == 6 
                     activity.runOnUiThread {
-                        if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
+                        if (activity.isFinishing || activity.isDestroyed || isDragging) return@runOnUiThread
                         text = if (isSent && liveSnippet.isNotEmpty()) "You: $liveSnippet" else liveSnippet.ifEmpty { smsDraft ?: conversation.snippet }
                         setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
                     }
@@ -546,7 +587,16 @@ abstract class BaseConversationsAdapter(
     fun updateScaling() {
         fontSize = (activity as SimpleActivity).getScaledTextSize()
         iconSize = (activity as SimpleActivity).getScaledDimen(org.fossify.commons.R.dimen.list_icon_size_medium)
-        notifyDataSetChanged()
+        safeNotifyDataSetChanged()
+    }
+
+    @SuppressLint("NotifyDataSetChanged")
+    fun safeNotifyDataSetChanged() {
+        if (isDragging) {
+            pendingNotify = true
+        } else {
+            notifyDataSetChanged()
+        }
     }
 
     private fun restoreRecyclerViewState() {

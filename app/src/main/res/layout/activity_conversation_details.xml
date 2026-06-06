@@ -4,20 +4,36 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/conversation_details_coordinator"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@android:color/transparent">
 
     <org.fossify.commons.views.MyAppBarLayout
         android:id="@+id/conversation_details_appbar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:background="@android:color/transparent"
+        app:elevation="0dp">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/conversation_details_toolbar"
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:background="@color/color_primary"
-            app:title="@string/conversation_details"
-            app:titleTextAppearance="@style/AppTheme.ActionBar.TitleTextStyle" />
+            android:layout_height="70dp"
+            android:background="@android:color/transparent">
+
+            <TextView
+                android:id="@+id/conversation_details_toolbar_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:text="@string/conversation_details"
+                android:textColor="@android:color/white"
+                android:textSize="28sp"
+                android:textStyle="bold"
+                android:layout_marginEnd="60dp"
+                android:ellipsize="end"
+                android:maxLines="1" />
+
+        </com.google.android.material.appbar.MaterialToolbar>
 
     </org.fossify.commons.views.MyAppBarLayout>
 
@@ -32,90 +48,164 @@
         <LinearLayout
             android:id="@+id/conversation_details_holder"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical">
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="40dp">
 
-            <TextView
-                android:id="@+id/notifications_heading"
-                style="@style/SettingsSectionLabelStyle"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/notifications"
-                android:visibility="gone"
-                tools:visibility="visible" />
-
+            <!-- Hero Profile Section -->
             <RelativeLayout
-                android:id="@+id/custom_notifications_holder"
-                style="@style/SettingsHolderSwitchStyle"
+                android:id="@+id/details_hero_section"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="240dp"
+                android:layout_margin="16dp">
+
+                <View
+                    android:id="@+id/details_hero_gradient"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/pill_background_recent_1" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <ImageView
+                        android:id="@+id/details_hero_image"
+                        android:layout_width="100dp"
+                        android:layout_height="100dp"
+                        android:layout_marginBottom="16dp"
+                        android:scaleType="centerCrop"
+                        tools:src="@mipmap/ic_launcher" />
+
+                    <TextView
+                        android:id="@+id/details_hero_name"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="@android:color/white"
+                        android:textSize="24sp"
+                        android:textStyle="bold"
+                        android:gravity="center"
+                        android:paddingHorizontal="24dp"
+                        tools:text="Contact Name" />
+                </LinearLayout>
+            </RelativeLayout>
+
+            <!-- Rename Pill -->
+            <RelativeLayout
+                android:id="@+id/details_rename_pill"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginBottom="8dp"
+                android:paddingHorizontal="16dp"
+                android:background="@drawable/pill_background_small"
+                android:gravity="center_vertical"
+                android:elevation="6dp">
+
+                <TextView
+                    android:id="@+id/conversation_name_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/conversation_name"
+                    android:textColor="@android:color/white"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_alignParentEnd="true"
+                    android:src="@drawable/ic_edit_vector"
+                    app:tint="@android:color/white" />
+            </RelativeLayout>
+
+            <!-- Notifications Pill -->
+            <RelativeLayout
+                android:id="@+id/details_notifications_pill"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginBottom="8dp"
+                android:paddingHorizontal="16dp"
+                android:background="@drawable/pill_background_small"
+                android:gravity="center_vertical"
+                android:elevation="6dp">
+
+                <TextView
+                    android:id="@+id/notifications_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/notifications"
+                    android:textColor="@android:color/white"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <org.fossify.commons.views.MyMaterialSwitch
+                    android:id="@+id/custom_notifications_switch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:clickable="false"
+                    android:focusable="false" />
+            </RelativeLayout>
+
+            <!-- Customize Notification Pill (Conditional) -->
+            <RelativeLayout
+                android:id="@+id/details_customize_pill"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginBottom="16dp"
+                android:paddingHorizontal="16dp"
+                android:background="@drawable/pill_background_small"
+                android:gravity="center_vertical"
+                android:elevation="6dp"
                 android:visibility="gone"
                 tools:visibility="visible">
 
-                <org.fossify.commons.views.MyMaterialSwitch
-                    android:id="@+id/custom_notifications"
-                    style="@style/SettingsSwitchStyle"
-                    android:layout_width="match_parent"
+                <TextView
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/enable_custom_notifications" />
+                    android:text="@string/customize_notifications"
+                    android:textColor="@android:color/white"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
 
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_alignParentEnd="true"
+                    android:src="@drawable/ic_expand_down"
+                    app:tint="@android:color/white"
+                    android:rotation="-90" />
             </RelativeLayout>
 
-            <org.fossify.commons.views.MyTextView
-                android:id="@+id/custom_notifications_button"
-                style="@style/SettingsHolderTextViewOneLinerStyle"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/customize_notifications"
-                android:visibility="gone"
-                tools:visibility="visible" />
-
-            <include
-                android:id="@+id/settings_conversation_notifications_divider"
-                layout="@layout/divider" />
-
             <TextView
-                android:id="@+id/conversation_name_heading"
-                style="@style/SettingsSectionLabelStyle"
+                android:id="@+id/members_heading_label"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/conversation_name" />
-
-            <org.fossify.commons.views.MyTextView
-                android:id="@+id/conversation_name"
-                style="@style/SettingsHolderTextViewOneLinerStyle"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="?attr/selectableItemBackground"
-                android:clickable="true"
-                android:drawableEnd="@drawable/ic_edit_vector"
-                android:drawablePadding="@dimen/bigger_margin"
-                android:ellipsize="end"
-                android:focusable="true"
-                android:maxLines="1"
-                android:textSize="@dimen/bigger_text_size"
-                tools:text="Conversation name" />
-
-            <include
-                android:id="@+id/settings_conversation_name_divider"
-                layout="@layout/divider" />
-
-            <TextView
-                android:id="@+id/members_heading"
-                style="@style/SettingsSectionLabelStyle"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/members" />
+                android:paddingLeft="20dp"
+                android:paddingRight="20dp"
+                android:paddingTop="16dp"
+                android:paddingBottom="12dp"
+                android:text="@string/members"
+                android:textColor="@color/colorPrimary"
+                android:textSize="22sp"
+                android:textStyle="bold" />
 
             <org.fossify.commons.views.MyRecyclerView
-                android:id="@+id/participants_recyclerview"
+                android:id="@+id/participants_grid"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_marginTop="@dimen/medium_margin"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="10dp"
                 android:clipToPadding="false"
-                app:layoutManager="org.fossify.commons.views.MyLinearLayoutManager"
-                tools:itemCount="3"
-                tools:listitem="@layout/item_contact_with_number" />
+                android:overScrollMode="never"
+                app:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
+                app:spanCount="2"
+                tools:itemCount="4"
+                tools:listitem="@layout/item_conversation_pill" />
 
         </LinearLayout>
 

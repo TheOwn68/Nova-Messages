@@ -18,6 +18,7 @@ import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.graphics.drawable.toDrawable
 import androidx.core.view.updateLayoutParams
 import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.RecyclerView
 import androidx.viewbinding.ViewBinding
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
@@ -80,9 +81,71 @@ class ThreadAdapter(
 
     init {
         setupDragListener(true)
+        registerAdapterDataObserver(object : RecyclerView.AdapterDataObserver() {
+            override fun onChanged() {
+                updateCustomSelectionBar()
+            }
+            override fun onItemRangeChanged(positionStart: Int, itemCount: Int) {
+                updateCustomSelectionBar()
+            }
+            override fun onItemRangeRemoved(positionStart: Int, itemCount: Int) {
+                updateCustomSelectionBar()
+            }
+        })
     }
 
     override fun getActionMenuId() = R.menu.cab_thread
+
+    private fun getCustomActions(): List<Int> {
+        val selectedItems = getSelectedItems()
+        if (selectedItems.isEmpty()) return emptyList()
+
+        val isOneItemSelected = selectedItems.size == 1
+        val selectedMessage = selectedItems.first() as? Message
+        val isMms = selectedMessage?.isMMS == true
+        
+        val actions = mutableListOf<Int>()
+        actions.add(R.id.cab_select_all)
+        actions.add(R.id.cab_delete)
+        
+        if (isOneItemSelected && !isMms) {
+            actions.add(R.id.cab_copy_to_clipboard)
+            actions.add(R.id.cab_share)
+            actions.add(R.id.cab_select_text)
+            actions.add(R.id.cab_forward_message)
+        }
+        
+        if (isRecycleBin) {
+            actions.add(R.id.cab_restore)
+        }
+        
+        return actions
+    }
+
+    override fun onActionModeCreated() {
+        updateCustomSelectionBar()
+    }
+
+    override fun onActionModeDestroyed() {
+        (activity as? SimpleActivity)?.toggleCustomSelectionBar(false)
+    }
+
+    private fun updateCustomSelectionBar() {
+        val simpleActivity = activity as? SimpleActivity ?: return
+        val count = selectedKeys.size
+        if (count > 0) {
+            val actions = getCustomActions()
+            simpleActivity.toggleCustomSelectionBar(true, count, actions) { actionId ->
+                if (actionId == R.id.selection_cancel) {
+                    finishActMode()
+                } else {
+                    actionItemPressed(actionId)
+                }
+            }
+        } else {
+            simpleActivity.toggleCustomSelectionBar(false)
+        }
+    }
 
     override fun prepareActionMode(menu: Menu) {
         try {
@@ -137,10 +200,6 @@ class ThreadAdapter(
     override fun getItemKeyPosition(key: Int): Int {
         return currentList.indexOfFirst { (it as? Message)?.getSelectionKey() == key }
     }
-
-    override fun onActionModeCreated() {}
-
-    override fun onActionModeDestroyed() {}
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val binding = when (viewType) {

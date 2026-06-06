@@ -87,7 +87,6 @@ class NewConversationActivity : SimpleActivity() {
         val mainTextColor = config.mainTextColor
         binding.noContactsPlaceholder2.setTextColor(getProperPrimaryColor())
         binding.noContactsPlaceholder2.underlineText()
-        binding.suggestionsLabel.setTextColor(mainTextColor)
         applyCustomColors()
         
         binding.newConversationAddress.setTextColor(config.inputBarTextColor)
@@ -121,7 +120,14 @@ class NewConversationActivity : SimpleActivity() {
             }
 
             filteredContacts.sortWith(compareBy { !it.name.startsWith(searchString, true) })
-            setupAdapter(filteredContacts)
+            
+            if (config.useNewUi && searchString.isEmpty()) {
+                fetchContacts() // Restore suggestions if search is cleared
+            } else {
+                val adapter = binding.contactsList.adapter as? ContactsAdapter
+                adapter?.setSuggestionsCount(0) // Hide suggestions during search
+                setupAdapter(filteredContacts)
+            }
 
             binding.newConversationConfirm.beVisibleIf(searchString.length > 2)
         }
@@ -180,7 +186,13 @@ class NewConversationActivity : SimpleActivity() {
                 }
 
                 runOnUiThread {
-                    setupAdapter(allContacts)
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    
+                    if (config.useNewUi) {
+                        // fillSuggestedContacts already calls setupAdapter for New UI
+                    } else {
+                        setupAdapter(allContacts)
+                    }
                 }
             }
         }
@@ -222,7 +234,25 @@ class NewConversationActivity : SimpleActivity() {
             binding.noContactsPlaceholder.text = getString(placeholderText)
         }
 
-        val currAdapter = binding.contactsList.adapter
+        val useNewUi = config.useNewUi
+        if (useNewUi) {
+            if (binding.contactsList.layoutManager !is androidx.recyclerview.widget.GridLayoutManager) {
+                val gm = androidx.recyclerview.widget.GridLayoutManager(this, 2)
+                gm.spanSizeLookup = object : androidx.recyclerview.widget.GridLayoutManager.SpanSizeLookup() {
+                    override fun getSpanSize(position: Int): Int {
+                        val adapter = binding.contactsList.adapter as? ContactsAdapter
+                        return if (adapter?.getItemViewType(position) == ContactsAdapter.VIEW_TYPE_SUGGESTION) 2 else 1
+                    }
+                }
+                binding.contactsList.layoutManager = gm
+            }
+        } else {
+            if (binding.contactsList.layoutManager !is org.fossify.commons.views.MyLinearLayoutManager) {
+                binding.contactsList.layoutManager = org.fossify.commons.views.MyLinearLayoutManager(this)
+            }
+        }
+
+        val currAdapter = binding.contactsList.adapter as? ContactsAdapter
         if (currAdapter == null) {
             ContactsAdapter(this, contacts, binding.contactsList) {
                 hideKeyboard()
@@ -238,7 +268,7 @@ class NewConversationActivity : SimpleActivity() {
                 binding.contactsList.scheduleLayoutAnimation()
             }
         } else {
-            (currAdapter as ContactsAdapter).updateContacts(contacts)
+            currAdapter.updateContacts(contacts)
         }
 
         setupLetterFastscroller(contacts)
@@ -250,36 +280,20 @@ class NewConversationActivity : SimpleActivity() {
             privateContacts = MyContactsContentProvider.getSimpleContacts(this, privateCursor)
             val suggestions = getSuggestedContacts(privateContacts)
             runOnUiThread {
-                binding.suggestionsHolder.removeAllViews()
-                if (suggestions.isEmpty()) {
-                    binding.suggestionsLabel.beGone()
-                    binding.suggestionsScrollview.beGone()
-                } else {
-                    binding.suggestionsLabel.beVisible()
-                    binding.suggestionsScrollview.beVisible()
-                    val mainTextColor = config.mainTextColor
-                    suggestions.forEach {
-                        val contact = it
-                        ItemSuggestedContactBinding.inflate(layoutInflater).apply {
-                            suggestedContactName.text = contact.name
-                            suggestedContactName.setTextColor(mainTextColor)
-
-                            if (!isDestroyed) {
-                                SimpleContactsHelper(this@NewConversationActivity).loadContactImage(
-                                    contact.photoUri,
-                                    suggestedContactImage,
-                                    contact.name
-                                )
-                                binding.suggestionsHolder.addView(root)
-                                root.setOnClickListener {
-                                    launchThreadActivity(
-                                        contact.phoneNumbers.first().normalizedNumber,
-                                        contact.name
-                                    )
-                                }
-                            }
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                
+                // Merge suggestions into the main list for the modern layout
+                if (config.useNewUi) {
+                    val mergedList = ArrayList<SimpleContact>()
+                    suggestions.forEach { mergedList.add(it) }
+                    allContacts.forEach { contact ->
+                        if (!suggestions.any { it.contactId == contact.contactId }) {
+                            mergedList.add(contact)
                         }
                     }
+                    val adapter = binding.contactsList.adapter as? ContactsAdapter
+                    adapter?.setSuggestionsCount(suggestions.size)
+                    setupAdapter(mergedList)
                 }
                 callback()
             }

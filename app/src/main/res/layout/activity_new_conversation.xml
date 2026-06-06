@@ -43,42 +43,10 @@
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <org.fossify.commons.views.MyTextView
-            android:id="@+id/suggestions_label"
-            style="@style/MaterialSectionLabelStyle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="@dimen/activity_margin"
-            android:layout_marginTop="16dp"
-            android:layout_marginBottom="@dimen/medium_margin"
-            android:text="@string/suggestions"
-            android:textSize="@dimen/normal_text_size" />
-
-        <HorizontalScrollView
-            android:id="@+id/suggestions_scrollview"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@+id/suggestions_label"
-            android:layout_marginBottom="@dimen/medium_margin"
-            android:overScrollMode="never"
-            android:scrollbars="none">
-
-            <LinearLayout
-                android:id="@+id/suggestions_holder"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:divider="@drawable/linear_layout_horizontal_divider"
-                android:orientation="horizontal"
-                android:showDividers="middle" />
-
-        </HorizontalScrollView>
-
-        <org.fossify.commons.views.MyTextView
             android:id="@+id/no_contacts_placeholder"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_below="@+id/suggestions_scrollview"
-            android:layout_centerHorizontal="true"
-            android:layout_marginTop="@dimen/bigger_margin"
+            android:layout_centerInParent="true"
             android:alpha="0.8"
             android:gravity="center"
             android:paddingLeft="@dimen/activity_margin"
@@ -105,12 +73,14 @@
             android:id="@+id/contacts_list"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_below="@+id/suggestions_scrollview"
             android:clipToPadding="false"
             android:layoutAnimation="@anim/layout_animation"
             android:overScrollMode="ifContentScrolls"
             android:scrollbars="none"
+            android:paddingTop="12dp"
             android:paddingBottom="100dp"
+            android:paddingHorizontal="4dp"
+            android:clipChildren="false"
             app:layoutManager="org.fossify.commons.views.MyLinearLayoutManager" />
 
         <com.reddit.indicatorfastscroll.FastScrollerView
@@ -135,36 +105,49 @@
 
     </RelativeLayout>
 
-    <RelativeLayout
+    <LinearLayout
         android:id="@+id/new_conversation_search_container"
         android:layout_width="match_parent"
         android:layout_height="55dp"
         android:layout_margin="16dp"
         android:layout_gravity="bottom"
-        android:background="@drawable/nova_searchbar_bg">
+        android:background="@drawable/nova_searchbar_bg"
+        android:gravity="center_vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:elevation="6dp">
+
+        <ImageView
+            android:id="@+id/new_conversation_search_icon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_search_vector"
+            android:alpha="0.7"
+            app:tint="@android:color/white" />
 
         <org.fossify.commons.views.MyEditText
             android:id="@+id/new_conversation_address"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_toStartOf="@+id/new_conversation_confirm"
+            android:layout_weight="1"
             android:background="@android:color/transparent"
             android:gravity="center_vertical"
             android:hint="@string/add_contact_or_number"
-            android:paddingStart="20dp"
-            android:paddingEnd="10dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
             android:inputType="textCapWords"
-            android:textSize="18sp" />
+            android:textSize="18sp"
+            android:textColor="@android:color/white"
+            android:textColorHint="#888888" />
 
         <ImageView
             android:id="@+id/new_conversation_confirm"
             android:layout_width="48dp"
             android:layout_height="match_parent"
-            android:layout_alignParentEnd="true"
             android:background="?selectableItemBackgroundBorderless"
             android:padding="12dp"
             android:src="@drawable/ic_check_vector"
             android:visibility="gone" />
 
-    </RelativeLayout>
+    </LinearLayout>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -36,6 +36,12 @@
 
         </com.google.android.material.appbar.MaterialToolbar>
 
+        <include
+            android:id="@+id/selection_bar"
+            layout="@layout/layout_selection_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
     </org.fossify.commons.views.MyAppBarLayout>
 
     <androidx.constraintlayout.widget.ConstraintLayout

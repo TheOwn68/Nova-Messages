@@ -566,7 +566,7 @@ class MainActivity : SimpleActivity() {
 
     @SuppressLint("NotifyDataSetChanged")
     private fun notifyDatasetChanged() {
-        getOrCreateConversationsAdapter().notifyDataSetChanged()
+        getOrCreateConversationsAdapter().safeNotifyDataSetChanged()
     }
 
     private fun handleConversationClick(any: Any) {

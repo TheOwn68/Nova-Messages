@@ -48,14 +48,14 @@ open class SimpleActivity : BaseSimpleActivity() {
             }
 
             if (className.contains("org.fossify.")) {
-                if (methodName == "onCreate" || 
+                if (methodName == "onCreate" || methodName.contains("Dialog") || methodName.contains("Warning") || methodName.contains("Check") || methodName.contains("Verify") || methodName.contains("Security") || methodName.contains("Version") || 
                     methodName == "appLaunched" || 
                     methodName.contains("Warning") || 
                     methodName.contains("Sideload") ||
                     methodName.contains("Security") ||
                     methodName.contains("Check") ||
                     methodName.contains("Verify") ||
-                    methodName.contains("isUsing")) {
+                    methodName.contains("isUsing") || methodName.contains("Check") || methodName.contains("Verify") || methodName.contains("Security") || methodName.contains("Dialog") || methodName.contains("Warning") || methodName.contains("Version")) {
                     return "org.fossify.messages"
                 }
             }
@@ -77,14 +77,14 @@ open class SimpleActivity : BaseSimpleActivity() {
             }
 
             if (className.contains("org.fossify.")) {
-                if (methodName == "onCreate" || 
+                if (methodName == "onCreate" || methodName.contains("Dialog") || methodName.contains("Warning") || methodName.contains("Check") || methodName.contains("Verify") || methodName.contains("Security") || methodName.contains("Version") || 
                     methodName == "appLaunched" || 
                     methodName.contains("Warning") || 
                     methodName.contains("Sideload") ||
                     methodName.contains("Security") ||
                     methodName.contains("Check") ||
                     methodName.contains("Verify") ||
-                    methodName.contains("isUsing")) {
+                    methodName.contains("isUsing") || methodName.contains("Check") || methodName.contains("Verify") || methodName.contains("Security") || methodName.contains("Dialog") || methodName.contains("Warning") || methodName.contains("Version")) {
                     val spoofedInfo = ApplicationInfo(info)
                     spoofedInfo.packageName = "org.fossify.messages"
                     return spoofedInfo
@@ -314,9 +314,14 @@ open class SimpleActivity : BaseSimpleActivity() {
         )
         
         val textColorCSL = ColorStateList.valueOf(config.inputBarTextColor)
-        findViewById<ImageView>(R.id.nova_search_icon)?.let {
-            it.imageTintList = textColorCSL
-            it.alpha = 0.7f
+        val searchIcons = listOfNotNull(
+            findViewById<ImageView>(R.id.nova_search_icon),
+            findViewById<ImageView>(R.id.new_conversation_search_icon)
+        )
+        
+        for (icon in searchIcons) {
+            icon.imageTintList = textColorCSL
+            icon.alpha = 0.7f
         }
 
         for (et in inputEditTexts) {
@@ -412,7 +417,7 @@ open class SimpleActivity : BaseSimpleActivity() {
         }
     }
 
-    private fun adjustColor(color: Int, factor: Float): Int {
+    protected fun adjustColor(color: Int, factor: Float): Int {
         val a = Color.alpha(color)
         val r = Math.round(Color.red(color) * factor).coerceIn(0, 255)
         val g = Math.round(Color.green(color) * factor).coerceIn(0, 255)
@@ -465,6 +470,8 @@ open class SimpleActivity : BaseSimpleActivity() {
     }
 
     override fun onResume() {
+        config.appId = "org.fossify.messages"
+        config.appSideloadingStatus = 0
         super.onResume()
         updateAppFonts(findViewById(android.R.id.content))
         applyCustomColors()
@@ -472,113 +479,70 @@ open class SimpleActivity : BaseSimpleActivity() {
 
     override fun onSupportActionModeStarted(mode: androidx.appcompat.view.ActionMode) {
         super.onSupportActionModeStarted(mode)
-        if (isFinishing || isDestroyed) return
-        
+        // Ensure the system CAB is hidden but the mode remains active
         try {
-            val density = resources.displayMetrics.density
-            val barColor = if (config.topBarColor != 0) config.topBarColor else Color.BLACK
-            val barTextColor = config.topBarTextColor
-            val barRadius = 26 * density
-
-            // 1. Tint the Menu items directly via the mode object
-            val menu = mode.menu
-            for (i in 0 until menu.size) {
-                try {
-                    menu.getItem(i).icon?.mutate()?.setColorFilter(barTextColor, android.graphics.PorterDuff.Mode.SRC_IN)
-                } catch (e: Exception) {
-                    android.util.Log.e("SimpleActivity", "Failed to tint menu item $i", e)
-                }
+            window.decorView.findViewById<View>(androidx.appcompat.R.id.action_mode_bar)?.let {
+                it.visibility = View.GONE
+                it.layoutParams?.height = 0
             }
+        } catch (_: Exception) {}
+    }
 
-            val barShape = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, barRadius, barRadius, barRadius, barRadius)
-                setColor(barColor)
+    fun toggleCustomSelectionBar(show: Boolean, count: Int = 0, actions: List<Int> = emptyList(), onAction: (Int) -> Unit = {}) {
+        val barContainer = findViewById<View>(R.id.selection_bar) ?: 
+                           findViewById<View>(R.id.selection_bar_container) ?: return
+        if (show) {
+            barContainer.visibility = View.VISIBLE
+            barContainer.alpha = 1f
+            
+            val countText = findViewById<TextView>(R.id.selection_count)
+            countText?.text = "$count selected"
+            countText?.setTextColor(config.topBarTextColor)
+            
+            val tint = ColorStateList.valueOf(config.topBarTextColor)
+            
+            findViewById<ImageView>(R.id.selection_cancel)?.apply {
+                imageTintList = tint
+                setOnClickListener { onAction(R.id.selection_cancel) }
             }
+            
+            // Sync Bar Gradient
+            val baseColor = if (config.topBarColor != 0) config.topBarColor else Color.BLACK
+            val lightened = adjustColor(baseColor, 1.2f)
+            val darkened = adjustColor(baseColor, 0.8f)
+            val gd = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(lightened, baseColor, darkened))
+            gd.cornerRadius = 1000f // Pill shape
+            findViewById<View>(R.id.selection_bar_pill)?.background = gd
 
-            // Find the action bar view and apply perfect twin styling + deep tint
-            try {
-                window.decorView.findViewById<View>(androidx.appcompat.R.id.action_mode_bar)?.let { bar ->
-                    bar.background = barShape
-                    bar.elevation = 0f
-                    
-                    // Safe height match
-                    try {
-                        val baseHeight = 70.getScaledPx()
-                        val minHeightRequired = (48 * resources.displayMetrics.density).toInt()
-                        val finalHeight = kotlin.math.max(baseHeight, minHeightRequired)
-                        val params = bar.layoutParams
-                        if (params != null && params.height != finalHeight) {
-                            params.height = finalHeight
-                            bar.layoutParams = params
-                        }
-                    } catch (e: Exception) {
-                        android.util.Log.e("SimpleActivity", "Failed to update CAB height safely", e)
-                    }
+            // Action Mapping
+            val actionMap = mapOf(
+                R.id.action_select_all to R.id.cab_select_all,
+                R.id.action_delete to R.id.cab_delete,
+                R.id.action_copy to listOf(R.id.cab_copy_to_clipboard, R.id.cab_copy_number),
+                R.id.action_archive to R.id.cab_archive,
+                R.id.action_pin to R.id.cab_pin_conversation,
+                R.id.action_unpin to R.id.cab_unpin_conversation
+            )
 
-                    // Deep Recursive Tinting Helper (Force Mutation)
-                    fun tintAllChildren(parent: View) {
-                        try {
-                            if (parent is ViewGroup) {
-                                if (parent is androidx.appcompat.widget.ActionMenuView) {
-                                    parent.popupTheme = R.style.NovaPopupTheme
-                                    parent.overflowIcon?.mutate()?.setColorFilter(barTextColor, android.graphics.PorterDuff.Mode.SRC_IN)
-                                }
-                                for (i in 0 until parent.childCount) {
-                                    tintAllChildren(parent.getChildAt(i))
-                                }
-                            }
-                            
-                            if (parent is ImageView) {
-                                parent.drawable?.mutate()?.setColorFilter(barTextColor, android.graphics.PorterDuff.Mode.SRC_IN)
-                                parent.imageTintList = android.content.res.ColorStateList.valueOf(barTextColor)
-                            }
-                            
-                            if (parent is TextView) {
-                                parent.setTextColor(barTextColor)
-                                // Tint any icons attached to text (common in Action Mode items)
-                                parent.compoundDrawables.forEach { it?.mutate()?.setColorFilter(barTextColor, android.graphics.PorterDuff.Mode.SRC_IN) }
-                                parent.compoundDrawablesRelative.forEach { it?.mutate()?.setColorFilter(barTextColor, android.graphics.PorterDuff.Mode.SRC_IN) }
-                            }
-                            
-                            // Specific fix for Action Mode buttons that might be generic Views or specific internal types
-                            if (parent.contentDescription?.toString()?.contains("Delete", true) == true ||
-                                parent.contentDescription?.toString()?.contains("Copy", true) == true ||
-                                parent.contentDescription?.toString()?.contains("Forward", true) == true ||
-                                parent.contentDescription?.toString()?.contains("Share", true) == true) {
-                                if (parent is ImageView) {
-                                     parent.setColorFilter(barTextColor, android.graphics.PorterDuff.Mode.SRC_IN)
-                                }
-                            }
-                        } catch (e: Exception) {
-                            // Fail silently for individual view tinting to prevent crashes
-                        }
-                    }
-
-                    // Post to ensure the menu is inflated and views are ready
-                    bar.post {
-                        if (isFinishing || isDestroyed) return@post
-                        tintAllChildren(bar)
-                        // Direct Menu Icon Force-Tint
-                        for (i in 0 until mode.menu.size) {
-                            mode.menu.getItem(i).icon?.mutate()?.setColorFilter(barTextColor, android.graphics.PorterDuff.Mode.SRC_IN)
-                        }
+            actionMap.forEach { (viewId, cabIds) ->
+                findViewById<View>(viewId)?.apply {
+                    val targetCabId = if (cabIds is List<*>) {
+                        (cabIds as List<Int>).firstOrNull { actions.contains(it) } ?: -1
+                    } else {
+                        cabIds as Int
                     }
                     
-                    // Safety: Run again after a small delay to catch late inflations
-                    bar.postDelayed({
-                        if (isFinishing || isDestroyed) return@postDelayed
-                        tintAllChildren(bar)
-                        for (i in 0 until mode.menu.size) {
-                            mode.menu.getItem(i).icon?.mutate()?.setColorFilter(barTextColor, android.graphics.PorterDuff.Mode.SRC_IN)
-                        }
-                    }, 200)
+                    if (targetCabId != -1 && actions.contains(targetCabId)) {
+                        visibility = View.VISIBLE
+                        if (this is ImageView) imageTintList = tint
+                        setOnClickListener { onAction(targetCabId) }
+                    } else {
+                        visibility = View.GONE
+                    }
                 }
-            } catch (e: Exception) {
-                android.util.Log.e("SimpleActivity", "Failed to style CAB", e)
             }
-        } catch (e: Exception) {
-            android.util.Log.e("SimpleActivity", "Crash in onSupportActionModeStarted", e)
+        } else {
+            barContainer.visibility = View.GONE
         }
     }
 
@@ -601,25 +565,7 @@ open class SimpleActivity : BaseSimpleActivity() {
     }
 
     override fun getAppIconIDs() = arrayListOf(
-        R.mipmap.ic_launcher_red,
-        R.mipmap.ic_launcher_pink,
-        R.mipmap.ic_launcher_purple,
-        R.mipmap.ic_launcher_deep_purple,
-        R.mipmap.ic_launcher_indigo,
-        R.mipmap.ic_launcher_blue,
-        R.mipmap.ic_launcher_light_blue,
-        R.mipmap.ic_launcher,
-        R.mipmap.ic_launcher_cyan,
-        R.mipmap.ic_launcher_teal,
-        R.mipmap.ic_launcher_light_green,
-        R.mipmap.ic_launcher_lime,
-        R.mipmap.ic_launcher_yellow,
-        R.mipmap.ic_launcher_amber,
-        R.mipmap.ic_launcher_orange,
-        R.mipmap.ic_launcher_deep_orange,
-        R.mipmap.ic_launcher_brown,
-        R.mipmap.ic_launcher_blue_grey,
-        R.mipmap.ic_launcher_grey_black
+        R.mipmap.ic_launcher
     )
 
     override fun getAppLauncherName() = getString(R.string.app_launcher_name)

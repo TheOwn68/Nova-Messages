@@ -19,6 +19,14 @@ class RecycleBinConversationsAdapter(
 
     override fun prepareActionMode(menu: Menu) {}
 
+    override fun getCustomActions(): List<Int> {
+        return listOf(
+            R.id.cab_select_all,
+            R.id.cab_delete,
+            R.id.cab_restore
+        )
+    }
+
     override fun actionItemPressed(id: Int) {
         if (selectedKeys.isEmpty()) {
             return
