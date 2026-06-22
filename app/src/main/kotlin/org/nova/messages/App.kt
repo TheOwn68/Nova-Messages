@@ -93,7 +93,7 @@ class App : FossifyApp() {
             }
         }
 
-        config.appId = "org.fossify.messages"
+        config.appId = "org.nova.messages"
         config.appSideloadingStatus = 0
         config.hadThankYouInstalled = true
         config.appRunCount = 1 // Avoid initial setup dialogs

@@ -13,7 +13,7 @@ import org.fossify.commons.helpers.SimpleContactsHelper
 import org.fossify.commons.views.MyRecyclerView
 import org.nova.messages.activities.SimpleActivity
 import org.nova.messages.databinding.ItemSearchResultBinding
-import org.nova.messages.extensions.config
+import org.nova.messages.extensions.*
 import org.nova.messages.models.SearchResult
 
 class SearchResultsAdapter(

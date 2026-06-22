@@ -55,7 +55,7 @@ class ThreadAdapter(
     itemClick: (Any) -> Unit,
     private val isRecycleBin: Boolean,
     private val deleteMessages: (messages: List<Message>, toRecycleBin: Boolean, fromRecycleBin: Boolean) -> Unit
-) : MyRecyclerViewListAdapter<ThreadItem>(activity, recyclerView, ThreadItemDiffCallback(), itemClick, {}) {
+) : MyRecyclerViewListAdapter<ThreadItem>(activity, recyclerView, ThreadItemDiffCallback(), itemClick) {
 
     private val hasMultipleSIMCards = try {
         activity.subscriptionManagerCompat().activeSubscriptionInfoList?.size ?: 0 > 1
@@ -96,6 +96,8 @@ class ThreadAdapter(
 
     override fun getActionMenuId() = R.menu.cab_thread
 
+    fun isSelectionModeActive() = selectedKeys.isNotEmpty()
+
     private fun getCustomActions(): List<Int> {
         val selectedItems = getSelectedItems()
         if (selectedItems.isEmpty()) return emptyList()
@@ -123,10 +125,12 @@ class ThreadAdapter(
     }
 
     override fun onActionModeCreated() {
+        android.util.Log.d("ThreadSelection", "Action mode created")
         updateCustomSelectionBar()
     }
 
     override fun onActionModeDestroyed() {
+        android.util.Log.d("ThreadSelection", "Action mode destroyed")
         (activity as? SimpleActivity)?.toggleCustomSelectionBar(false)
     }
 
@@ -242,6 +246,7 @@ class ThreadAdapter(
             is ThreadSending -> setupThreadSending(binding.root)
             is ThreadSent -> setupThreadSuccess(binding.root, item.delivered)
         }
+        bindViewHolder(holder)
     }
 
     override fun getItemId(position: Int): Long {
@@ -450,12 +455,20 @@ class ThreadAdapter(
             }
 
             setOnLongClickListener {
+                android.util.Log.d("ThreadSelection", "Long click on message: ${message.id}")
                 holder.viewLongClicked()
+                updateCustomSelectionBar()
                 true
             }
 
             setOnClickListener {
-                holder.viewClicked(message)
+                android.util.Log.d("ThreadSelection", "Click on message: ${message.id}, selection mode: ${isSelectionModeActive()}")
+                if (isSelectionModeActive()) {
+                    holder.viewLongClicked()
+                    updateCustomSelectionBar()
+                } else {
+                    holder.viewClicked(message)
+                }
             }
         }
 
@@ -486,9 +499,25 @@ class ThreadAdapter(
             val style = if (message.isScheduled) Typeface.ITALIC else Typeface.NORMAL
             typeface = Typeface.create(customTypeface, style)
 
-            // NO LONG-CLICK HERE. Handled by bodyHolder to prevent RenderThread/Native crashes
-            setOnClickListener(null)
-            setOnLongClickListener(null)
+            setOnLongClickListener {
+                android.util.Log.d("ThreadSelection", "Long click on text: ${message.id}")
+                holder.viewLongClicked()
+                updateCustomSelectionBar()
+                true
+            }
+
+            setOnClickListener {
+                android.util.Log.d("ThreadSelection", "Click on text: ${message.id}, selection mode: ${isSelectionModeActive()}")
+                if (isSelectionModeActive()) {
+                    holder.viewLongClicked()
+                    updateCustomSelectionBar()
+                } else {
+                    // Clicks on auto-links are handled by the TextView's movement method
+                    // If selection mode is OFF, we might want to let the standard link behavior happen
+                    // But if it's NOT a link, we might want to trigger normal click
+                    holder.viewClicked(message)
+                }
+            }
 
             if (!isReceived && message.isScheduled) {
                 val scheduledDrawable = AppCompatResources.getDrawable(activity, org.fossify.commons.R.drawable.ic_clock_vector)?.apply {

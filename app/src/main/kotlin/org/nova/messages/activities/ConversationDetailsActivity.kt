@@ -65,10 +65,10 @@ class ConversationDetailsActivity : SimpleActivity() {
         
         // Setup Hero Gradient
         val baseColor = config.recentColor
-        val lightened = adjustColor(baseColor, 1.2f)
-        val darkened = adjustColor(baseColor, 0.8f)
+        val lightened = baseColor.adjustColor(1.2f)
+        val darkened = baseColor.adjustColor(0.8f)
         val gd = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(lightened, baseColor, darkened))
-        gd.cornerRadius = 24.getScaledPx().toFloat()
+        gd.cornerRadius = 24.getScaledPx(this).toFloat()
         binding.detailsHeroGradient.background = gd
         
         // Hero Shadows

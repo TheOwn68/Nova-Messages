@@ -72,6 +72,20 @@ const val RECEIVED_BUBBLE_COLOR = "received_bubble_color"
 const val SENT_BUBBLE_TEXT_COLOR = "sent_bubble_text_color"
 const val RECEIVED_BUBBLE_TEXT_COLOR = "received_bubble_text_color"
 
+const val TOP_BAR_IMAGE = "top_bar_image"
+const val MAIN_BACKGROUND_IMAGE = "main_background_image"
+const val INPUT_BAR_IMAGE = "input_bar_image"
+const val CROP_TARGET = "crop_target"
+const val CROP_TARGET_TOP_BAR = 1
+const val CROP_TARGET_SEARCH_BAR = 2
+const val CROP_TARGET_BACKGROUND = 3
+const val TOP_BAR_BG_MODE = "top_bar_bg_mode"
+const val MAIN_BG_MODE = "main_bg_mode"
+const val INPUT_BAR_BG_MODE = "input_bar_bg_mode"
+
+const val BG_MODE_COLOR = 0
+const val BG_MODE_IMAGE = 1
+
 private const val PATH = "org.nova.org.nova.messages.action."
 const val MARK_AS_READ = PATH + "mark_as_read"
 const val REPLY = PATH + "reply"
@@ -121,6 +135,10 @@ const val CAPTURE_AUDIO_INTENT = 46
 const val PICK_DOCUMENT_INTENT = 47
 const val PICK_CONTACT_INTENT = 48
 const val PICK_SAVE_DIR_INTENT = 50
+const val PICK_TOP_BAR_IMAGE_INTENT = 1001
+const val PICK_MAIN_BG_IMAGE_INTENT = 1002
+const val PICK_INPUT_BAR_IMAGE_INTENT = 1003
+const val CROP_RESULT_INTENT = 1004
 
 const val BLOCKED_KEYWORDS_EXPORT_DELIMITER = ","
 const val BLOCKED_KEYWORDS_EXPORT_EXTENSION = ".txt"

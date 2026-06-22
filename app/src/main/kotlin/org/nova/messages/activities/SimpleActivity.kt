@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.text.Editable
@@ -16,6 +17,11 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
+import android.graphics.drawable.Drawable
+import android.net.Uri
+import com.bumptech.glide.Glide
+import com.bumptech.glide.request.target.CustomTarget
+import com.bumptech.glide.request.transition.Transition
 import androidx.appcompat.widget.ListPopupWindow
 import androidx.appcompat.widget.Toolbar
 import androidx.core.view.get
@@ -29,6 +35,8 @@ import org.fossify.commons.extensions.getTextSize
 import org.fossify.commons.extensions.applyColorFilter
 import org.nova.messages.R
 import org.nova.messages.extensions.config
+import org.nova.messages.helpers.*
+import java.io.File
 import kotlin.math.max
 
 open class SimpleActivity : BaseSimpleActivity() {
@@ -164,13 +172,12 @@ open class SimpleActivity : BaseSimpleActivity() {
         val density = resources.displayMetrics.density
 
         // 1. Force main background to apply to the window decor view
-        window.decorView.setBackgroundColor(config.mainBackgroundColor)
-        
-        // Ensure all possible coordinators are transparent
-        // val rootView = findViewById<View>(android.R.id.content)
-        // if (rootView is ViewGroup) {
-        //    forceTransparentContainers(rootView)
-        // }
+        if (config.mainBgMode == BG_MODE_IMAGE && config.mainBackgroundImage.isNotEmpty()) {
+            loadBackgroundImage(config.mainBackgroundImage, window.decorView)
+        } else {
+            clearGlideTarget(window.decorView)
+            window.decorView.setBackgroundColor(config.mainBackgroundColor)
+        }
         
         // 2. Apply top bar color (HARD RECURSIVE SHAPE GUARD)
         val appBar = findViewById<AppBarLayout>(R.id.settings_appbar) ?: 
@@ -188,6 +195,7 @@ open class SimpleActivity : BaseSimpleActivity() {
             val barRadius = 26 * density
             val useNewUi = config.useNewUi
             
+            val topBarImage = config.topBarImage
             val barShape = if (useNewUi) {
                 // Modern Multi-Tone Gradient (Matching Contact Pills)
                 val lightened = adjustColor(barColor, 1.2f)
@@ -203,22 +211,29 @@ open class SimpleActivity : BaseSimpleActivity() {
                     setColor(barColor)
                 }
             }
+
+            if (config.topBarBgMode == BG_MODE_IMAGE && topBarImage.isNotEmpty()) {
+                loadBackgroundImage(topBarImage, appBar)
+            } else {
+                clearGlideTarget(appBar)
+                appBar.background = barShape
+            }
             
             appBar.isLiftOnScroll = false
-            appBar.background = barShape
             appBar.stateListAnimator = null
-            appBar.outlineProvider = null // Disable default elevation shadow which might be the cause
             
-            // Material 3 Depth (Rounded only on bottom)
-            if (useNewUi) {
-                appBar.elevation = 14 * density // Extra Stronger shadow
-                appBar.clipToOutline = false 
-                appBar.outlineProvider = object : android.view.ViewOutlineProvider() {
-                    override fun getOutline(view: View, outline: android.graphics.Outline) {
-                        // Start rect ABOVE view so top corners are hidden/flat
-                        outline.setRoundRect(0, -barRadius.toInt(), view.width, view.height, barRadius)
-                    }
+            // Material 3 Depth & Clipping (Rounded only on bottom)
+            appBar.outlineProvider = object : android.view.ViewOutlineProvider() {
+                override fun getOutline(view: View, outline: android.graphics.Outline) {
+                    // Start rect ABOVE view so top corners are hidden/flat
+                    outline.setRoundRect(0, -barRadius.toInt(), view.width, view.height, barRadius)
                 }
+            }
+            appBar.clipToOutline = true
+
+            if (useNewUi) {
+                appBar.background = appBar.background ?: ColorDrawable(barColor) // Ensure background is set if Glide is async
+                appBar.elevation = 14 * density // Extra Stronger shadow
                 appBar.setLayerType(View.LAYER_TYPE_HARDWARE, null)
                 // Ensure shadow is visible by disabling clipping on parent
                 (appBar.parent as? ViewGroup)?.let {
@@ -297,13 +312,26 @@ open class SimpleActivity : BaseSimpleActivity() {
         if (inputBar != null) {
             val inputBgColor = config.inputBarBackgroundColor
             val inputRadius = 28 * density 
+            val inputBarImage = config.inputBarImage
             
-            val inputShape = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                cornerRadius = inputRadius
-                setColor(inputBgColor)
+            if (config.inputBarBgMode == BG_MODE_IMAGE && inputBarImage.isNotEmpty()) {
+                loadBackgroundImage(inputBarImage, inputBar) {
+                    inputBar.outlineProvider = object : android.view.ViewOutlineProvider() {
+                        override fun getOutline(view: View, outline: android.graphics.Outline) {
+                            outline.setRoundRect(0, 0, view.width, view.height, inputRadius)
+                        }
+                    }
+                    inputBar.clipToOutline = true
+                }
+            } else {
+                clearGlideTarget(inputBar)
+                val inputShape = GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    cornerRadius = inputRadius
+                    setColor(inputBgColor)
+                }
+                inputBar.background = inputShape
             }
-            inputBar.background = inputShape
         }
         
         // 5. Targeted EditText coloring for live typed text
@@ -370,11 +398,11 @@ open class SimpleActivity : BaseSimpleActivity() {
         val mainTextCol = config.mainTextColor
         val settingsLabels = listOf(
             R.id.settings_customization_label,
-            R.id.settings_top_bar_color_label,
+            R.id.settings_top_bar_label,
             R.id.settings_top_bar_text_color_label,
-            R.id.settings_main_background_color_label,
+            R.id.settings_main_bg_label,
             R.id.settings_main_text_color_label,
-            R.id.settings_input_bar_background_color_label,
+            R.id.settings_input_bar_label,
             R.id.settings_input_bar_text_color_label,
             R.id.settings_bubble_customization_label,
             R.id.settings_sent_bubble_color_label,
@@ -458,6 +486,13 @@ open class SimpleActivity : BaseSimpleActivity() {
         super.attachBaseContext(newBase)
     }
 
+    private var selectionCancelCallback: (() -> Unit)? = null
+    private val selectionBackCallback = object : androidx.activity.OnBackPressedCallback(false) {
+        override fun handleOnBackPressed() {
+            selectionCancelCallback?.invoke()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         val oldHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
@@ -466,6 +501,7 @@ open class SimpleActivity : BaseSimpleActivity() {
         }
 
         super.onCreate(savedInstanceState)
+        onBackPressedDispatcher.addCallback(this, selectionBackCallback)
         requestHighRefreshRate()
     }
 
@@ -479,18 +515,83 @@ open class SimpleActivity : BaseSimpleActivity() {
 
     override fun onSupportActionModeStarted(mode: androidx.appcompat.view.ActionMode) {
         super.onSupportActionModeStarted(mode)
-        // Ensure the system CAB is hidden but the mode remains active
+        currentActionMode = mode
+        // Aggressively hide the system CAB to avoid duplicate UI
+        hideSystemSelectionBar()
+    }
+
+    private var currentActionMode: androidx.appcompat.view.ActionMode? = null
+
+    private fun hideSystemSelectionBar() {
         try {
-            window.decorView.findViewById<View>(androidx.appcompat.R.id.action_mode_bar)?.let {
-                it.visibility = View.GONE
-                it.layoutParams?.height = 0
+            val hideBar = { view: View ->
+                view.visibility = View.GONE
+                view.layoutParams?.height = 0
+                view.alpha = 0f
+                view.isClickable = false
+                view.isFocusable = false
             }
+
+            // Layer 1: Traditional ID lookup
+            window.decorView.findViewById<View>(androidx.appcompat.R.id.action_mode_bar)?.let { hideBar(it) }
+            
+            // Layer 2: Recursive class-based lookup (Handles platform and internal variations)
+            findAndHideActionModeView(window.decorView)
+
+            // Layer 3: Delayed enforcement (System often resets visibility after callbacks)
+            window.decorView.postDelayed({
+                window.decorView.findViewById<View>(androidx.appcompat.R.id.action_mode_bar)?.let { hideBar(it) }
+                findAndHideActionModeView(window.decorView)
+            }, 50)
         } catch (_: Exception) {}
     }
 
-    fun toggleCustomSelectionBar(show: Boolean, count: Int = 0, actions: List<Int> = emptyList(), onAction: (Int) -> Unit = {}) {
+    private fun findAndHideActionModeView(view: View) {
+        if (view.javaClass.simpleName.contains("ActionMode") || 
+            view.javaClass.simpleName.contains("ActionBarContextView")) {
+            view.visibility = View.GONE
+            view.layoutParams?.height = 0
+            view.alpha = 0f
+        }
+
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) {
+                findAndHideActionModeView(view.getChildAt(i))
+            }
+        }
+    }
+
+    override fun onSupportActionModeFinished(mode: androidx.appcompat.view.ActionMode) {
+        super.onSupportActionModeFinished(mode)
+        currentActionMode = null
+        selectionCancelCallback = null
+    }
+
+    fun isCustomSelectionBarVisible(): Boolean {
         val barContainer = findViewById<View>(R.id.selection_bar) ?: 
-                           findViewById<View>(R.id.selection_bar_container) ?: return
+                           findViewById<View>(R.id.selection_bar_container)
+        return barContainer?.visibility == View.VISIBLE
+    }
+
+    fun toggleCustomSelectionBar(show: Boolean, count: Int = 0, actions: List<Int> = emptyList(), onAction: (Int) -> Unit = {}) {
+        android.util.Log.d("SelectionBar", "toggleCustomSelectionBar: show=$show, count=$count")
+        
+        selectionBackCallback.isEnabled = show
+        if (show) {
+            selectionCancelCallback = { 
+                onAction(R.id.selection_cancel)
+                currentActionMode?.finish()
+            }
+        } else {
+            selectionCancelCallback = null
+            currentActionMode?.finish()
+        }
+
+        val barContainer = findViewById<View>(R.id.selection_bar) ?: 
+                           findViewById<View>(R.id.selection_bar_container) ?: run {
+                               android.util.Log.e("SelectionBar", "Bar container NOT FOUND")
+                               return
+                           }
         if (show) {
             barContainer.visibility = View.VISIBLE
             barContainer.alpha = 1f
@@ -622,5 +723,53 @@ open class SimpleActivity : BaseSimpleActivity() {
         }
         
         popup.show()
+    }
+
+    private fun clearGlideTarget(view: View) {
+        (view.tag as? CustomTarget<*>)?.let {
+            Glide.with(this).clear(it)
+            view.tag = null
+        }
+        Glide.with(this).clear(view)
+    }
+
+    private fun loadBackgroundImage(source: String, targetView: View, onLoaded: (() -> Unit)? = null) {
+        if (source.isBlank()) {
+            android.util.Log.w("SimpleActivity", "loadBackgroundImage: source is blank")
+            return
+        }
+        
+        android.util.Log.d("SimpleActivity", "loadBackgroundImage: loading $source")
+        clearGlideTarget(targetView)
+        
+        // Robustness: Check if it's a local file and if it exists
+        if (source.startsWith("file://") || source.startsWith("/")) {
+            val path = Uri.parse(source).path ?: source.removePrefix("file://")
+            if (!File(path).exists()) {
+                android.util.Log.e("SimpleActivity", "Local background file does not exist: $path")
+                return
+            }
+        }
+
+        val target = object : CustomTarget<Drawable>() {
+            override fun onResourceReady(resource: Drawable, transition: Transition<in Drawable>?) {
+                android.util.Log.d("SimpleActivity", "loadBackgroundImage: success for $source")
+                targetView.background = resource
+                onLoaded?.invoke()
+            }
+            override fun onLoadFailed(errorDrawable: Drawable?) {
+                android.util.Log.e("SimpleActivity", "loadBackgroundImage: FAILED for $source")
+            }
+            override fun onLoadCleared(placeholder: Drawable?) {
+                // targetView.background = null // Optional: clear background if load cleared
+            }
+        }
+        
+        targetView.tag = target
+
+        Glide.with(this)
+            .load(source)
+            .centerCrop()
+            .into(target)
     }
 }

@@ -17,8 +17,9 @@
     <style name="NovaActionModeStyle" parent="Widget.AppCompat.ActionMode">
         <item name="background">@android:color/transparent</item>
         <item name="android:background">@android:color/transparent</item>
-        <item name="height">70dp</item>
-        <item name="android:height">70dp</item>
+        <item name="height">0dp</item>
+        <item name="android:height">0dp</item>
+        <item name="android:visibility">gone</item>
     </style>
 
     <style name="WindowAnimation">

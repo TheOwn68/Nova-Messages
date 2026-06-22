@@ -1,4 +1,5 @@
 package org.nova.messages.adapters
+import org.nova.messages.extensions.*
 
 import android.graphics.Typeface
 import android.view.LayoutInflater

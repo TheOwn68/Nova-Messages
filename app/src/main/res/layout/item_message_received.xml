@@ -57,7 +57,9 @@
             android:layout_below="@+id/thread_message_attachments_holder"
             android:layout_marginVertical="@dimen/tiny_margin"
             android:layout_alignParentStart="true"
-            android:background="@drawable/item_received_background">
+            android:background="@drawable/item_received_background"
+            android:clickable="true"
+            android:focusable="true">
 
             <org.fossify.commons.views.MyTextView
                 android:id="@+id/thread_message_body"

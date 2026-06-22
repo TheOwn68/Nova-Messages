@@ -1,8 +1,11 @@
 package org.nova.messages.activities
 
+import android.app.Activity
 import android.graphics.Color
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
+import android.widget.ArrayAdapter
 import android.widget.TextView
 import org.fossify.commons.extensions.*
 import org.fossify.commons.helpers.NavigationIcon
@@ -11,6 +14,7 @@ import org.fossify.commons.views.MyAppBarLayout
 import org.nova.messages.R
 import org.nova.messages.databinding.ActivitySettingsBinding
 import org.nova.messages.extensions.config
+import org.nova.messages.helpers.*
 
 class SettingsActivity : SimpleActivity() {
 
@@ -34,7 +38,99 @@ class SettingsActivity : SimpleActivity() {
         setupNewUi()
         setupFontSize()
         setupFontFamily()
+        setupBgModes()
         updateAppFonts(binding.root)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        updateCustomizationUI()
+    }
+
+    private fun updateCustomizationUI() = binding.apply {
+        val mainTextColor = config.mainTextColor
+        
+        settingsTopBarImageIcon.applyColorFilter(mainTextColor)
+        settingsMainBgImageIcon.applyColorFilter(mainTextColor)
+        settingsInputBarImageIcon.applyColorFilter(mainTextColor)
+        
+        // Mode Visibility
+        val updateModeUI = { mode: Int, colorPreview: View, imageIcon: View ->
+            if (mode == BG_MODE_COLOR) {
+                colorPreview.beVisible()
+                imageIcon.beGone()
+            } else {
+                colorPreview.beGone()
+                imageIcon.beVisible()
+            }
+        }
+        
+        updateModeUI(config.topBarBgMode, settingsTopBarColorPreview, settingsTopBarImageIcon)
+        updateModeUI(config.mainBgMode, settingsMainBackgroundColorPreview, settingsMainBgImageIcon)
+        updateModeUI(config.inputBarBgMode, settingsInputBarBackgroundColorPreview, settingsInputBarImageIcon)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, resultData: Intent?) {
+        super.onActivityResult(requestCode, resultCode, resultData)
+        if (resultCode != Activity.RESULT_OK || resultData == null) return
+
+        if (requestCode == CROP_RESULT_INTENT) {
+            val croppedUri = resultData.getStringExtra("cropped_uri") ?: return
+            val target = resultData.getIntExtra(CROP_TARGET, -1)
+            when (target) {
+                CROP_TARGET_TOP_BAR -> config.topBarImage = croppedUri
+                CROP_TARGET_BACKGROUND -> config.mainBackgroundImage = croppedUri
+                CROP_TARGET_SEARCH_BAR -> config.inputBarImage = croppedUri
+            }
+            applyCustomColors()
+            return
+        }
+
+        val uri = resultData.data ?: return
+        // Take persistable URI permission if needed
+        try {
+            contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        } catch (_: Exception) { }
+
+        val uriString = uri.toString()
+        when (requestCode) {
+            PICK_TOP_BAR_IMAGE_INTENT -> startCropper(uriString, CROP_TARGET_TOP_BAR)
+            PICK_MAIN_BG_IMAGE_INTENT -> startCropper(uriString, CROP_TARGET_BACKGROUND)
+            PICK_INPUT_BAR_IMAGE_INTENT -> startCropper(uriString, CROP_TARGET_SEARCH_BAR)
+        }
+    }
+
+    private fun startCropper(uri: String, target: Int) {
+        val intent = Intent(this, ImageCropperActivity::class.java).apply {
+            putExtra("uri", uri)
+            putExtra(CROP_TARGET, target)
+        }
+        startActivityForResult(intent, CROP_RESULT_INTENT)
+    }
+
+    private fun setupBgModes() = binding.apply {
+        val modes = arrayListOf("Color", "Image")
+        val adapter = ArrayAdapter(this@SettingsActivity, android.R.layout.simple_spinner_item, modes)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        
+        val setupSpinner = { spinner: android.widget.Spinner, currentMode: Int, onModeChanged: (Int) -> Unit ->
+            spinner.adapter = adapter
+            spinner.setSelection(currentMode)
+            spinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
+                    if (position != currentMode) {
+                        onModeChanged(position)
+                        updateCustomizationUI()
+                        applyCustomColors()
+                    }
+                }
+                override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+            }
+        }
+        
+        setupSpinner(settingsTopBarBgModeSpinner, config.topBarBgMode) { config.topBarBgMode = it }
+        setupSpinner(settingsMainBgModeSpinner, config.mainBgMode) { config.mainBgMode = it }
+        setupSpinner(settingsInputBarBgModeSpinner, config.inputBarBgMode) { config.inputBarBgMode = it }
     }
 
     private fun setupCustomization() = binding.apply {
@@ -71,32 +167,11 @@ class SettingsActivity : SimpleActivity() {
         updatePreview(settingsColorRow2Preview, config.row2Color)
         updatePreview(settingsColorRow3Preview, config.row3Color)
 
-        settingsTopBarColorHolder.setOnClickListener {
-            val color = if (config.topBarColor == 0) Color.BLACK else config.topBarColor
-            org.fossify.commons.dialogs.ColorPickerDialog(this@SettingsActivity, color) { wasPositive, color ->
-                if (wasPositive) {
-                    config.topBarColor = if (color == Color.BLACK) 0 else color
-                    updatePreview(settingsTopBarColorPreview, color)
-                    applyCustomColors()
-                }
-            }
-        }
-
         settingsTopBarTextColorHolder.setOnClickListener {
             org.fossify.commons.dialogs.ColorPickerDialog(this@SettingsActivity, config.topBarTextColor) { wasPositive, color ->
                 if (wasPositive) {
                     config.topBarTextColor = color
                     updatePreview(settingsTopBarTextColorPreview, color)
-                    applyCustomColors()
-                }
-            }
-        }
-
-        settingsMainBackgroundColorHolder.setOnClickListener {
-            org.fossify.commons.dialogs.ColorPickerDialog(this@SettingsActivity, config.mainBackgroundColor) { wasPositive, color ->
-                if (wasPositive) {
-                    config.mainBackgroundColor = color
-                    updatePreview(settingsMainBackgroundColorPreview, color)
                     applyCustomColors()
                 }
             }
@@ -109,16 +184,6 @@ class SettingsActivity : SimpleActivity() {
                     updatePreview(settingsMainTextColorPreview, color)
                     applyCustomColors()
                     updateAppFonts(binding.root)
-                }
-            }
-        }
-
-        settingsInputBarBackgroundColorHolder.setOnClickListener {
-            org.fossify.commons.dialogs.ColorPickerDialog(this@SettingsActivity, config.inputBarBackgroundColor) { wasPositive, color ->
-                if (wasPositive) {
-                    config.inputBarBackgroundColor = color
-                    updatePreview(settingsInputBarBackgroundColorPreview, color)
-                    applyCustomColors()
                 }
             }
         }
@@ -209,6 +274,54 @@ class SettingsActivity : SimpleActivity() {
             config.resetColors()
             finish()
             startActivity(intent)
+        }
+
+        val pickImage = { intentCode: Int ->
+            val intent = Intent(Intent.ACTION_PICK, android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+            startActivityForResult(intent, intentCode)
+        }
+
+        settingsTopBarPreviewContainer.setOnClickListener {
+            if (config.topBarBgMode == BG_MODE_COLOR) {
+                val color = if (config.topBarColor == 0) Color.BLACK else config.topBarColor
+                org.fossify.commons.dialogs.ColorPickerDialog(this@SettingsActivity, color) { wasPositive, color ->
+                    if (wasPositive) {
+                        config.topBarColor = if (color == Color.BLACK) 0 else color
+                        updatePreview(settingsTopBarColorPreview, color)
+                        applyCustomColors()
+                    }
+                }
+            } else {
+                pickImage(PICK_TOP_BAR_IMAGE_INTENT)
+            }
+        }
+
+        settingsMainBgPreviewContainer.setOnClickListener {
+            if (config.mainBgMode == BG_MODE_COLOR) {
+                org.fossify.commons.dialogs.ColorPickerDialog(this@SettingsActivity, config.mainBackgroundColor) { wasPositive, color ->
+                    if (wasPositive) {
+                        config.mainBackgroundColor = color
+                        updatePreview(settingsMainBackgroundColorPreview, color)
+                        applyCustomColors()
+                    }
+                }
+            } else {
+                pickImage(PICK_MAIN_BG_IMAGE_INTENT)
+            }
+        }
+
+        settingsInputBarPreviewContainer.setOnClickListener {
+            if (config.inputBarBgMode == BG_MODE_COLOR) {
+                org.fossify.commons.dialogs.ColorPickerDialog(this@SettingsActivity, config.inputBarBackgroundColor) { wasPositive, color ->
+                    if (wasPositive) {
+                        config.inputBarBackgroundColor = color
+                        updatePreview(settingsInputBarBackgroundColorPreview, color)
+                        applyCustomColors()
+                    }
+                }
+            } else {
+                pickImage(PICK_INPUT_BAR_IMAGE_INTENT)
+            }
         }
     }
 

@@ -86,29 +86,54 @@
                     android:textStyle="bold" />
             </RelativeLayout>
 
-            <!-- Top Bar Color -->
+            <!-- Top Bar Customization -->
             <RelativeLayout
-                android:id="@+id/settings_top_bar_color_holder"
+                android:id="@+id/settings_top_bar_customization_holder"
                 style="@style/SettingsHolderTextViewStyle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
                 <org.fossify.commons.views.MyTextView
-                    android:id="@+id/settings_top_bar_color_label"
+                    android:id="@+id/settings_top_bar_label"
                     style="@style/SettingsTextLabelStyle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Top Bar Color" />
+                    android:text="Top Bar" />
 
-                <View
-                    android:id="@+id/settings_top_bar_color_preview"
+                <Spinner
+                    android:id="@+id/settings_top_bar_bg_mode_spinner"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerVertical="true"
+                    android:layout_toStartOf="@+id/settings_top_bar_preview_container"
+                    android:layout_marginEnd="12dp"
+                    android:backgroundTint="@color/colorPrimary" />
+
+                <FrameLayout
+                    android:id="@+id/settings_top_bar_preview_container"
                     android:layout_width="32dp"
                     android:layout_height="32dp"
                     android:layout_alignParentEnd="true"
                     android:layout_centerVertical="true"
                     android:layout_marginEnd="16dp"
-                    android:background="@drawable/color_preview_bg" />
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?selectableItemBackground">
 
+                    <View
+                        android:id="@+id/settings_top_bar_color_preview"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/color_preview_bg" />
+
+                    <ImageView
+                        android:id="@+id/settings_top_bar_image_icon"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:padding="4dp"
+                        android:src="@drawable/ic_image_vector"
+                        android:visibility="gone" />
+                </FrameLayout>
             </RelativeLayout>
 
             <!-- Top Bar Text Color -->
@@ -136,29 +161,54 @@
 
             </RelativeLayout>
 
-            <!-- Main Background Color -->
+            <!-- Main Background Customization -->
             <RelativeLayout
-                android:id="@+id/settings_main_background_color_holder"
+                android:id="@+id/settings_main_bg_customization_holder"
                 style="@style/SettingsHolderTextViewStyle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
                 <org.fossify.commons.views.MyTextView
-                    android:id="@+id/settings_main_background_color_label"
+                    android:id="@+id/settings_main_bg_label"
                     style="@style/SettingsTextLabelStyle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Main Background Color" />
+                    android:text="Main Background" />
 
-                <View
-                    android:id="@+id/settings_main_background_color_preview"
+                <Spinner
+                    android:id="@+id/settings_main_bg_mode_spinner"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerVertical="true"
+                    android:layout_toStartOf="@+id/settings_main_bg_preview_container"
+                    android:layout_marginEnd="12dp"
+                    android:backgroundTint="@color/colorPrimary" />
+
+                <FrameLayout
+                    android:id="@+id/settings_main_bg_preview_container"
                     android:layout_width="32dp"
                     android:layout_height="32dp"
                     android:layout_alignParentEnd="true"
                     android:layout_centerVertical="true"
                     android:layout_marginEnd="16dp"
-                    android:background="@drawable/color_preview_bg" />
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?selectableItemBackground">
 
+                    <View
+                        android:id="@+id/settings_main_background_color_preview"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/color_preview_bg" />
+
+                    <ImageView
+                        android:id="@+id/settings_main_bg_image_icon"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:padding="4dp"
+                        android:src="@drawable/ic_image_vector"
+                        android:visibility="gone" />
+                </FrameLayout>
             </RelativeLayout>
 
             <!-- Main Text Color -->
@@ -186,29 +236,54 @@
 
             </RelativeLayout>
 
-            <!-- Search/Input Bar Background Color -->
+            <!-- Search/Input Bar Customization -->
             <RelativeLayout
-                android:id="@+id/settings_input_bar_background_color_holder"
+                android:id="@+id/settings_input_bar_customization_holder"
                 style="@style/SettingsHolderTextViewStyle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
                 <org.fossify.commons.views.MyTextView
-                    android:id="@+id/settings_input_bar_background_color_label"
+                    android:id="@+id/settings_input_bar_label"
                     style="@style/SettingsTextLabelStyle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Search/Input Bar Background" />
+                    android:text="Search/Input Bar" />
 
-                <View
-                    android:id="@+id/settings_input_bar_background_color_preview"
+                <Spinner
+                    android:id="@+id/settings_input_bar_bg_mode_spinner"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerVertical="true"
+                    android:layout_toStartOf="@+id/settings_input_bar_preview_container"
+                    android:layout_marginEnd="12dp"
+                    android:backgroundTint="@color/colorPrimary" />
+
+                <FrameLayout
+                    android:id="@+id/settings_input_bar_preview_container"
                     android:layout_width="32dp"
                     android:layout_height="32dp"
                     android:layout_alignParentEnd="true"
                     android:layout_centerVertical="true"
                     android:layout_marginEnd="16dp"
-                    android:background="@drawable/color_preview_bg" />
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?selectableItemBackground">
 
+                    <View
+                        android:id="@+id/settings_input_bar_background_color_preview"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/color_preview_bg" />
+
+                    <ImageView
+                        android:id="@+id/settings_input_bar_image_icon"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:padding="4dp"
+                        android:src="@drawable/ic_image_vector"
+                        android:visibility="gone" />
+                </FrameLayout>
             </RelativeLayout>
 
             <!-- Search/Input Bar Text Color -->

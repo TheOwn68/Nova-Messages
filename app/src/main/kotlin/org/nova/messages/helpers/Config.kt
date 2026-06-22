@@ -184,7 +184,9 @@ class Config(context: Context) : BaseConfig(context) {
         set(uiScale) = prefs.edit().putFloat(UI_SCALE, uiScale).apply()
 
     fun resetColors() {
-        prefs.edit().remove(TOP_BAR_COLOR).remove(TOP_BAR_TEXT_COLOR).remove(MAIN_BACKGROUND_COLOR).remove(MAIN_TEXT_COLOR).remove(INPUT_BAR_BACKGROUND_COLOR).remove(INPUT_BAR_TEXT_COLOR).remove(SENT_BUBBLE_COLOR).remove(SENT_BUBBLE_TEXT_COLOR).remove(RECEIVED_BUBBLE_COLOR).remove(RECEIVED_BUBBLE_TEXT_COLOR).remove(RECENT_COLOR).remove(ROW1_COLOR).remove(ROW2_COLOR).remove(ROW3_COLOR).apply()
+        prefs.edit().remove(TOP_BAR_COLOR).remove(TOP_BAR_TEXT_COLOR).remove(MAIN_BACKGROUND_COLOR).remove(MAIN_TEXT_COLOR).remove(INPUT_BAR_BACKGROUND_COLOR).remove(INPUT_BAR_TEXT_COLOR).remove(SENT_BUBBLE_COLOR).remove(SENT_BUBBLE_TEXT_COLOR).remove(RECEIVED_BUBBLE_COLOR).remove(RECEIVED_BUBBLE_TEXT_COLOR).remove(RECENT_COLOR).remove(ROW1_COLOR).remove(ROW2_COLOR).remove(ROW3_COLOR)
+            .remove(TOP_BAR_IMAGE).remove(MAIN_BACKGROUND_IMAGE).remove(INPUT_BAR_IMAGE)
+            .remove(TOP_BAR_BG_MODE).remove(MAIN_BG_MODE).remove(INPUT_BAR_BG_MODE).apply()
     }
 
     var fontFamilyNova: Int
@@ -230,4 +232,28 @@ class Config(context: Context) : BaseConfig(context) {
     var receivedBubbleTextColor: Int
         get() = prefs.getInt(RECEIVED_BUBBLE_TEXT_COLOR, Color.BLACK)
         set(receivedBubbleTextColor) = prefs.edit().putInt(RECEIVED_BUBBLE_TEXT_COLOR, receivedBubbleTextColor).apply()
+
+    var topBarImage: String
+        get() = prefs.getString(TOP_BAR_IMAGE, "")!!
+        set(topBarImage) = prefs.edit().putString(TOP_BAR_IMAGE, topBarImage).apply()
+
+    var mainBackgroundImage: String
+        get() = prefs.getString(MAIN_BACKGROUND_IMAGE, "")!!
+        set(mainBackgroundImage) = prefs.edit().putString(MAIN_BACKGROUND_IMAGE, mainBackgroundImage).apply()
+
+    var inputBarImage: String
+        get() = prefs.getString(INPUT_BAR_IMAGE, "")!!
+        set(inputBarImage) = prefs.edit().putString(INPUT_BAR_IMAGE, inputBarImage).apply()
+
+    var topBarBgMode: Int
+        get() = prefs.getInt(TOP_BAR_BG_MODE, BG_MODE_COLOR)
+        set(topBarBgMode) = prefs.edit().putInt(TOP_BAR_BG_MODE, topBarBgMode).apply()
+
+    var mainBgMode: Int
+        get() = prefs.getInt(MAIN_BG_MODE, BG_MODE_COLOR)
+        set(mainBgMode) = prefs.edit().putInt(MAIN_BG_MODE, mainBgMode).apply()
+
+    var inputBarBgMode: Int
+        get() = prefs.getInt(INPUT_BAR_BG_MODE, BG_MODE_COLOR)
+        set(inputBarBgMode) = prefs.edit().putInt(INPUT_BAR_BG_MODE, inputBarBgMode).apply()
 }

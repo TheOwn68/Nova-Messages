@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:installLocation="auto">
 
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.READ_SMS" />
     <uses-permission android:name="android.permission.WRITE_SMS" />
     <uses-permission android:name="android.permission.SEND_SMS" />
@@ -51,6 +52,11 @@
             android:name=".activities.MainActivity"
             android:configChanges="orientation"
             android:exported="true" />
+
+        <activity
+            android:name=".activities.ImageCropperActivity"
+            android:configChanges="orientation"
+            android:theme="@style/AppTheme" />
 
         <activity
             android:name=".activities.RecycleBinConversationsActivity"

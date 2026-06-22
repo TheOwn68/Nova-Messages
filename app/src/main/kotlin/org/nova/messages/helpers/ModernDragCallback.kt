@@ -58,24 +58,27 @@ class ModernDragCallback(private val adapter: BaseConversationsAdapter) : ItemTo
         if (actionState == ItemTouchHelper.ACTION_STATE_DRAG && isCurrentlyActive) {
             val itemView = viewHolder.itemView
             val density = recyclerView.resources.displayMetrics.density
-            val scrollThreshold = (60 * density).toInt() // 60dp from top/bottom
-            val scrollAmount = (12 * density).toInt()    // 12dp to scroll per frame
+            val edgeScrollRange = (80 * density).toInt() // Active scroll zone near edges
+            val maxScrollAmount = (15 * density).toInt() // Max scroll speed
             
-            // Raw screen Y coordinates for absolute precision
             val itemLocation = IntArray(2)
             itemView.getLocationOnScreen(itemLocation)
-            val itemTop = itemLocation[1]
-            val itemBottom = itemTop + itemView.height
+            val itemCenterY = itemLocation[1] + (itemView.height / 2)
 
             val rvLocation = IntArray(2)
             recyclerView.getLocationOnScreen(rvLocation)
             val rvTop = rvLocation[1]
             val rvBottom = rvTop + recyclerView.height
-            
-            if (itemTop < rvTop + scrollThreshold) {
-                recyclerView.scrollBy(0, -scrollAmount)
-            } else if (itemBottom > rvBottom - scrollThreshold) {
-                recyclerView.scrollBy(0, scrollAmount)
+
+            // Gravity-based scrolling: speed depends on how close you are to the extreme edge
+            if (itemCenterY < rvTop + edgeScrollRange) {
+                val proximity = (rvTop + edgeScrollRange - itemCenterY).toFloat() / edgeScrollRange
+                val speed = (maxScrollAmount * proximity.coerceIn(0f, 1f)).toInt()
+                recyclerView.scrollBy(0, -speed)
+            } else if (itemCenterY > rvBottom - edgeScrollRange) {
+                val proximity = (itemCenterY - (rvBottom - edgeScrollRange)).toFloat() / edgeScrollRange
+                val speed = (maxScrollAmount * proximity.coerceIn(0f, 1f)).toInt()
+                recyclerView.scrollBy(0, speed)
             }
         }
     }
