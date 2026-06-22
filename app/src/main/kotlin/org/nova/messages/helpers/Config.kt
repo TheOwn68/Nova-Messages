@@ -156,7 +156,7 @@ class Config(context: Context) : BaseConfig(context) {
             .putBoolean(KEEP_CONVERSATIONS_ARCHIVED, keepConversationsArchived).apply()
 
     var useNewUi: Boolean
-        get() = prefs.getBoolean(USE_NEW_UI, false)
+        get() = prefs.getBoolean(USE_NEW_UI, true)
         set(useNewUi) = prefs.edit().putBoolean(USE_NEW_UI, useNewUi).apply()
 
     var conversationOrder: String
@@ -256,4 +256,16 @@ class Config(context: Context) : BaseConfig(context) {
     var inputBarBgMode: Int
         get() = prefs.getInt(INPUT_BAR_BG_MODE, BG_MODE_COLOR)
         set(inputBarBgMode) = prefs.edit().putInt(INPUT_BAR_BG_MODE, inputBarBgMode).apply()
+
+    var topBarCropRect: String
+        get() = prefs.getString(TOP_BAR_CROP_RECT, "")!!
+        set(topBarCropRect) = prefs.edit().putString(TOP_BAR_CROP_RECT, topBarCropRect).apply()
+
+    var mainBgCropRect: String
+        get() = prefs.getString(MAIN_BG_CROP_RECT, "")!!
+        set(mainBgCropRect) = prefs.edit().putString(MAIN_BG_CROP_RECT, mainBgCropRect).apply()
+
+    var inputBarCropRect: String
+        get() = prefs.getString(INPUT_BAR_CROP_RECT, "")!!
+        set(inputBarCropRect) = prefs.edit().putString(INPUT_BAR_CROP_RECT, inputBarCropRect).apply()
 }

@@ -18,10 +18,14 @@ import android.widget.TextView
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.graphics.drawable.Drawable
-import android.net.Uri
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
+import android.graphics.Bitmap
+import android.graphics.RectF
+import com.bumptech.glide.load.resource.bitmap.BitmapTransformation
+import java.security.MessageDigest
+import com.bumptech.glide.load.engine.DiskCacheStrategy
 import androidx.appcompat.widget.ListPopupWindow
 import androidx.appcompat.widget.Toolbar
 import androidx.core.view.get
@@ -44,66 +48,21 @@ open class SimpleActivity : BaseSimpleActivity() {
     val uiScale get() = config.uiScale
 
     override fun getPackageName(): String {
-        val stackTrace = Thread.currentThread().stackTrace
-        for (element in stackTrace) {
-            val className = element.className
-            val methodName = element.methodName
-            
-            if (className.startsWith("android.app.") || 
-                className.startsWith("androidx.") ||
-                className.startsWith("android.content.pm.")) {
-                break
-            }
-
-            if (className.contains("org.fossify.")) {
-                if (methodName == "onCreate" || methodName.contains("Dialog") || methodName.contains("Warning") || methodName.contains("Check") || methodName.contains("Verify") || methodName.contains("Security") || methodName.contains("Version") || 
-                    methodName == "appLaunched" || 
-                    methodName.contains("Warning") || 
-                    methodName.contains("Sideload") ||
-                    methodName.contains("Security") ||
-                    methodName.contains("Check") ||
-                    methodName.contains("Verify") ||
-                    methodName.contains("isUsing") || methodName.contains("Check") || methodName.contains("Verify") || methodName.contains("Security") || methodName.contains("Dialog") || methodName.contains("Warning") || methodName.contains("Version")) {
-                    return "org.fossify.messages"
-                }
-            }
-        }
         return super.getPackageName()
     }
 
     override fun getApplicationInfo(): ApplicationInfo {
-        val info = super.getApplicationInfo()
-        val stackTrace = Thread.currentThread().stackTrace
-        for (element in stackTrace) {
-            val className = element.className
-            val methodName = element.methodName
-            
-            if (className.startsWith("android.app.") || 
-                className.startsWith("androidx.") ||
-                className.startsWith("android.content.pm.")) {
-                break
-            }
-
-            if (className.contains("org.fossify.")) {
-                if (methodName == "onCreate" || methodName.contains("Dialog") || methodName.contains("Warning") || methodName.contains("Check") || methodName.contains("Verify") || methodName.contains("Security") || methodName.contains("Version") || 
-                    methodName == "appLaunched" || 
-                    methodName.contains("Warning") || 
-                    methodName.contains("Sideload") ||
-                    methodName.contains("Security") ||
-                    methodName.contains("Check") ||
-                    methodName.contains("Verify") ||
-                    methodName.contains("isUsing") || methodName.contains("Check") || methodName.contains("Verify") || methodName.contains("Security") || methodName.contains("Dialog") || methodName.contains("Warning") || methodName.contains("Version")) {
-                    val spoofedInfo = ApplicationInfo(info)
-                    spoofedInfo.packageName = "org.fossify.messages"
-                    return spoofedInfo
-                }
-            }
-        }
-        return info
+        return super.getApplicationInfo()
     }
 
     private val globalLayoutListener = ViewTreeObserver.OnGlobalLayoutListener {
         // Removed to fix infinite layout loop and jitter
+    }
+
+    private val cabHideObserver = ViewTreeObserver.OnGlobalLayoutListener {
+        if (currentActionMode != null) {
+            hideSystemSelectionBar()
+        }
     }
 
     fun getScaledTextSize(multiplier: Float = 1.0f): Float {
@@ -173,7 +132,7 @@ open class SimpleActivity : BaseSimpleActivity() {
 
         // 1. Force main background to apply to the window decor view
         if (config.mainBgMode == BG_MODE_IMAGE && config.mainBackgroundImage.isNotEmpty()) {
-            loadBackgroundImage(config.mainBackgroundImage, window.decorView)
+            loadBackgroundImage(config.mainBackgroundImage, window.decorView, config.mainBgCropRect)
         } else {
             clearGlideTarget(window.decorView)
             window.decorView.setBackgroundColor(config.mainBackgroundColor)
@@ -213,7 +172,7 @@ open class SimpleActivity : BaseSimpleActivity() {
             }
 
             if (config.topBarBgMode == BG_MODE_IMAGE && topBarImage.isNotEmpty()) {
-                loadBackgroundImage(topBarImage, appBar)
+                loadBackgroundImage(topBarImage, appBar, config.topBarCropRect)
             } else {
                 clearGlideTarget(appBar)
                 appBar.background = barShape
@@ -315,7 +274,7 @@ open class SimpleActivity : BaseSimpleActivity() {
             val inputBarImage = config.inputBarImage
             
             if (config.inputBarBgMode == BG_MODE_IMAGE && inputBarImage.isNotEmpty()) {
-                loadBackgroundImage(inputBarImage, inputBar) {
+                loadBackgroundImage(inputBarImage, inputBar, config.inputBarCropRect) {
                     inputBar.outlineProvider = object : android.view.ViewOutlineProvider() {
                         override fun getOutline(view: View, outline: android.graphics.Outline) {
                             outline.setRoundRect(0, 0, view.width, view.height, inputRadius)
@@ -325,6 +284,7 @@ open class SimpleActivity : BaseSimpleActivity() {
                 }
             } else {
                 clearGlideTarget(inputBar)
+                inputBar.clipToOutline = false
                 val inputShape = GradientDrawable().apply {
                     shape = GradientDrawable.RECTANGLE
                     cornerRadius = inputRadius
@@ -516,6 +476,7 @@ open class SimpleActivity : BaseSimpleActivity() {
     override fun onSupportActionModeStarted(mode: androidx.appcompat.view.ActionMode) {
         super.onSupportActionModeStarted(mode)
         currentActionMode = mode
+        window.decorView.viewTreeObserver.addOnGlobalLayoutListener(cabHideObserver)
         // Aggressively hide the system CAB to avoid duplicate UI
         hideSystemSelectionBar()
     }
@@ -526,32 +487,33 @@ open class SimpleActivity : BaseSimpleActivity() {
         try {
             val hideBar = { view: View ->
                 view.visibility = View.GONE
-                view.layoutParams?.height = 0
                 view.alpha = 0f
                 view.isClickable = false
                 view.isFocusable = false
+                if (view.layoutParams != null) {
+                    view.layoutParams.height = 0
+                }
             }
 
             // Layer 1: Traditional ID lookup
             window.decorView.findViewById<View>(androidx.appcompat.R.id.action_mode_bar)?.let { hideBar(it) }
+            window.decorView.findViewById<View>(android.R.id.custom)?.parent?.let { 
+                if (it is View && it.javaClass.simpleName.contains("ActionMode")) hideBar(it) 
+            }
             
-            // Layer 2: Recursive class-based lookup (Handles platform and internal variations)
+            // Layer 2: Recursive class-based lookup
             findAndHideActionModeView(window.decorView)
-
-            // Layer 3: Delayed enforcement (System often resets visibility after callbacks)
-            window.decorView.postDelayed({
-                window.decorView.findViewById<View>(androidx.appcompat.R.id.action_mode_bar)?.let { hideBar(it) }
-                findAndHideActionModeView(window.decorView)
-            }, 50)
         } catch (_: Exception) {}
     }
 
     private fun findAndHideActionModeView(view: View) {
-        if (view.javaClass.simpleName.contains("ActionMode") || 
-            view.javaClass.simpleName.contains("ActionBarContextView")) {
+        val name = view.javaClass.simpleName
+        if (name.contains("ActionMode") || name.contains("ActionBarContextView")) {
             view.visibility = View.GONE
-            view.layoutParams?.height = 0
             view.alpha = 0f
+            if (view.layoutParams != null) {
+                view.layoutParams.height = 0
+            }
         }
 
         if (view is ViewGroup) {
@@ -565,6 +527,7 @@ open class SimpleActivity : BaseSimpleActivity() {
         super.onSupportActionModeFinished(mode)
         currentActionMode = null
         selectionCancelCallback = null
+        window.decorView.viewTreeObserver.removeOnGlobalLayoutListener(cabHideObserver)
     }
 
     fun isCustomSelectionBarVisible(): Boolean {
@@ -733,43 +696,56 @@ open class SimpleActivity : BaseSimpleActivity() {
         Glide.with(this).clear(view)
     }
 
-    private fun loadBackgroundImage(source: String, targetView: View, onLoaded: (() -> Unit)? = null) {
-        if (source.isBlank()) {
-            android.util.Log.w("SimpleActivity", "loadBackgroundImage: source is blank")
-            return
+    class DirectCropTransformation(private val rect: RectF) : BitmapTransformation() {
+        override fun transform(pool: com.bumptech.glide.load.engine.bitmap_recycle.BitmapPool, toTransform: Bitmap, outWidth: Int, outHeight: Int): Bitmap {
+            val left = (rect.left * toTransform.width).toInt().coerceIn(0, toTransform.width - 1)
+            val top = (rect.top * toTransform.height).toInt().coerceIn(0, toTransform.height - 1)
+            val right = (rect.right * toTransform.width).toInt().coerceIn(left + 1, toTransform.width)
+            val bottom = (rect.bottom * toTransform.height).toInt().coerceIn(top + 1, toTransform.height)
+            
+            val width = right - left
+            val height = bottom - top
+            return Bitmap.createBitmap(toTransform, left, top, width, height)
         }
+
+        override fun updateDiskCacheKey(messageDigest: MessageDigest) {
+            messageDigest.update("direct_crop_${rect.left}_${rect.top}_${rect.right}_${rect.bottom}".toByteArray())
+        }
+    }
+
+    private fun loadBackgroundImage(source: String, targetView: View, cropRect: String = "", onLoaded: (() -> Unit)? = null) {
+        if (source.isBlank()) return
         
-        android.util.Log.d("SimpleActivity", "loadBackgroundImage: loading $source")
         clearGlideTarget(targetView)
         
-        // Robustness: Check if it's a local file and if it exists
-        if (source.startsWith("file://") || source.startsWith("/")) {
-            val path = Uri.parse(source).path ?: source.removePrefix("file://")
-            if (!File(path).exists()) {
-                android.util.Log.e("SimpleActivity", "Local background file does not exist: $path")
-                return
-            }
-        }
+        val normalizedRect = try {
+            if (cropRect.isNotEmpty()) {
+                val parts = cropRect.split(",").map { it.toFloat() }
+                RectF(parts[0], parts[1], parts[2], parts[3])
+            } else null
+        } catch (_: Exception) { null }
 
         val target = object : CustomTarget<Drawable>() {
             override fun onResourceReady(resource: Drawable, transition: Transition<in Drawable>?) {
-                android.util.Log.d("SimpleActivity", "loadBackgroundImage: success for $source")
                 targetView.background = resource
                 onLoaded?.invoke()
             }
-            override fun onLoadFailed(errorDrawable: Drawable?) {
-                android.util.Log.e("SimpleActivity", "loadBackgroundImage: FAILED for $source")
-            }
-            override fun onLoadCleared(placeholder: Drawable?) {
-                // targetView.background = null // Optional: clear background if load cleared
-            }
+            override fun onLoadFailed(errorDrawable: Drawable?) {}
+            override fun onLoadCleared(placeholder: Drawable?) {}
         }
         
         targetView.tag = target
 
-        Glide.with(this)
+        var builder = Glide.with(this)
             .load(source)
-            .centerCrop()
-            .into(target)
+            .diskCacheStrategy(DiskCacheStrategy.ALL)
+
+        if (normalizedRect != null) {
+            builder = builder.transform(DirectCropTransformation(normalizedRect))
+        } else {
+            builder = builder.centerCrop()
+        }
+        
+        builder.into(target)
     }
 }

@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
+import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.TextView
 import org.fossify.commons.extensions.*
@@ -53,6 +54,26 @@ class SettingsActivity : SimpleActivity() {
         settingsTopBarImageIcon.applyColorFilter(mainTextColor)
         settingsMainBgImageIcon.applyColorFilter(mainTextColor)
         settingsInputBarImageIcon.applyColorFilter(mainTextColor)
+
+        // Force all labels to use main text color
+        settingsCustomizationLabel.setTextColor(mainTextColor)
+        settingsTopBarLabel.setTextColor(mainTextColor)
+        settingsTopBarTextColorLabel.setTextColor(mainTextColor)
+        settingsMainBgLabel.setTextColor(mainTextColor)
+        settingsMainTextColorLabel.setTextColor(mainTextColor)
+        settingsInputBarLabel.setTextColor(mainTextColor)
+        settingsInputBarTextColorLabel.setTextColor(mainTextColor)
+        settingsBubbleCustomizationLabel.setTextColor(mainTextColor)
+        settingsSentBubbleColorLabel.setTextColor(mainTextColor)
+        settingsSentBubbleTextColorLabel.setTextColor(mainTextColor)
+        settingsReceivedBubbleColorLabel.setTextColor(mainTextColor)
+        settingsReceivedBubbleTextColorLabel.setTextColor(mainTextColor)
+        settingsGeneralLabel.setTextColor(mainTextColor)
+        settingsUiScaleLabel.setTextColor(mainTextColor)
+        settingsFontSizeLabel.setTextColor(mainTextColor)
+        settingsFontLabel.setTextColor(mainTextColor)
+        settingsResetDefaults.setTextColor(mainTextColor)
+        settingsNewUiColorsLabelHeader.setTextColor(mainTextColor)
         
         // Mode Visibility
         val updateModeUI = { mode: Int, colorPreview: View, imageIcon: View ->
@@ -74,24 +95,30 @@ class SettingsActivity : SimpleActivity() {
         super.onActivityResult(requestCode, resultCode, resultData)
         if (resultCode != Activity.RESULT_OK || resultData == null) return
 
-        if (requestCode == CROP_RESULT_INTENT) {
-            val croppedUri = resultData.getStringExtra("cropped_uri") ?: return
+        if (requestCode == CROP_RESULT_INTENT && resultCode == RESULT_OK) {
             val target = resultData.getIntExtra(CROP_TARGET, -1)
+            val originalUri = resultData.getStringExtra("uri") ?: ""
+            val cropRect = resultData.getStringExtra("crop_rect") ?: ""
+            
             when (target) {
-                CROP_TARGET_TOP_BAR -> config.topBarImage = croppedUri
-                CROP_TARGET_BACKGROUND -> config.mainBackgroundImage = croppedUri
-                CROP_TARGET_SEARCH_BAR -> config.inputBarImage = croppedUri
+                CROP_TARGET_TOP_BAR -> {
+                    config.topBarImage = originalUri
+                    config.topBarCropRect = cropRect
+                }
+                CROP_TARGET_BACKGROUND -> {
+                    config.mainBackgroundImage = originalUri
+                    config.mainBgCropRect = cropRect
+                }
+                CROP_TARGET_SEARCH_BAR -> {
+                    config.inputBarImage = originalUri
+                    config.inputBarCropRect = cropRect
+                }
             }
             applyCustomColors()
             return
         }
 
-        val uri = resultData.data ?: return
-        // Take persistable URI permission if needed
-        try {
-            contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        } catch (_: Exception) { }
-
+        val uri = resultData?.data ?: return
         val uriString = uri.toString()
         when (requestCode) {
             PICK_TOP_BAR_IMAGE_INTENT -> startCropper(uriString, CROP_TARGET_TOP_BAR)
@@ -110,7 +137,22 @@ class SettingsActivity : SimpleActivity() {
 
     private fun setupBgModes() = binding.apply {
         val modes = arrayListOf("Color", "Image")
-        val adapter = ArrayAdapter(this@SettingsActivity, android.R.layout.simple_spinner_item, modes)
+        val mainTextColor = config.mainTextColor
+        
+        val adapter = object : ArrayAdapter<String>(this@SettingsActivity, android.R.layout.simple_spinner_item, modes) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = super.getView(position, convertView, parent) as TextView
+                view.setTextColor(config.mainTextColor)
+                return view
+            }
+
+            override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = super.getDropDownView(position, convertView, parent) as TextView
+                view.setTextColor(config.mainTextColor)
+                return view
+            }
+        }
+        
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         
         val setupSpinner = { spinner: android.widget.Spinner, currentMode: Int, onModeChanged: (Int) -> Unit ->
@@ -122,6 +164,8 @@ class SettingsActivity : SimpleActivity() {
                         onModeChanged(position)
                         updateCustomizationUI()
                         applyCustomColors()
+                        // Force refresh of the spinner text color immediately
+                        (spinner.selectedView as? TextView)?.setTextColor(config.mainTextColor)
                     }
                 }
                 override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}

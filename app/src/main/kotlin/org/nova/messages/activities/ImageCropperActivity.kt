@@ -27,16 +27,18 @@ class ImageCropperActivity : SimpleActivity() {
     private val binding by viewBinding(ActivityImageCropperBinding::inflate)
     private var targetType = CROP_TARGET_BACKGROUND
 
+    private var originalUri: String = ""
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
 
-        val uriString = intent.getStringExtra("uri") ?: return finish()
+        originalUri = intent.getStringExtra("uri") ?: return finish()
         targetType = intent.getIntExtra(CROP_TARGET, CROP_TARGET_BACKGROUND)
 
         setupTargetOverlay()
 
-        Glide.with(this).asBitmap().load(uriString).into(object : SimpleTarget<Bitmap>() {
+        Glide.with(this).asBitmap().load(originalUri).into(object : SimpleTarget<Bitmap>() {
             override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
                 binding.cropperView.setImageBitmap(resource)
             }
@@ -111,23 +113,16 @@ class ImageCropperActivity : SimpleActivity() {
             (location[1] - cropperLocation[1] + targetArea.height).toFloat()
         )
 
-        val croppedBitmap = binding.cropperView.crop(rect)
-        if (croppedBitmap != null) {
-            val file = File(cacheDir, "cropped_${System.currentTimeMillis()}.png")
-            try {
-                val out = FileOutputStream(file)
-                croppedBitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
-                out.flush()
-                out.close()
-
-                val resultIntent = Intent()
-                resultIntent.putExtra("cropped_uri", Uri.fromFile(file).toString())
-                resultIntent.putExtra(CROP_TARGET, targetType)
-                setResult(Activity.RESULT_OK, resultIntent)
-                finish()
-            } catch (e: Exception) {
-                toast(org.fossify.commons.R.string.unknown_error_occurred)
-            }
+        val normalizedRect = binding.cropperView.getNormalizedCropRect(rect)
+        if (normalizedRect != null) {
+            val rectString = "${normalizedRect.left},${normalizedRect.top},${normalizedRect.right},${normalizedRect.bottom}"
+            
+            val resultIntent = Intent()
+            resultIntent.putExtra("uri", originalUri)
+            resultIntent.putExtra("crop_rect", rectString)
+            resultIntent.putExtra(CROP_TARGET, targetType)
+            setResult(Activity.RESULT_OK, resultIntent)
+            finish()
         } else {
             toast(org.fossify.commons.R.string.unknown_error_occurred)
         }

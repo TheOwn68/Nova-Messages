@@ -18,64 +18,11 @@ class App : FossifyApp() {
     override val isAppLockFeatureAvailable = true
 
     override fun getPackageName(): String {
-        val stackTrace = Thread.currentThread().stackTrace
-        for (element in stackTrace) {
-            val className = element.className
-            val methodName = element.methodName
-            
-            // Critical system classes must get the real package name
-            if (className.startsWith("android.app.") || 
-                className.startsWith("androidx.") ||
-                className.startsWith("android.content.pm.")) {
-                break
-            }
-
-            // Only spoof for Fossify library security/initialization checks
-            if (className.contains("org.fossify.")) {
-                if (methodName == "onCreate" || methodName.contains("Dialog") || methodName.contains("Warning") || methodName.contains("Check") || methodName.contains("Verify") || methodName.contains("Security") || methodName.contains("Version") || 
-                    methodName == "appLaunched" || 
-                    methodName.contains("Warning") || 
-                    methodName.contains("Sideload") ||
-                    methodName.contains("Security") ||
-                    methodName.contains("Check") ||
-                    methodName.contains("Verify") ||
-                    methodName.contains("isUsing") || methodName.contains("Check") || methodName.contains("Verify") || methodName.contains("Security") || methodName.contains("Dialog") || methodName.contains("Warning") || methodName.contains("Version")) {
-                    return "org.fossify.messages"
-                }
-            }
-        }
         return super.getPackageName()
     }
 
     override fun getApplicationInfo(): ApplicationInfo {
-        val info = super.getApplicationInfo()
-        val stackTrace = Thread.currentThread().stackTrace
-        for (element in stackTrace) {
-            val className = element.className
-            val methodName = element.methodName
-            
-            if (className.startsWith("android.app.") || 
-                className.startsWith("androidx.") ||
-                className.startsWith("android.content.pm.")) {
-                break
-            }
-
-            if (className.contains("org.fossify.")) {
-                if (methodName == "onCreate" || methodName.contains("Dialog") || methodName.contains("Warning") || methodName.contains("Check") || methodName.contains("Verify") || methodName.contains("Security") || methodName.contains("Version") || 
-                    methodName == "appLaunched" || 
-                    methodName.contains("Warning") || 
-                    methodName.contains("Sideload") ||
-                    methodName.contains("Security") ||
-                    methodName.contains("Check") ||
-                    methodName.contains("Verify") ||
-                    methodName.contains("isUsing") || methodName.contains("Check") || methodName.contains("Verify") || methodName.contains("Security") || methodName.contains("Dialog") || methodName.contains("Warning") || methodName.contains("Version")) {
-                    val spoofedInfo = ApplicationInfo(info)
-                    spoofedInfo.packageName = "org.fossify.messages"
-                    return spoofedInfo
-                }
-            }
-        }
-        return info
+        return super.getApplicationInfo()
     }
 
     override fun onCreate() {

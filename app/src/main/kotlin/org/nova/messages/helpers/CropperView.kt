@@ -58,6 +58,28 @@ class CropperView @JvmOverloads constructor(
         return true
     }
 
+    fun getNormalizedCropRect(targetRect: RectF): RectF? {
+        val drawable = drawable ?: return null
+        val bitmapWidth = drawable.intrinsicWidth
+        val bitmapHeight = drawable.intrinsicHeight
+        
+        if (bitmapWidth <= 0 || bitmapHeight <= 0) return null
+
+        val inverse = Matrix()
+        matrix.invert(inverse)
+        
+        val bitmapCropRect = RectF()
+        inverse.mapRect(bitmapCropRect, targetRect)
+        
+        // Normalize coordinates (0.0 to 1.0)
+        return RectF(
+            bitmapCropRect.left / bitmapWidth,
+            bitmapCropRect.top / bitmapHeight,
+            bitmapCropRect.right / bitmapWidth,
+            bitmapCropRect.bottom / bitmapHeight
+        )
+    }
+
     fun crop(targetRect: RectF): Bitmap? {
         val drawable = drawable ?: return null
         
