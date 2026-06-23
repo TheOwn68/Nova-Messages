@@ -268,4 +268,64 @@ class Config(context: Context) : BaseConfig(context) {
     var inputBarCropRect: String
         get() = prefs.getString(INPUT_BAR_CROP_RECT, "")!!
         set(inputBarCropRect) = prefs.edit().putString(INPUT_BAR_CROP_RECT, inputBarCropRect).apply()
+
+    var alwaysExpandSearchBar: Boolean
+        get() = prefs.getBoolean(ALWAYS_EXPAND_SEARCH_BAR, false)
+        set(alwaysExpandSearchBar) = prefs.edit().putBoolean(ALWAYS_EXPAND_SEARCH_BAR, alwaysExpandSearchBar).apply()
+
+    fun savePreset(id: Int) {
+        val prefix = "preset_${id}_"
+        val editor = prefs.edit()
+        val themeKeys = listOf(
+            TOP_BAR_COLOR, TOP_BAR_TEXT_COLOR, MAIN_TEXT_COLOR, MAIN_BACKGROUND_COLOR,
+            INPUT_BAR_BACKGROUND_COLOR, INPUT_BAR_TEXT_COLOR, SENT_BUBBLE_COLOR,
+            RECEIVED_BUBBLE_COLOR, SENT_BUBBLE_TEXT_COLOR, RECEIVED_BUBBLE_TEXT_COLOR,
+            TOP_BAR_IMAGE, MAIN_BACKGROUND_IMAGE, INPUT_BAR_IMAGE,
+            TOP_BAR_CROP_RECT, MAIN_BG_CROP_RECT, INPUT_BAR_CROP_RECT,
+            TOP_BAR_BG_MODE, MAIN_BG_MODE, INPUT_BAR_BG_MODE,
+            RECENT_COLOR, ROW1_COLOR, ROW2_COLOR, ROW3_COLOR,
+            FONT_FAMILY_NOVA, UI_SCALE, ALWAYS_EXPAND_SEARCH_BAR, USE_NEW_UI
+        )
+        themeKeys.forEach { key ->
+            val value = prefs.all[key]
+            if (value != null) {
+                when (value) {
+                    is Int -> editor.putInt(prefix + key, value)
+                    is String -> editor.putString(prefix + key, value)
+                    is Boolean -> editor.putBoolean(prefix + key, value)
+                    is Float -> editor.putFloat(prefix + key, value)
+                    is Long -> editor.putLong(prefix + key, value)
+                }
+            }
+        }
+        editor.apply()
+    }
+
+    fun loadPreset(id: Int) {
+        val prefix = "preset_${id}_"
+        val editor = prefs.edit()
+        val themeKeys = listOf(
+            TOP_BAR_COLOR, TOP_BAR_TEXT_COLOR, MAIN_TEXT_COLOR, MAIN_BACKGROUND_COLOR,
+            INPUT_BAR_BACKGROUND_COLOR, INPUT_BAR_TEXT_COLOR, SENT_BUBBLE_COLOR,
+            RECEIVED_BUBBLE_COLOR, SENT_BUBBLE_TEXT_COLOR, RECEIVED_BUBBLE_TEXT_COLOR,
+            TOP_BAR_IMAGE, MAIN_BACKGROUND_IMAGE, INPUT_BAR_IMAGE,
+            TOP_BAR_CROP_RECT, MAIN_BG_CROP_RECT, INPUT_BAR_CROP_RECT,
+            TOP_BAR_BG_MODE, MAIN_BG_MODE, INPUT_BAR_BG_MODE,
+            RECENT_COLOR, ROW1_COLOR, ROW2_COLOR, ROW3_COLOR,
+            FONT_FAMILY_NOVA, UI_SCALE, ALWAYS_EXPAND_SEARCH_BAR, USE_NEW_UI
+        )
+        themeKeys.forEach { key ->
+            val value = prefs.all[prefix + key]
+            if (value != null) {
+                when (value) {
+                    is Int -> editor.putInt(key, value)
+                    is String -> editor.putString(key, value)
+                    is Boolean -> editor.putBoolean(key, value)
+                    is Float -> editor.putFloat(key, value)
+                    is Long -> editor.putLong(key, value)
+                }
+            }
+        }
+        editor.apply()
+    }
 }

@@ -116,6 +116,10 @@ class ThreadAdapter(
             actions.add(R.id.cab_select_text)
             actions.add(R.id.cab_forward_message)
         }
+
+        if (isOneItemSelected && isMms && selectedMessage?.attachment?.attachments?.isNotEmpty() == true) {
+            actions.add(R.id.cab_save_as)
+        }
         
         if (isRecycleBin) {
             actions.add(R.id.cab_restore)

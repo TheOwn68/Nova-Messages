@@ -40,6 +40,7 @@ class SettingsActivity : SimpleActivity() {
         setupFontSize()
         setupFontFamily()
         setupBgModes()
+        setupPresets()
         updateAppFonts(binding.root)
     }
 
@@ -74,6 +75,8 @@ class SettingsActivity : SimpleActivity() {
         settingsFontLabel.setTextColor(mainTextColor)
         settingsResetDefaults.setTextColor(mainTextColor)
         settingsNewUiColorsLabelHeader.setTextColor(mainTextColor)
+        settingsAlwaysExpandSearchBarLabel.setTextColor(mainTextColor)
+        settingsPresetsLabelHeader.setTextColor(mainTextColor)
         
         // Mode Visibility
         val updateModeUI = { mode: Int, colorPreview: View, imageIcon: View ->
@@ -89,6 +92,34 @@ class SettingsActivity : SimpleActivity() {
         updateModeUI(config.topBarBgMode, settingsTopBarColorPreview, settingsTopBarImageIcon)
         updateModeUI(config.mainBgMode, settingsMainBackgroundColorPreview, settingsMainBgImageIcon)
         updateModeUI(config.inputBarBgMode, settingsInputBarBackgroundColorPreview, settingsInputBarImageIcon)
+
+        // Function to update color previews safely without losing shape
+        val updatePreview = { view: View, color: Int ->
+            val bg = view.background as? android.graphics.drawable.LayerDrawable
+            if (bg != null) {
+                bg.findDrawableByLayerId(R.id.color_preview_main)?.mutate()?.setColorFilter(color, android.graphics.PorterDuff.Mode.SRC_IN)
+            } else {
+                view.background?.applyColorFilter(color)
+            }
+        }
+
+        // Force all color previews to update based on current config
+        updatePreview(settingsTopBarColorPreview, if (config.topBarColor == 0) Color.BLACK else config.topBarColor)
+        updatePreview(settingsTopBarTextColorPreview, config.topBarTextColor)
+        updatePreview(settingsMainBackgroundColorPreview, config.mainBackgroundColor)
+        updatePreview(settingsMainTextColorPreview, config.mainTextColor)
+        updatePreview(settingsInputBarBackgroundColorPreview, config.inputBarBackgroundColor)
+        updatePreview(settingsInputBarTextColorPreview, config.inputBarTextColor)
+
+        updatePreview(settingsSentBubbleColorPreview, config.sentBubbleColor)
+        updatePreview(settingsSentBubbleTextColorPreview, config.sentBubbleTextColor)
+        updatePreview(settingsReceivedBubbleColorPreview, config.receivedBubbleColor)
+        updatePreview(settingsReceivedBubbleTextColorPreview, config.receivedBubbleTextColor)
+
+        updatePreview(settingsColorRecentPreview, config.recentColor)
+        updatePreview(settingsColorRow1Preview, config.row1Color)
+        updatePreview(settingsColorRow2Preview, config.row2Color)
+        updatePreview(settingsColorRow3Preview, config.row3Color)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, resultData: Intent?) {
@@ -372,11 +403,19 @@ class SettingsActivity : SimpleActivity() {
     private fun setupNewUi() = binding.apply {
         settingsNewUiSwitch.isChecked = config.useNewUi
         settingsNewUiColorsSection.beVisibleIf(config.useNewUi)
+        settingsAlwaysExpandSearchBarHolder.beVisibleIf(config.useNewUi)
         
         settingsNewUiHolder.setOnClickListener {
             settingsNewUiSwitch.toggle()
             config.useNewUi = settingsNewUiSwitch.isChecked
             settingsNewUiColorsSection.beVisibleIf(config.useNewUi)
+            settingsAlwaysExpandSearchBarHolder.beVisibleIf(config.useNewUi)
+        }
+
+        settingsAlwaysExpandSearchBarSwitch.isChecked = config.alwaysExpandSearchBar
+        settingsAlwaysExpandSearchBarHolder.setOnClickListener {
+            settingsAlwaysExpandSearchBarSwitch.toggle()
+            config.alwaysExpandSearchBar = settingsAlwaysExpandSearchBarSwitch.isChecked
         }
     }
 
@@ -446,5 +485,32 @@ class SettingsActivity : SimpleActivity() {
             4 -> "Product Sans"
             else -> "Lexend Deca"
         }
+    }
+
+    private fun setupPresets() = binding.apply {
+        settingsSavePreset1.setOnClickListener { config.savePreset(1); toast("Preset 1 Saved") }
+        settingsLoadPreset1.setOnClickListener { loadAndRefresh(1) }
+        
+        settingsSavePreset2.setOnClickListener { config.savePreset(2); toast("Preset 2 Saved") }
+        settingsLoadPreset2.setOnClickListener { loadAndRefresh(2) }
+        
+        settingsSavePreset3.setOnClickListener { config.savePreset(3); toast("Preset 3 Saved") }
+        settingsLoadPreset3.setOnClickListener { loadAndRefresh(3) }
+    }
+
+    private fun loadAndRefresh(id: Int) {
+        config.loadPreset(id)
+        
+        // Re-setup all UI components to reflect new values
+        updateCustomizationUI()
+        setupBgModes()
+        setupNewUi()
+        setupUIScale()
+        setupFontSize()
+        setupFontFamily()
+        applyCustomColors()
+        updateAppFonts(binding.root)
+        
+        toast("Preset $id Loaded")
     }
 }

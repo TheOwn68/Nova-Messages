@@ -71,6 +71,7 @@ class ThreadActivity : SimpleActivity() {
     private var threadId = 0L
     private var currentSIMCardIndex = 0
     private var isActivityVisible = false
+    private var isFirstResume = true
     private var refreshedSinceSent = false
     private var threadItems = ArrayList<ThreadItem>()
     private var bus: EventBus? = null
@@ -144,7 +145,7 @@ class ThreadActivity : SimpleActivity() {
         // Keyboard Sync: Shrink input bar when keyboard goes down
         ViewCompat.setOnApplyWindowInsetsListener(binding.threadHolder) { _, insets ->
             val isImeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
-            if (wasImeVisible && !isImeVisible && config.useNewUi && binding.messageHolder.threadTypeMessage.text?.isEmpty() == true) {
+            if (wasImeVisible && !isImeVisible && config.useNewUi && binding.messageHolder.threadTypeMessage.text?.isEmpty() == true && !config.alwaysExpandSearchBar) {
                 shrinkInputBar()
             }
             wasImeVisible = isImeVisible
@@ -157,9 +158,11 @@ class ThreadActivity : SimpleActivity() {
         val inputField = binding.messageHolder.threadTypeMessage
         
         if (config.useNewUi) {
+            val alwaysExpand = config.alwaysExpandSearchBar
+            
             // New UI: Small centered input bar that expands
             inputBar.updateLayoutParams<androidx.constraintlayout.widget.ConstraintLayout.LayoutParams> {
-                width = 240.getScaledPx()
+                width = if (alwaysExpand) androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.MATCH_PARENT else 240.getScaledPx()
                 startToStart = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
                 endToEnd = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
             }
@@ -167,8 +170,8 @@ class ThreadActivity : SimpleActivity() {
             inputBar.elevation = 10f * resources.displayMetrics.density
             inputBar.translationZ = 4f
             
-            inputField.isFocusable = false
-            inputField.isFocusableInTouchMode = false
+            inputField.isFocusable = alwaysExpand
+            inputField.isFocusableInTouchMode = alwaysExpand
             inputField.isEnabled = true
             
             inputBar.setOnClickListener {
@@ -184,7 +187,7 @@ class ThreadActivity : SimpleActivity() {
             }
             
             inputField.setOnFocusChangeListener { _, hasFocus ->
-                if (!hasFocus && inputField.text?.isEmpty() == true) {
+                if (!hasFocus && inputField.text?.isEmpty() == true && !alwaysExpand) {
                     shrinkInputBar()
                 }
             }
@@ -220,8 +223,9 @@ class ThreadActivity : SimpleActivity() {
         if (startWidth >= endWidth - 5) return // Already expanded
         
         val animator = android.animation.ValueAnimator.ofInt(startWidth, endWidth)
-        animator.duration = 200
-        animator.interpolator = android.view.animation.DecelerateInterpolator()
+        animator.duration = 450 // Slightly longer for the bounce to feel natural
+        // OvershootInterpolator provides the "bounce at the end" effect
+        animator.interpolator = android.view.animation.OvershootInterpolator(1.2f)
         animator.addUpdateListener { animation ->
             inputBar.updateLayoutParams {
                 width = animation.animatedValue as Int
@@ -239,6 +243,8 @@ class ThreadActivity : SimpleActivity() {
     }
 
     private fun shrinkInputBar() {
+        if (config.alwaysExpandSearchBar) return
+
         val inputBar = binding.messageHolder.novaMessageInputBar
         val inputField = binding.messageHolder.threadTypeMessage
         
@@ -248,7 +254,7 @@ class ThreadActivity : SimpleActivity() {
         if (startWidth <= endWidth + 5) return // Already shrunk
         
         val animator = android.animation.ValueAnimator.ofInt(startWidth, endWidth)
-        animator.duration = 200
+        animator.duration = 300 // Slightly slower shrink for smoothness
         animator.interpolator = android.view.animation.DecelerateInterpolator()
         animator.addUpdateListener { animation ->
             inputBar.updateLayoutParams {
@@ -326,6 +332,20 @@ class ThreadActivity : SimpleActivity() {
         binding.messageHolder.root.startAnimation(bottomAnim)
 
         applyCustomColors()
+
+        if (isFirstResume && config.useNewUi) {
+            isFirstResume = false
+            // Anchor at the top for stretching effect
+            binding.threadAppbar.pivotY = 0f
+            binding.threadAppbar.scaleY = 0.4f
+            binding.threadAppbar.alpha = 0f
+            binding.threadAppbar.animate()
+                .scaleY(1f)
+                .alpha(1f)
+                .setDuration(800)
+                .setInterpolator(android.view.animation.OvershootInterpolator(2.2f))
+                .start()
+        }
     }
 
     override fun onPause() {

@@ -106,6 +106,16 @@
                     app:tint="@android:color/white" />
 
                 <ImageView
+                    android:id="@+id/action_download"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?selectableItemBackgroundBorderless"
+                    android:padding="12dp"
+                    android:src="@drawable/ic_download_vector"
+                    app:tint="@android:color/white"
+                    android:visibility="gone" />
+
+                <ImageView
                     android:id="@+id/action_delete"
                     android:layout_width="48dp"
                     android:layout_height="48dp"

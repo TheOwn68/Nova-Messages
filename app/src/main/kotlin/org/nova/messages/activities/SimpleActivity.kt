@@ -468,9 +468,15 @@ open class SimpleActivity : BaseSimpleActivity() {
     override fun onResume() {
         config.appId = "org.fossify.messages"
         config.appSideloadingStatus = 0
+        config.hadThankYouInstalled = true
         super.onResume()
         updateAppFonts(findViewById(android.R.id.content))
         applyCustomColors()
+        
+        // Final guard against any latent sideloading popups
+        window.decorView.postDelayed({
+            config.appSideloadingStatus = 0
+        }, 500)
     }
 
     override fun onSupportActionModeStarted(mode: androidx.appcompat.view.ActionMode) {
@@ -479,6 +485,11 @@ open class SimpleActivity : BaseSimpleActivity() {
         window.decorView.viewTreeObserver.addOnGlobalLayoutListener(cabHideObserver)
         // Aggressively hide the system CAB to avoid duplicate UI
         hideSystemSelectionBar()
+        
+        // Final Force
+        mode.customView = View(this).apply { layoutParams = ViewGroup.LayoutParams(0, 0) }
+        mode.title = ""
+        mode.subtitle = ""
     }
 
     private var currentActionMode: androidx.appcompat.view.ActionMode? = null
@@ -583,6 +594,7 @@ open class SimpleActivity : BaseSimpleActivity() {
                 R.id.action_select_all to R.id.cab_select_all,
                 R.id.action_delete to R.id.cab_delete,
                 R.id.action_copy to listOf(R.id.cab_copy_to_clipboard, R.id.cab_copy_number),
+                R.id.action_download to R.id.cab_save_as,
                 R.id.action_archive to R.id.cab_archive,
                 R.id.action_pin to R.id.cab_pin_conversation,
                 R.id.action_unpin to R.id.cab_unpin_conversation

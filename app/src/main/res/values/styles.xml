@@ -12,6 +12,7 @@
         <item name="android:windowAnimationStyle">@style/WindowAnimation</item>
         <item name="windowActionModeOverlay">true</item>
         <item name="actionModeStyle">@style/NovaActionModeStyle</item>
+        <item name="android:actionModeStyle">@style/NovaActionModeStyle</item>
     </style>
 
     <style name="NovaActionModeStyle" parent="Widget.AppCompat.ActionMode">

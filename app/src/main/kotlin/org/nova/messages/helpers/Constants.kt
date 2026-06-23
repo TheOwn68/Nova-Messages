@@ -89,6 +89,8 @@ const val INPUT_BAR_BG_MODE = "input_bar_bg_mode"
 const val BG_MODE_COLOR = 0
 const val BG_MODE_IMAGE = 1
 
+const val ALWAYS_EXPAND_SEARCH_BAR = "always_expand_search_bar"
+
 private const val PATH = "org.nova.org.nova.messages.action."
 const val MARK_AS_READ = PATH + "mark_as_read"
 const val REPLY = PATH + "reply"
