@@ -49,6 +49,6 @@ This resolves the issue on most devices.
 
 <div align="center">
 <img alt="App image" src="/images/img1.png" width="30%">
-<img alt="App image" src="fastlane/metadata/android/en-US/images/phoneScreenshots/2_en-US.png" width="30%">
-<img alt="App image" src="fastlane/metadata/android/en-US/images/phoneScreenshots/3_en-US.png" width="30%">
+<img alt="App image" src="/images/img2.png" width="30%">
+<img alt="App image" src="/images/img4.png" width="30%">
 </div>
