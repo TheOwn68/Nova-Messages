@@ -274,6 +274,7 @@ class ThreadActivity : SimpleActivity() {
     override fun onResume() {
         super.onResume()
         if (isFinishing || isDestroyed) return
+        applyOutlines()
         
         currentThreadId = threadId
         setupTopAppBar(
@@ -422,10 +423,12 @@ class ThreadActivity : SimpleActivity() {
 
             val cachedMessagesCode = messages.hashCode()
             if (!isRecycleBin) {
-                messages = getMessages(threadId)
+                val rawMessages = getMessages(threadId)
+                messages = ArrayList(processReactions(rawMessages))
+
                 if (config.useRecycleBin) {
-                    val recycledMessages = messagesDB.getThreadMessagesFromRecycleBin(threadId)
-                    messages = messages.filterNotInByKey(recycledMessages) { it.getStableId() }
+                    val recycledMessages = try { messagesDB.getThreadMessagesFromRecycleBin(threadId) } catch (e: Exception) { emptyList() }
+                    messages = ArrayList(messages.filterNotInByKey(recycledMessages) { it.getStableId() })
                 }
             }
 
@@ -728,7 +731,7 @@ class ThreadActivity : SimpleActivity() {
                 uris?.forEach { addAttachment(it) }
             }
             scrollToBottomFab.setOnClickListener {
-                scrollToBottom()
+                scrollToBottom(isManual = true)
             }
             scrollToBottomFab.backgroundTintList = ColorStateList.valueOf(getBottomBarColor())
         }
@@ -1294,21 +1297,24 @@ class ThreadActivity : SimpleActivity() {
         return items
     }
 
-    private fun scrollToBottom(forceScroll: Boolean = false) {
+    private fun scrollToBottom(forceScroll: Boolean = false, isManual: Boolean = false) {
         val adapter = getOrCreateThreadAdapter()
         if (adapter.itemCount > 0) {
-            val layoutManager = binding.threadMessagesList.layoutManager as LinearLayoutManager
+            // Guard: Never auto-scroll while selection mode is active, UNLESS it's a manual scroll request (FAB)
+            if (!isManual && adapter.isSelectionModeActive()) {
+                return
+            }
+
+            val recyclerView = binding.threadMessagesList
+            // Re-calculate the "at bottom" check. canScrollVertically(1) returns false if at the very end.
+            val isAtBottom = !recyclerView.canScrollVertically(1)
             
-            // Re-calculate the "at bottom" check immediately before posting to get most current state
-            val lastVisible = layoutManager.findLastVisibleItemPosition()
-            val isAtBottom = lastVisible >= adapter.itemCount - 10 // More lenient check
-            
-            if (forceScroll || isAtBottom) {
-                binding.threadMessagesList.post {
+            if (forceScroll || isAtBottom || isManual) {
+                recyclerView.post {
                     if (!isFinishing && !isDestroyed) {
                         // Smoothly glide to the bottom instead of instant jump
-                        if (forceScroll) {
-                            // For forced scrolls (sending), use custom smooth scroller for perfect speed
+                        if (forceScroll || isManual) {
+                            // For forced scrolls (sending) or manual, use custom smooth scroller for perfect speed
                             val scroller = object : androidx.recyclerview.widget.LinearSmoothScroller(this) {
                                 override fun getVerticalSnapPreference(): Int = SNAP_TO_END
                                 override fun calculateSpeedPerPixel(displayMetrics: android.util.DisplayMetrics): Float {
@@ -1316,10 +1322,10 @@ class ThreadActivity : SimpleActivity() {
                                 }
                             }
                             scroller.targetPosition = adapter.itemCount - 1
-                            binding.threadMessagesList.layoutManager?.startSmoothScroll(scroller)
+                            recyclerView.layoutManager?.startSmoothScroll(scroller)
                         } else {
                             // Standard smooth scroll for background receipts
-                            binding.threadMessagesList.smoothScrollToPosition(adapter.itemCount - 1)
+                            recyclerView.smoothScrollToPosition(adapter.itemCount - 1)
                         }
                     }
                 }
@@ -1343,15 +1349,19 @@ class ThreadActivity : SimpleActivity() {
             val newThreadId = getThreadId(addresses)
             val newMessages = getMessages(newThreadId, includeScheduledMessages = false)
             
-            val scheduledMessages = messagesDB.getScheduledThreadMessages(threadId)
-                .filterNot { it.isScheduled && it.millis() < System.currentTimeMillis() }
+            val scheduledMessages = try {
+                messagesDB.getScheduledThreadMessages(threadId)
+                    .filterNot { it.isScheduled && it.millis() < System.currentTimeMillis() }
+            } catch (e: Exception) { emptyList() }
             
-            val combinedMessages = ArrayList<Message>(newMessages)
-            combinedMessages.addAll(scheduledMessages)
+            val combinedRawMessages = ArrayList<Message>(newMessages)
+            combinedRawMessages.addAll(scheduledMessages)
             
-            // Optimization: Only update if the message count or specific contents changed
+            // Centralized processing handles both DB persistence and wire-format hiding
+            val combinedMessages = processReactions(combinedRawMessages)
+            
             if (messages.size != combinedMessages.size || messages.hashCode() != combinedMessages.hashCode()) {
-                messages = combinedMessages
+                messages = ArrayList(combinedMessages)
                 val forceScroll = isSendingMessage
                 isSendingMessage = false
                 refreshedSinceSent = true
@@ -1361,6 +1371,131 @@ class ThreadActivity : SimpleActivity() {
                 isSendingMessage = false
             }
         }
+    }
+
+    fun onReactionPicked(message: Message, emoji: String) {
+        if (message.reaction == emoji) return
+        
+        val prefix = when (emoji) {
+            "👍" -> "Liked"
+            "❤️" -> "Loved"
+            "👎" -> "Disliked"
+            "😂" -> "Laughed at"
+            "😮" -> "Surprised by"
+            "😢" -> "Cried at"
+            "😡" -> "Angry at"
+            else -> "Liked"
+        }
+        
+        val bodySnippet = message.body.take(30).trim()
+        val text = "$prefix message '$bodySnippet '"
+        
+        runOnUiThread {
+            message.reaction = emoji
+            val cacheKey = MessagingCache.getReactionKey(message.id, message.isMMS)
+            MessagingCache.reactionsCache[cacheKey] = emoji
+            val adapter = getOrCreateThreadAdapter()
+            val index = adapter.currentList.indexOf(message)
+            if (index != -1) {
+                adapter.notifyItemChanged(index)
+            }
+        }
+
+        ensureBackgroundThread {
+            try {
+                reactionsDB.insertOrUpdate(Reaction(message.id, message.isMMS, threadId, emoji))
+            } catch (e: Exception) {
+                android.util.Log.e("ReactionError", "Failed to save reaction", e)
+            }
+            
+            val subscriptionId = currentSIMCardIndex 
+            sendNormalMessage(text, subscriptionId)
+            updateLastConversationMessage(threadId)
+            runOnUiThread {
+                refreshMessages()
+                refreshConversations()
+            }
+        }
+    }
+
+    private fun processReactions(messages: List<Message>): List<Message> {
+        val (regex, map) = getReactionTools()
+        
+        // 1. Efficiently load stored reactions from the dedicated table
+        val persistedReactions = try { reactionsDB.getThreadReactions(threadId) } catch (e: Exception) { emptyList() }
+        val reactionMapDB = persistedReactions.associateBy({ MessagingCache.getReactionKey(it.messageId, it.isMms) }, { it.emoji })
+        
+        // 2. Build a snippet-based index for fast O(1) target lookup
+        // We use a snippet of the body to match reaction texts
+        val snippetMap = messages.filter { !it.body.isNullOrBlank() }
+            .associateBy({ it.body.take(30).trim() }, { it })
+
+        val result = messages.toMutableList()
+        
+        // Pass 1: Handle incoming reaction texts and UI filtering
+        for (i in result.indices.reversed()) {
+            val msg = result[i]
+            val match = regex.find(msg.body)
+            
+            if (match != null) {
+                // IT IS A REACTION MESSAGE - HIDE IT IMMEDIATELY
+                msg.isReactionMessage = true
+                
+                val prefix = match.groupValues[1].ifEmpty { match.groupValues[2] }
+                val quotedText = match.groupValues[3].trim()
+                val emoji = map[prefix] ?: "👍"
+
+                // Fast O(1) lookup in our snippet index
+                val target = snippetMap[quotedText]
+                if (target != null && target.id != msg.id && target.date <= msg.date) {
+                    val targetKey = MessagingCache.getReactionKey(target.id, target.isMMS)
+                    target.reaction = emoji
+                    MessagingCache.reactionsCache[targetKey] = emoji
+                    
+                    // Persist newly discovered reaction to DB
+                    if (reactionMapDB[targetKey] != emoji) {
+                        ensureBackgroundThread {
+                            reactionsDB.insertOrUpdate(Reaction(target.id, target.isMMS, threadId, emoji))
+                        }
+                    }
+                }
+            } else {
+                // Pass 2: Re-apply already known reactions from DB or Cache
+                val cacheKey = MessagingCache.getReactionKey(msg.id, msg.isMMS)
+                msg.reaction = reactionMapDB[cacheKey] ?: MessagingCache.reactionsCache[cacheKey]
+            }
+        }
+
+        return result.filter { !it.isReactionMessage }
+    }
+
+    private fun getReactionTools(): Pair<Regex, Map<String, String>> {
+        // Regex 1: "Liked message '...'" (Old format)
+        // Regex 2: "👍 to '...'" (Google Messages format)
+        val reactionRegex = Regex("^(?:(Liked|Loved|Disliked|Laughed at|Surprised by|Cried at|Angry at|Emphasized|Questioned)\\s+(?:message\\s+)?|([👍❤️👎😂😮😢😡‼️❓])\\s+to\\s+)['\"](.*?)['\"]?\\s*$")
+        
+        val reactionMap = mapOf(
+            "Liked" to "👍",
+            "Loved" to "❤️",
+            "Disliked" to "👎",
+            "Laughed at" to "😂",
+            "Surprised by" to "😮",
+            "Cried at" to "😢",
+            "Angry at" to "😡",
+            "Emphasized" to "‼️",
+            "Questioned" to "❓",
+            // Reverse mapping for the new format
+            "👍" to "👍",
+            "❤️" to "❤️",
+            "👎" to "👎",
+            "😂" to "😂",
+            "😮" to "😮",
+            "😢" to "😢",
+            "😡" to "😡",
+            "‼️" to "‼️",
+            "❓" to "❓"
+        )
+        return Pair(reactionRegex, reactionMap)
     }
 
     private fun isMmsMessage(text: String): Boolean {
@@ -1469,6 +1604,41 @@ class ThreadActivity : SimpleActivity() {
     private fun launchPickContactIntent() {
         val intent = Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI)
         startActivityForResult(intent, PICK_CONTACT_INTENT)
+    }
+
+    private fun applyOutlines() = binding.apply {
+        val density = resources.displayMetrics.density
+        val thickStroke = (2.5 * density).toInt()
+        val isNewUi = config.useNewUi
+        
+        // Top Bar Outline (Matching nova_topbar_bg corners)
+        if (config.topBarOutline && isNewUi) {
+            val r26 = 26f * density
+            val drawable = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                setStroke(thickStroke, config.topBarOutlineColor)
+                setColor(Color.TRANSPARENT)
+                // Match the 26dp bottom corners of the modern top bar
+                cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, r26, r26, r26, r26)
+            }
+            binding.threadAppbar.foreground = drawable
+        } else {
+            binding.threadAppbar.foreground = null
+        }
+
+        // Input Bar Outline
+        val inputBar = binding.messageHolder.root.findViewById<android.view.View>(R.id.nova_message_input_bar)
+        if (config.searchBarOutline && isNewUi && inputBar != null) {
+            val drawable = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                setStroke(thickStroke, config.searchBarOutlineColor)
+                cornerRadius = 100f * density
+                setColor(Color.TRANSPARENT)
+            }
+            inputBar.foreground = drawable
+        } else {
+            inputBar?.foreground = null
+        }
     }
 
     companion object {

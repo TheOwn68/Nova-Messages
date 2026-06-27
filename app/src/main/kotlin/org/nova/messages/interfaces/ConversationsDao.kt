@@ -56,4 +56,7 @@ interface ConversationsDao {
 
     @Query("DELETE FROM conversations WHERE thread_id = :threadId")
     fun deleteThreadId(threadId: Long)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insertOrUpdateAll(conversations: List<Conversation>)
 }

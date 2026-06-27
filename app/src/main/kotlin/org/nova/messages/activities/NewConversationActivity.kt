@@ -1,35 +1,21 @@
 package org.nova.messages.activities
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.ValueAnimator
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.view.WindowManager
+import android.view.animation.AccelerateInterpolator
+import android.view.animation.DecelerateInterpolator
 import android.widget.Toast
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
-import com.google.gson.Gson
 import com.reddit.indicatorfastscroll.FastScrollItemIndicator
-import org.fossify.commons.extensions.applyColorFilter
-import org.fossify.commons.extensions.areSystemAnimationsEnabled
-import org.fossify.commons.extensions.beGone
-import org.fossify.commons.extensions.beVisible
-import org.fossify.commons.extensions.beVisibleIf
-import org.fossify.commons.extensions.getColorStateList
-import org.fossify.commons.extensions.getContrastColor
-import org.fossify.commons.extensions.getMyContactsCursor
-import org.fossify.commons.extensions.getProperPrimaryColor
-import org.fossify.commons.extensions.getProperTextColor
-import org.fossify.commons.extensions.hasPermission
-import org.fossify.commons.extensions.hideKeyboard
-import org.fossify.commons.extensions.maybeShowNumberPickerDialog
-import org.fossify.commons.extensions.normalizeString
-import org.fossify.commons.extensions.onTextChangeListener
-import org.fossify.commons.extensions.toast
-import org.fossify.commons.extensions.underlineText
-import org.fossify.commons.extensions.updateTextColors
-import org.fossify.commons.extensions.value
-import org.fossify.commons.extensions.viewBinding
+import org.fossify.commons.extensions.*
 import org.fossify.commons.helpers.MyContactsContentProvider
 import org.fossify.commons.helpers.NavigationIcon
 import org.fossify.commons.helpers.PERMISSION_READ_CONTACTS
@@ -39,7 +25,6 @@ import org.fossify.commons.models.SimpleContact
 import org.nova.messages.R
 import org.nova.messages.adapters.ContactsAdapter
 import org.nova.messages.databinding.ActivityNewConversationBinding
-import org.nova.messages.databinding.ItemSuggestedContactBinding
 import org.nova.messages.extensions.*
 import org.nova.messages.helpers.SmsIntentParser
 import org.nova.messages.helpers.THREAD_ATTACHMENT_URI
@@ -49,12 +34,12 @@ import org.nova.messages.helpers.THREAD_NUMBER
 import org.nova.messages.helpers.THREAD_TEXT
 import org.nova.messages.helpers.THREAD_TITLE
 import org.nova.messages.messaging.isShortCodeWithLetters
-import java.net.URLDecoder
 import java.util.Locale
 
 class NewConversationActivity : SimpleActivity() {
     private var allContacts = ArrayList<SimpleContact>()
     private var privateContacts = ArrayList<SimpleContact>()
+    private var wasImeVisible = false
 
     private val binding by viewBinding(ActivityNewConversationBinding::inflate)
 
@@ -74,21 +59,117 @@ class NewConversationActivity : SimpleActivity() {
         handlePermission(PERMISSION_READ_CONTACTS) {
             initContacts()
         }
+
+        // Keyboard Sync for Search Bar
+        ViewCompat.setOnApplyWindowInsetsListener(binding.newConversationCoordinator) { _, insets ->
+            val isImeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
+            if (wasImeVisible && !isImeVisible && config.useNewUi && binding.newConversationAddress.text?.isEmpty() == true) {
+                shrinkSearchBar()
+            }
+            wasImeVisible = isImeVisible
+            insets
+        }
     }
 
     override fun onResume() {
         super.onResume()
+        applyOutlines()
         setupTopAppBar(binding.newConversationAppbar, NavigationIcon.Arrow)
         binding.newConversationToolbar.setNavigationOnClickListener {
             finish()
         }
         binding.newConversationToolbar.title = "" // Clear standard title to use custom TextView
 
-        val mainTextColor = config.mainTextColor
         binding.noContactsPlaceholder2.setTextColor(getProperPrimaryColor())
         binding.noContactsPlaceholder2.underlineText()
-        applyCustomColors()
+        updateActivityCustomColors()
+
+        setupModernSearchBar()
+    }
+
+    private fun setupModernSearchBar() = binding.apply {
+        if (!config.useNewUi) return@apply
         
+        val collapsedWidth = 240.getScaledPx()
+        
+        // New UI: Centered search bar that expands
+        newConversationSearchContainer.updateLayoutParams<androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams> {
+            width = if (newConversationAddress.text.isNullOrEmpty() && !newConversationAddress.hasFocus()) collapsedWidth else androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams.MATCH_PARENT
+            gravity = android.view.Gravity.BOTTOM or android.view.Gravity.CENTER_HORIZONTAL
+        }
+
+        newConversationSearchContainer.setOnClickListener {
+            if (!newConversationAddress.isFocusable) {
+                expandSearchBar()
+            } else {
+                showKeyboard(newConversationAddress)
+            }
+        }
+
+        newConversationAddress.isFocusable = !newConversationAddress.text.isNullOrEmpty() || newConversationAddress.hasFocus()
+        newConversationAddress.isFocusableInTouchMode = newConversationAddress.isFocusable
+
+        newConversationAddress.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
+                expandSearchBar()
+            } else if (newConversationAddress.text.isNullOrEmpty()) {
+                shrinkSearchBar()
+            }
+        }
+    }
+
+    private fun expandSearchBar() = binding.apply {
+        val startWidth = newConversationSearchContainer.width
+        val endWidth = root.width - 32.getScaledPx()
+        
+        if (startWidth >= endWidth - 5) return@apply
+
+        val animator = ValueAnimator.ofInt(startWidth, endWidth)
+        animator.duration = 450
+        animator.interpolator = android.view.animation.OvershootInterpolator(1.2f)
+        animator.addUpdateListener { animation ->
+            newConversationSearchContainer.updateLayoutParams {
+                width = animation.animatedValue as Int
+            }
+        }
+        animator.addListener(object : AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: Animator) {
+                newConversationAddress.isFocusable = true
+                newConversationAddress.isFocusableInTouchMode = true
+                newConversationAddress.requestFocus()
+                showKeyboard(newConversationAddress)
+            }
+        })
+        animator.start()
+    }
+
+    private fun shrinkSearchBar() = binding.apply {
+        val startWidth = newConversationSearchContainer.width
+        val endWidth = 240.getScaledPx()
+        
+        if (startWidth <= endWidth + 5) return@apply
+
+        val animator = ValueAnimator.ofInt(startWidth, endWidth)
+        animator.duration = 300
+        animator.interpolator = DecelerateInterpolator()
+        animator.addUpdateListener { animation ->
+            newConversationSearchContainer.updateLayoutParams {
+                width = animation.animatedValue as Int
+            }
+        }
+        animator.addListener(object : AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: Animator) {
+                newConversationAddress.isFocusable = false
+                newConversationAddress.isFocusableInTouchMode = false
+                hideKeyboard()
+            }
+        })
+        animator.start()
+    }
+
+    private fun updateActivityCustomColors() {
+        applyCustomColors()
+        val mainTextColor = config.mainTextColor
         binding.newConversationAddress.setTextColor(config.inputBarTextColor)
         binding.newConversationAddress.setHintTextColor(config.inputBarTextColor.withAlpha(0.5f))
         binding.newConversationConfirm.applyColorFilter(config.inputBarTextColor)
@@ -120,55 +201,36 @@ class NewConversationActivity : SimpleActivity() {
             }
 
             filteredContacts.sortWith(compareBy { !it.name.startsWith(searchString, true) })
-            
+
             if (config.useNewUi && searchString.isEmpty()) {
-                fetchContacts() // Restore suggestions if search is cleared
+                fillSuggestedContacts {
+                    setupAdapter(filteredContacts)
+                }
             } else {
-                val adapter = binding.contactsList.adapter as? ContactsAdapter
-                adapter?.setSuggestionsCount(0) // Hide suggestions during search
                 setupAdapter(filteredContacts)
             }
 
-            binding.newConversationConfirm.beVisibleIf(searchString.length > 2)
-        }
-
-        binding.newConversationConfirm.applyColorFilter(getProperTextColor())
-        binding.newConversationConfirm.setOnClickListener {
-            val number = binding.newConversationAddress.value
-            if (isShortCodeWithLetters(number)) {
-                binding.newConversationAddress.setText("")
-                toast(R.string.invalid_short_code, length = Toast.LENGTH_LONG)
-                return@setOnClickListener
-            }
-            launchThreadActivity(number, number)
-        }
-
-        binding.noContactsPlaceholder2.setOnClickListener {
-            handlePermission(PERMISSION_READ_CONTACTS) {
-                if (it) {
-                    fetchContacts()
+            val shortCodeWithLetters = isShortCodeWithLetters(searchString)
+            binding.newConversationConfirm.beVisibleIf(searchString.isNotEmpty() && !shortCodeWithLetters)
+            binding.newConversationConfirm.applyColorFilter(getProperTextColor())
+            binding.newConversationConfirm.setOnClickListener {
+                if (searchString.isPhoneNumber()) {
+                    launchThreadActivity(searchString, searchString)
+                } else if (shortCodeWithLetters) {
+                    toast(R.string.invalid_short_code, length = Toast.LENGTH_LONG)
+                } else {
+                    launchThreadActivity(searchString, searchString)
                 }
             }
         }
-
-        val properPrimaryColor = getProperPrimaryColor()
-        binding.contactsLetterFastscroller.textColor = getProperTextColor().getColorStateList()
-        binding.contactsLetterFastscroller.pressedTextColor = properPrimaryColor
-        binding.contactsLetterFastscrollerThumb.setupWithFastScroller(binding.contactsLetterFastscroller)
-        binding.contactsLetterFastscrollerThumb.textColor = properPrimaryColor.getContrastColor()
-        binding.contactsLetterFastscrollerThumb.thumbColor = properPrimaryColor.getColorStateList()
     }
 
     private fun isThirdPartyIntent(): Boolean {
         val result = SmsIntentParser.parse(intent)
-
         if (result != null && (result.first.isNotEmpty() || result.second.isNotEmpty())) {
-            val (body, recipients) = result
-            launchThreadActivity(
-                phoneNumber = URLDecoder.decode(recipients.replace("+", "%2b").trim()),
-                name = "",
-                body = body
-            )
+            val phoneNumber = result.first
+            val body = result.second
+            launchThreadActivity(phoneNumber, phoneNumber, body)
             finish()
             return true
         }
@@ -176,22 +238,30 @@ class NewConversationActivity : SimpleActivity() {
     }
 
     private fun fetchContacts() {
-        fillSuggestedContacts {
-            SimpleContactsHelper(this).getAvailableContacts(false) {
-                allContacts = it
+        handlePermission(PERMISSION_READ_CONTACTS) {
+            if (it) {
+                ensureBackgroundThread {
+                    SimpleContactsHelper(this).getAvailableContacts(false) { contacts ->
+                        allContacts = contacts as ArrayList<SimpleContact>
+                        
+                        val privateCursor = getMyContactsCursor(false, true)
+                        privateContacts = MyContactsContentProvider.getSimpleContacts(this, privateCursor)
+                        
+                        if (privateContacts.isNotEmpty()) {
+                            allContacts.addAll(privateContacts)
+                            allContacts.sortBy { it.name.lowercase() }
+                        }
 
-                if (privateContacts.isNotEmpty()) {
-                    allContacts.addAll(privateContacts)
-                    allContacts.sort()
-                }
-
-                runOnUiThread {
-                    if (isFinishing || isDestroyed) return@runOnUiThread
-                    
-                    if (config.useNewUi) {
-                        // fillSuggestedContacts already calls setupAdapter for New UI
-                    } else {
-                        setupAdapter(allContacts)
+                        runOnUiThread {
+                            if (isFinishing || isDestroyed) return@runOnUiThread
+                            if (config.useNewUi) {
+                                fillSuggestedContacts {
+                                    setupAdapter(allContacts)
+                                }
+                            } else {
+                                setupAdapter(allContacts)
+                            }
+                        }
                     }
                 }
             }
@@ -199,16 +269,11 @@ class NewConversationActivity : SimpleActivity() {
     }
 
     private fun setupSearchEdgeToEdge() {
-        ViewCompat.setOnApplyWindowInsetsListener(binding.newConversationAddress) { _, insets ->
-            val imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime())
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-
-            binding.newConversationSearchContainer.updateLayoutParams<androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams> {
-                bottomMargin = if (imeInsets.bottom > 0) {
-                    imeInsets.bottom + 16.getScaledPx()
-                } else {
-                    systemBars.bottom + 16.getScaledPx()
-                }
+        ViewCompat.setOnApplyWindowInsetsListener(binding.newConversationSearchContainer) { v, insets ->
+            val imeHeight = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
+            val navigationHeight = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+            v.updateLayoutParams<androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams> {
+                bottomMargin = 16.getScaledPx() + Math.max(imeHeight, navigationHeight)
             }
             insets
         }
@@ -218,47 +283,21 @@ class NewConversationActivity : SimpleActivity() {
         val hasContacts = contacts.isNotEmpty()
         binding.contactsList.beVisibleIf(hasContacts)
         binding.noContactsPlaceholder.beVisibleIf(!hasContacts)
-        binding.noContactsPlaceholder2.beVisibleIf(
-            !hasContacts && !hasPermission(
-                PERMISSION_READ_CONTACTS
-            )
-        )
+        binding.noContactsPlaceholder2.beVisibleIf(!hasContacts && !hasPermission(PERMISSION_READ_CONTACTS))
 
-        if (!hasContacts) {
-            val placeholderText = if (hasPermission(PERMISSION_READ_CONTACTS)) {
-                org.fossify.commons.R.string.no_contacts_found
-            } else {
-                org.fossify.commons.R.string.no_access_to_contacts
-            }
+        val placeholderText = if (hasPermission(PERMISSION_READ_CONTACTS)) org.fossify.commons.R.string.no_contacts_found else org.fossify.commons.R.string.no_access_to_contacts
+        binding.noContactsPlaceholder.text = getString(placeholderText)
 
-            binding.noContactsPlaceholder.text = getString(placeholderText)
-        }
-
-        val useNewUi = config.useNewUi
-        if (useNewUi) {
-            if (binding.contactsList.layoutManager !is androidx.recyclerview.widget.GridLayoutManager) {
-                val gm = androidx.recyclerview.widget.GridLayoutManager(this, 2)
-                gm.spanSizeLookup = object : androidx.recyclerview.widget.GridLayoutManager.SpanSizeLookup() {
-                    override fun getSpanSize(position: Int): Int {
-                        val adapter = binding.contactsList.adapter as? ContactsAdapter
-                        return if (adapter?.getItemViewType(position) == ContactsAdapter.VIEW_TYPE_SUGGESTION) 2 else 1
-                    }
-                }
-                binding.contactsList.layoutManager = gm
-            }
-        } else {
-            if (binding.contactsList.layoutManager !is org.fossify.commons.views.MyLinearLayoutManager) {
-                binding.contactsList.layoutManager = org.fossify.commons.views.MyLinearLayoutManager(this)
-            }
-        }
-
-        val currAdapter = binding.contactsList.adapter as? ContactsAdapter
+        val currAdapter = binding.contactsList.adapter
         if (currAdapter == null) {
             ContactsAdapter(this, contacts, binding.contactsList) {
-                hideKeyboard()
                 val contact = it as SimpleContact
-                maybeShowNumberPickerDialog(contact.phoneNumbers) { number ->
-                    launchThreadActivity(number.normalizedNumber, contact.name)
+                if (contact.phoneNumbers.size == 1) {
+                    launchThreadActivity(contact.phoneNumbers.first().normalizedNumber, contact.name)
+                } else {
+                    maybeShowNumberPickerDialog(contact.phoneNumbers) { number ->
+                        launchThreadActivity(number.normalizedNumber, contact.name)
+                    }
                 }
             }.apply {
                 binding.contactsList.adapter = this
@@ -268,33 +307,28 @@ class NewConversationActivity : SimpleActivity() {
                 binding.contactsList.scheduleLayoutAnimation()
             }
         } else {
-            currAdapter.updateContacts(contacts)
+            (currAdapter as ContactsAdapter).updateContacts(contacts as List<Any>)
         }
 
         setupLetterFastscroller(contacts)
     }
 
     private fun fillSuggestedContacts(callback: () -> Unit) {
-        val privateCursor = getMyContactsCursor(false, true)
         ensureBackgroundThread {
-            privateContacts = MyContactsContentProvider.getSimpleContacts(this, privateCursor)
+            val privateCursor = getMyContactsCursor(false, true)
+            val privateContacts = MyContactsContentProvider.getSimpleContacts(this, privateCursor)
+            
             val suggestions = getSuggestedContacts(privateContacts)
+            
+            // Add suggested contacts to the list if they're not already there
+            suggestions.forEach { contact ->
+                if (!allContacts.any { it.contactId == contact.contactId }) {
+                    allContacts.add(contact)
+                }
+            }
+            
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
-                
-                // Merge suggestions into the main list for the modern layout
-                if (config.useNewUi) {
-                    val mergedList = ArrayList<SimpleContact>()
-                    suggestions.forEach { mergedList.add(it) }
-                    allContacts.forEach { contact ->
-                        if (!suggestions.any { it.contactId == contact.contactId }) {
-                            mergedList.add(contact)
-                        }
-                    }
-                    val adapter = binding.contactsList.adapter as? ContactsAdapter
-                    adapter?.setSuggestionsCount(suggestions.size)
-                    setupAdapter(mergedList)
-                }
                 callback()
             }
         }
@@ -317,16 +351,15 @@ class NewConversationActivity : SimpleActivity() {
     private fun launchThreadActivity(phoneNumber: String, name: String, body: String = "") {
         hideKeyboard()
         val numbers = phoneNumber.split(";").toSet()
-        val number = if (numbers.size == 1) phoneNumber else Gson().toJson(numbers)
         Intent(this, ThreadActivity::class.java).apply {
-            putExtra(THREAD_ID, getThreadId(numbers))
+            putExtra(THREAD_ID, this@NewConversationActivity.getThreadId(numbers))
             putExtra(THREAD_TITLE, name)
-            putExtra(THREAD_TEXT, body.ifEmpty { intent.getStringExtra(Intent.EXTRA_TEXT) })
-            putExtra(THREAD_NUMBER, number)
-
-            if (intent.action == Intent.ACTION_SEND && intent.extras?.containsKey(Intent.EXTRA_STREAM) == true) {
-                val uri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
-                putExtra(THREAD_ATTACHMENT_URI, uri?.toString())
+            putExtra(THREAD_NUMBER, phoneNumber)
+            putExtra(THREAD_TEXT, body)
+            
+            val uri = intent.getParcelableExtra<Uri>(THREAD_ATTACHMENT_URI)
+            if (uri != null) {
+                putExtra(THREAD_ATTACHMENT_URI, uri.toString())
             } else if (intent.action == Intent.ACTION_SEND_MULTIPLE && intent.extras?.containsKey(
                     Intent.EXTRA_STREAM
                 ) == true
@@ -342,4 +375,38 @@ class NewConversationActivity : SimpleActivity() {
     override fun getAppIconIDs() = arrayListOf(R.mipmap.ic_launcher)
     override fun getAppLauncherName() = getString(R.string.app_launcher_name)
     override fun getRepositoryName() = "Messages"
+
+    private fun applyOutlines() = binding.apply {
+        val density = resources.displayMetrics.density
+        val thickStroke = (2.5 * density).toInt()
+        val isNewUi = config.useNewUi
+        
+        // Top Bar Outline (New Conversation)
+        if (config.topBarOutline && isNewUi) {
+            val r26 = 26f * density
+            val drawable = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                setStroke(thickStroke, config.topBarOutlineColor)
+                setColor(Color.TRANSPARENT)
+                // Match the 26dp bottom corners of the modern top bar
+                cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, r26, r26, r26, r26)
+            }
+            binding.newConversationAppbar.foreground = drawable
+        } else {
+            binding.newConversationAppbar.foreground = null
+        }
+
+        // Search Bar Outline
+        if (config.searchBarOutline && isNewUi) {
+            val drawable = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                setStroke(thickStroke, config.searchBarOutlineColor)
+                cornerRadius = 100f * density
+                setColor(Color.TRANSPARENT)
+            }
+            binding.newConversationSearchContainer.foreground = drawable
+        } else {
+            binding.newConversationSearchContainer.foreground = null
+        }
+    }
 }

@@ -163,6 +163,10 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getString(CONVERSATION_ORDER, "")!!
         set(conversationOrder) = prefs.edit().putString(CONVERSATION_ORDER, conversationOrder).apply()
 
+    var contactSortingMode: Int
+        get() = prefs.getInt(CONTACT_SORTING_MODE, 0) // 0: Manual, 1: Alphabetical, 2: Recent
+        set(contactSortingMode) = prefs.edit().putInt(CONTACT_SORTING_MODE, contactSortingMode).apply()
+
     var recentColor: Int
         get() = prefs.getInt(RECENT_COLOR, Color.parseColor("#FFE4E1"))
         set(recentColor) = prefs.edit().putInt(RECENT_COLOR, recentColor).apply()
@@ -273,6 +277,66 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getBoolean(ALWAYS_EXPAND_SEARCH_BAR, false)
         set(alwaysExpandSearchBar) = prefs.edit().putBoolean(ALWAYS_EXPAND_SEARCH_BAR, alwaysExpandSearchBar).apply()
 
+    var preset1Name: String
+        get() = prefs.getString(PRESET_1_NAME, "Preset 1")!!
+        set(preset1Name) = prefs.edit().putString(PRESET_1_NAME, preset1Name).apply()
+
+    var preset2Name: String
+        get() = prefs.getString(PRESET_2_NAME, "Preset 2")!!
+        set(preset2Name) = prefs.edit().putString(PRESET_2_NAME, preset2Name).apply()
+
+    var preset3Name: String
+        get() = prefs.getString(PRESET_3_NAME, "Preset 3")!!
+        set(preset3Name) = prefs.edit().putString(PRESET_3_NAME, preset3Name).apply()
+
+    var topBarOutline: Boolean
+        get() = prefs.getBoolean(TOP_BAR_OUTLINE, false)
+        set(topBarOutline) = prefs.edit().putBoolean(TOP_BAR_OUTLINE, topBarOutline).apply()
+
+    var topBarOutlineColor: Int
+        get() = prefs.getInt(TOP_BAR_OUTLINE_COLOR, Color.BLACK)
+        set(topBarOutlineColor) = prefs.edit().putInt(TOP_BAR_OUTLINE_COLOR, topBarOutlineColor).apply()
+
+    var searchBarOutline: Boolean
+        get() = prefs.getBoolean(SEARCH_BAR_OUTLINE, false)
+        set(searchBarOutline) = prefs.edit().putBoolean(SEARCH_BAR_OUTLINE, searchBarOutline).apply()
+
+    var searchBarOutlineColor: Int
+        get() = prefs.getInt(SEARCH_BAR_OUTLINE_COLOR, Color.BLACK)
+        set(searchBarOutlineColor) = prefs.edit().putInt(SEARCH_BAR_OUTLINE_COLOR, searchBarOutlineColor).apply()
+
+    var bigContactsOutline: Boolean
+        get() = prefs.getBoolean(BIG_CONTACTS_OUTLINE, false)
+        set(bigContactsOutline) = prefs.edit().putBoolean(BIG_CONTACTS_OUTLINE, bigContactsOutline).apply()
+
+    var bigContactsOutlineColor: Int
+        get() = prefs.getInt(BIG_CONTACTS_OUTLINE_COLOR, Color.BLACK)
+        set(bigContactsOutlineColor) = prefs.edit().putInt(BIG_CONTACTS_OUTLINE_COLOR, bigContactsOutlineColor).apply()
+
+    var smallContactsOutline: Boolean
+        get() = prefs.getBoolean(SMALL_CONTACTS_OUTLINE, false)
+        set(smallContactsOutline) = prefs.edit().putBoolean(SMALL_CONTACTS_OUTLINE, smallContactsOutline).apply()
+
+    var smallContactsOutlineColor: Int
+        get() = prefs.getInt(SMALL_CONTACTS_OUTLINE_COLOR, Color.BLACK)
+        set(smallContactsOutlineColor) = prefs.edit().putInt(SMALL_CONTACTS_OUTLINE_COLOR, smallContactsOutlineColor).apply()
+
+    var sentBubblesOutline: Boolean
+        get() = prefs.getBoolean(SENT_BUBBLES_OUTLINE, false)
+        set(sentBubblesOutline) = prefs.edit().putBoolean(SENT_BUBBLES_OUTLINE, sentBubblesOutline).apply()
+
+    var sentBubblesOutlineColor: Int
+        get() = prefs.getInt(SENT_BUBBLES_OUTLINE_COLOR, Color.BLACK)
+        set(sentBubblesOutlineColor) = prefs.edit().putInt(SENT_BUBBLES_OUTLINE_COLOR, sentBubblesOutlineColor).apply()
+
+    var receivedBubblesOutline: Boolean
+        get() = prefs.getBoolean(RECEIVED_BUBBLES_OUTLINE, false)
+        set(receivedBubblesOutline) = prefs.edit().putBoolean(RECEIVED_BUBBLES_OUTLINE, receivedBubblesOutline).apply()
+
+    var receivedBubblesOutlineColor: Int
+        get() = prefs.getInt(RECEIVED_BUBBLES_OUTLINE_COLOR, Color.BLACK)
+        set(receivedBubblesOutlineColor) = prefs.edit().putInt(RECEIVED_BUBBLES_OUTLINE_COLOR, receivedBubblesOutlineColor).apply()
+
     fun savePreset(id: Int) {
         val prefix = "preset_${id}_"
         val editor = prefs.edit()
@@ -284,7 +348,11 @@ class Config(context: Context) : BaseConfig(context) {
             TOP_BAR_CROP_RECT, MAIN_BG_CROP_RECT, INPUT_BAR_CROP_RECT,
             TOP_BAR_BG_MODE, MAIN_BG_MODE, INPUT_BAR_BG_MODE,
             RECENT_COLOR, ROW1_COLOR, ROW2_COLOR, ROW3_COLOR,
-            FONT_FAMILY_NOVA, UI_SCALE, ALWAYS_EXPAND_SEARCH_BAR, USE_NEW_UI
+            FONT_FAMILY_NOVA, UI_SCALE, ALWAYS_EXPAND_SEARCH_BAR, USE_NEW_UI,
+            TOP_BAR_OUTLINE, TOP_BAR_OUTLINE_COLOR, SEARCH_BAR_OUTLINE, SEARCH_BAR_OUTLINE_COLOR,
+            BIG_CONTACTS_OUTLINE, BIG_CONTACTS_OUTLINE_COLOR, SMALL_CONTACTS_OUTLINE, SMALL_CONTACTS_OUTLINE_COLOR,
+            SENT_BUBBLES_OUTLINE, SENT_BUBBLES_OUTLINE_COLOR, RECEIVED_BUBBLES_OUTLINE, RECEIVED_BUBBLES_OUTLINE_COLOR,
+            PRESET_1_NAME, PRESET_2_NAME, PRESET_3_NAME // Include names in preset
         )
         themeKeys.forEach { key ->
             val value = prefs.all[key]
@@ -312,7 +380,11 @@ class Config(context: Context) : BaseConfig(context) {
             TOP_BAR_CROP_RECT, MAIN_BG_CROP_RECT, INPUT_BAR_CROP_RECT,
             TOP_BAR_BG_MODE, MAIN_BG_MODE, INPUT_BAR_BG_MODE,
             RECENT_COLOR, ROW1_COLOR, ROW2_COLOR, ROW3_COLOR,
-            FONT_FAMILY_NOVA, UI_SCALE, ALWAYS_EXPAND_SEARCH_BAR, USE_NEW_UI
+            FONT_FAMILY_NOVA, UI_SCALE, ALWAYS_EXPAND_SEARCH_BAR, USE_NEW_UI,
+            TOP_BAR_OUTLINE, TOP_BAR_OUTLINE_COLOR, SEARCH_BAR_OUTLINE, SEARCH_BAR_OUTLINE_COLOR,
+            BIG_CONTACTS_OUTLINE, BIG_CONTACTS_OUTLINE_COLOR, SMALL_CONTACTS_OUTLINE, SMALL_CONTACTS_OUTLINE_COLOR,
+            SENT_BUBBLES_OUTLINE, SENT_BUBBLES_OUTLINE_COLOR, RECEIVED_BUBBLES_OUTLINE, RECEIVED_BUBBLES_OUTLINE_COLOR,
+            PRESET_1_NAME, PRESET_2_NAME, PRESET_3_NAME
         )
         themeKeys.forEach { key ->
             val value = prefs.all[prefix + key]

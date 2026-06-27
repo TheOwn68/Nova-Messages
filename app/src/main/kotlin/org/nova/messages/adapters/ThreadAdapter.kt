@@ -381,9 +381,18 @@ class ThreadAdapter(
         val attachmentsHolder = if (binding is ItemMessageReceivedBinding) binding.threadMessageAttachmentsHolder else (binding as ItemMessageSentBinding).threadMessageAttachmentsHolder
         val playOutline = if (binding is ItemMessageReceivedBinding) binding.threadMessagePlayOutline else (binding as ItemMessageSentBinding).threadMessagePlayOutline
         val overlay = if (binding is ItemMessageReceivedBinding) binding.selectionOverlay else (binding as ItemMessageSentBinding).selectionOverlay
+        val reactionView = if (binding is ItemMessageReceivedBinding) binding.messageReaction else (binding as ItemMessageSentBinding).messageReaction
 
         holderView.visibility = View.VISIBLE
         wrapper.visibility = View.VISIBLE
+
+        // Display reaction if present
+        reactionView.beVisibleIf(message.reaction != null)
+        reactionView.text = message.reaction ?: ""
+        if (message.reaction != null) {
+            reactionView.setTextColor(activity.config.mainTextColor)
+            reactionView.background?.applyColorFilter(activity.config.mainBackgroundColor)
+        }
 
         // Selection Overlay Logic (Theme Perfect)
         overlay.beVisibleIf(isSelected)
@@ -428,6 +437,16 @@ class ThreadAdapter(
                     floatArrayOf(r18, r18, r18, r18, r4, r4, r18, r18)
                 }
                 gd.cornerRadii = radii
+                
+                // Bubble Outlines
+                if (config.useNewUi) {
+                    val outlineOn = if (isReceived) config.receivedBubblesOutline else config.sentBubblesOutline
+                    if (outlineOn) {
+                        val outlineColor = if (isReceived) config.receivedBubblesOutlineColor else config.sentBubblesOutlineColor
+                        gd.setStroke((1.5 * density).toInt(), outlineColor)
+                    }
+                }
+
                 background = gd
                 
                 // Material 3 Depth (Standardized for stability)
@@ -459,10 +478,17 @@ class ThreadAdapter(
             }
 
             setOnLongClickListener {
-                android.util.Log.d("ThreadSelection", "Long click on message: ${message.id}")
-                holder.viewLongClicked()
-                updateCustomSelectionBar()
-                true
+                android.util.Log.d("ReactionPicker", "Long click triggered on bodyHolder for message: ${message.id}")
+                if (!isSelectionModeActive()) {
+                    org.nova.messages.dialogs.ReactionPickerDialog(activity, bodyHolder) { emoji ->
+                        (activity as? ThreadActivity)?.onReactionPicked(message, emoji)
+                    }.show()
+                    true
+                } else {
+                    holder.viewLongClicked()
+                    updateCustomSelectionBar()
+                    true
+                }
             }
 
             setOnClickListener {
@@ -504,9 +530,7 @@ class ThreadAdapter(
             typeface = Typeface.create(customTypeface, style)
 
             setOnLongClickListener {
-                android.util.Log.d("ThreadSelection", "Long click on text: ${message.id}")
-                holder.viewLongClicked()
-                updateCustomSelectionBar()
+                bodyHolder.performLongClick()
                 true
             }
 

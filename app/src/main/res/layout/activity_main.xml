@@ -168,40 +168,97 @@
         </RelativeLayout>
     </RelativeLayout>
 
+    <!-- NAVIGATION / SEARCH BAR -->
     <LinearLayout
-        android:id="@+id/nova_search_bar"
-        android:layout_width="match_parent"
+        android:id="@+id/nova_nav_container"
+        android:layout_width="240dp"
         android:layout_height="55dp"
-        android:layout_gravity="bottom"
+        android:layout_gravity="bottom|center_horizontal"
         android:layout_margin="16dp"
         android:background="@drawable/nova_searchbar_bg"
-        android:gravity="center_vertical"
-        android:clickable="true"
-        android:focusable="true"
-        android:elevation="6dp"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp">
+        android:alpha="0.92"
+        android:elevation="10dp"
+        android:orientation="horizontal"
+        android:paddingStart="4dp"
+        android:paddingEnd="4dp"
+        android:gravity="center_vertical">
 
-        <ImageView
-            android:id="@+id/nova_search_icon"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@drawable/ic_search_vector"
-            android:alpha="0.7"
-            app:tint="@android:color/white" />
-
-        <EditText
-            android:id="@+id/nova_search_input"
-            android:layout_width="match_parent"
+        <!-- HOME BUTTON -->
+        <FrameLayout
+            android:id="@+id/nav_home_btn"
+            android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:paddingStart="8dp"
-            android:paddingEnd="12dp"
-            android:hint="Search"
-            android:textColor="@android:color/white"
-            android:textColorHint="#888888"
-            android:background="@android:color/transparent"
-            android:imeOptions="actionSearch"
-            android:inputType="text" />
+            android:layout_weight="1">
+            <ImageView
+                android:id="@+id/nav_home_icon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_home_modern"
+                android:alpha="0.6"
+                app:tint="@android:color/white" />
+        </FrameLayout>
+
+        <View
+            android:id="@+id/nav_divider1"
+            android:layout_width="1dp"
+            android:layout_height="24dp"
+            android:background="#22FFFFFF" />
+
+        <!-- SEARCH BUTTON / INPUT CONTAINER -->
+        <LinearLayout
+            android:id="@+id/nav_search_container"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <ImageView
+                android:id="@+id/nova_search_icon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_search_vector"
+                android:alpha="0.6"
+                app:tint="@android:color/white" />
+
+            <EditText
+                android:id="@+id/nova_search_input"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:paddingStart="8dp"
+                android:paddingEnd="12dp"
+                android:hint="Search"
+                android:textColor="@android:color/white"
+                android:textColorHint="#888888"
+                android:background="@android:color/transparent"
+                android:imeOptions="actionSearch"
+                android:inputType="text"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <View
+            android:id="@+id/nav_divider2"
+            android:layout_width="1dp"
+            android:layout_height="24dp"
+            android:background="#22FFFFFF" />
+
+        <!-- SETTINGS BUTTON -->
+        <FrameLayout
+            android:id="@+id/nav_settings_btn"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1">
+            <ImageView
+                android:id="@+id/nav_settings_icon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_settings_cog_vector"
+                android:alpha="0.6"
+                app:tint="@android:color/white" />
+        </FrameLayout>
+
     </LinearLayout>
 
     <org.fossify.commons.views.MyTextView
@@ -219,22 +276,5 @@
         android:clickable="true"
         android:focusable="true"
         android:includeFontPadding="false" />
-
-    <ImageView
-        android:id="@+id/settings_gear"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        app:layout_anchor="@id/conversations_fab"
-        app:layout_anchorGravity="top|center_horizontal"
-        android:layout_marginTop="48dp"
-        android:src="@drawable/ic_settings_cog_vector"
-        android:alpha="0.2"
-        android:padding="8dp"
-        android:background="?selectableItemBackgroundBorderless"
-        android:clickable="true"
-        android:focusable="true"
-        app:tint="@android:color/white" />
-
-
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

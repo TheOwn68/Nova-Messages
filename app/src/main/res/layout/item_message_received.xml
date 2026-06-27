@@ -94,5 +94,22 @@
             android:layout_alignBottom="@id/thread_message_body_holder"
             android:visibility="gone"
             tools:visibility="visible" />
+
+        <org.fossify.commons.views.MyTextView
+            android:id="@+id/message_reaction"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/thread_message_body_holder"
+            android:layout_alignEnd="@id/thread_message_body_holder"
+            android:layout_marginTop="-10dp"
+            android:layout_marginEnd="4dp"
+            android:background="@drawable/pill_background_small"
+            android:elevation="4dp"
+            android:paddingHorizontal="4dp"
+            android:paddingVertical="2dp"
+            android:textSize="14sp"
+            android:visibility="gone"
+            tools:text="👍"
+            tools:visibility="visible" />
     </RelativeLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

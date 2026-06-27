@@ -51,6 +51,7 @@ const val IS_FROM_NOTIFICATION = "is_from_notification"
 const val KEEP_CONVERSATIONS_ARCHIVED = "keep_conversations_archived"
 const val USE_NEW_UI = "use_new_ui"
 const val CONVERSATION_ORDER = "conversation_order"
+const val CONTACT_SORTING_MODE = "contact_sorting_mode"
 const val RECENT_COLOR = "recent_color"
 const val ROW1_COLOR = "row1_color"
 const val ROW2_COLOR = "row2_color"
@@ -90,6 +91,23 @@ const val BG_MODE_COLOR = 0
 const val BG_MODE_IMAGE = 1
 
 const val ALWAYS_EXPAND_SEARCH_BAR = "always_expand_search_bar"
+
+const val PRESET_1_NAME = "preset_1_name"
+const val PRESET_2_NAME = "preset_2_name"
+const val PRESET_3_NAME = "preset_3_name"
+
+const val TOP_BAR_OUTLINE = "top_bar_outline"
+const val TOP_BAR_OUTLINE_COLOR = "top_bar_outline_color"
+const val SEARCH_BAR_OUTLINE = "search_bar_outline"
+const val SEARCH_BAR_OUTLINE_COLOR = "search_bar_outline_color"
+const val BIG_CONTACTS_OUTLINE = "big_contacts_outline"
+const val BIG_CONTACTS_OUTLINE_COLOR = "big_contacts_outline_color"
+const val SMALL_CONTACTS_OUTLINE = "small_contacts_outline"
+const val SMALL_CONTACTS_OUTLINE_COLOR = "small_contacts_outline_color"
+const val SENT_BUBBLES_OUTLINE = "sent_bubbles_outline"
+const val SENT_BUBBLES_OUTLINE_COLOR = "sent_bubbles_outline_color"
+const val RECEIVED_BUBBLES_OUTLINE = "received_bubbles_outline"
+const val RECEIVED_BUBBLES_OUTLINE_COLOR = "received_bubbles_outline_color"
 
 private const val PATH = "org.nova.org.nova.messages.action."
 const val MARK_AS_READ = PATH + "mark_as_read"
@@ -152,8 +170,8 @@ fun refreshMessages() {
     EventBus.getDefault().post(Events.RefreshMessages())
 }
 
-fun refreshConversations() {
-    EventBus.getDefault().post(Events.RefreshConversations())
+fun refreshConversations(isManualReorder: Boolean = false) {
+    EventBus.getDefault().post(Events.RefreshConversations(isManualReorder))
 }
 
 /** Not to be used with real messages persisted in the telephony db. This is for internal use only (e.g. scheduled messages, notification ids etc). */

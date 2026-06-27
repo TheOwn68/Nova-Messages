@@ -6,7 +6,9 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
+import android.widget.AdapterView
 import android.widget.ArrayAdapter
+import androidx.core.view.updateLayoutParams
 import android.widget.TextView
 import org.fossify.commons.extensions.*
 import org.fossify.commons.helpers.NavigationIcon
@@ -16,6 +18,7 @@ import org.nova.messages.R
 import org.nova.messages.databinding.ActivitySettingsBinding
 import org.nova.messages.extensions.config
 import org.nova.messages.helpers.*
+import org.nova.messages.dialogs.RenamePresetDialog
 
 class SettingsActivity : SimpleActivity() {
 
@@ -41,12 +44,95 @@ class SettingsActivity : SimpleActivity() {
         setupFontFamily()
         setupBgModes()
         setupPresets()
+        setupOutlines()
         updateAppFonts(binding.root)
     }
 
     override fun onResume() {
         super.onResume()
+        applyOutlines()
         updateCustomizationUI()
+        setupNovaNavBar()
+    }
+
+    private fun setupNovaNavBar() = binding.apply {
+        if (config.useNewUi) {
+            novaNavContainer.beVisible()
+            
+            // Sync edge-to-edge padding to match Home screen
+            androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(novaNavContainer) { v, insets ->
+                val navigationHeight = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars()).bottom
+                v.updateLayoutParams<androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams> {
+                    bottomMargin = 16.getScaledPx() + navigationHeight
+                }
+                insets
+            }
+            
+            // Apply compact width and transparency
+            novaNavContainer.updateLayoutParams<androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams> {
+                width = 240.getScaledPx()
+                gravity = android.view.Gravity.BOTTOM or android.view.Gravity.CENTER_HORIZONTAL
+            }
+            novaNavContainer.alpha = 0.92f
+            
+            // Set icon transparency
+            navHomeIcon.alpha = 0.6f
+            navSettingsIcon.alpha = 0.9f // Lighter for active
+            novaSearchIcon.alpha = 0.6f
+            
+            // Highlight Settings (Current Screen) with subtle transparency
+            navSettingsBtn.setBackgroundColor(Color.WHITE.withAlpha(0.1f))
+            
+            navHomeBtn.setOnClickListener {
+                finish() // Go back to main
+            }
+            
+            navSearchBtn.setOnClickListener {
+                finish() // Go back to main and expand search
+            }
+        } else {
+            novaNavContainer.beGone()
+        }
+    }
+
+    private fun applyOutlines() = binding.apply {
+        val density = resources.displayMetrics.density
+        val thickStroke = (2.5 * density).toInt()
+        val inputBarTextColor = config.inputBarTextColor
+        
+        // Top Bar Outline (Settings)
+        if (config.topBarOutline && config.useNewUi) {
+            val r26 = 26f * density
+            val drawable = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                setStroke(thickStroke, config.topBarOutlineColor)
+                setColor(Color.TRANSPARENT)
+                cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, r26, r26, r26, r26)
+            }
+            binding.settingsAppbar.foreground = drawable
+        } else {
+            binding.settingsAppbar.foreground = null
+        }
+
+        // Nav Bar Outline (Settings)
+        if (config.searchBarOutline && config.useNewUi) {
+            val drawable = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                setStroke(thickStroke, config.searchBarOutlineColor)
+                cornerRadius = 100f * density
+                setColor(Color.TRANSPARENT)
+            }
+            binding.novaNavContainer.foreground = drawable
+            
+            // Sync icon and divider colors with search bar text color
+            binding.navHomeIcon.imageTintList = android.content.res.ColorStateList.valueOf(inputBarTextColor)
+            binding.navSettingsIcon.imageTintList = android.content.res.ColorStateList.valueOf(inputBarTextColor)
+            binding.novaSearchIcon.imageTintList = android.content.res.ColorStateList.valueOf(inputBarTextColor)
+            binding.navDivider1.setBackgroundColor(inputBarTextColor.withAlpha(0.2f))
+            binding.navDivider2.setBackgroundColor(inputBarTextColor.withAlpha(0.2f))
+        } else {
+            binding.novaNavContainer.foreground = null
+        }
     }
 
     private fun updateCustomizationUI() = binding.apply {
@@ -77,6 +163,13 @@ class SettingsActivity : SimpleActivity() {
         settingsNewUiColorsLabelHeader.setTextColor(mainTextColor)
         settingsAlwaysExpandSearchBarLabel.setTextColor(mainTextColor)
         settingsPresetsLabelHeader.setTextColor(mainTextColor)
+        
+        settingsPreset1Label.setTextColor(mainTextColor)
+        settingsPreset1Label.text = config.preset1Name
+        settingsPreset2Label.setTextColor(mainTextColor)
+        settingsPreset2Label.text = config.preset2Name
+        settingsPreset3Label.setTextColor(mainTextColor)
+        settingsPreset3Label.text = config.preset3Name
         
         // Mode Visibility
         val updateModeUI = { mode: Int, colorPreview: View, imageIcon: View ->
@@ -120,6 +213,133 @@ class SettingsActivity : SimpleActivity() {
         updatePreview(settingsColorRow1Preview, config.row1Color)
         updatePreview(settingsColorRow2Preview, config.row2Color)
         updatePreview(settingsColorRow3Preview, config.row3Color)
+
+        updateOutlinesUI()
+    }
+
+    private fun updateOutlinesUI() = binding.apply {
+        // Function to update color previews safely without losing shape (re-declared locally or accessed)
+        val updatePreview = { view: View, color: Int ->
+            val bg = view.background as? android.graphics.drawable.LayerDrawable
+            if (bg != null) {
+                bg.findDrawableByLayerId(R.id.color_preview_main)?.mutate()?.setColorFilter(color, android.graphics.PorterDuff.Mode.SRC_IN)
+            } else {
+                view.background?.applyColorFilter(color)
+            }
+        }
+
+        settingsTopBarOutlineSwitch.isChecked = config.topBarOutline
+        settingsTopBarOutlineColorHolder.beVisibleIf(config.topBarOutline)
+        updatePreview(settingsTopBarOutlineColorPreview, config.topBarOutlineColor)
+
+        settingsSearchBarOutlineSwitch.isChecked = config.searchBarOutline
+        settingsSearchBarOutlineColorHolder.beVisibleIf(config.searchBarOutline)
+        updatePreview(settingsSearchBarOutlineColorPreview, config.searchBarOutlineColor)
+
+        settingsBigContactsOutlineSwitch.isChecked = config.bigContactsOutline
+        settingsBigContactsOutlineColorHolder.beVisibleIf(config.bigContactsOutline)
+        updatePreview(settingsBigContactsOutlineColorPreview, config.bigContactsOutlineColor)
+
+        settingsSmallContactsOutlineSwitch.isChecked = config.smallContactsOutline
+        settingsSmallContactsOutlineColorHolder.beVisibleIf(config.smallContactsOutline)
+        updatePreview(settingsSmallContactsOutlineColorPreview, config.smallContactsOutlineColor)
+
+        settingsSentBubblesOutlineSwitch.isChecked = config.sentBubblesOutline
+        settingsSentBubblesOutlineColorHolder.beVisibleIf(config.sentBubblesOutline)
+        updatePreview(settingsSentBubblesOutlineColorPreview, config.sentBubblesOutlineColor)
+
+        settingsReceivedBubblesOutlineSwitch.isChecked = config.receivedBubblesOutline
+        settingsReceivedBubblesOutlineColorHolder.beVisibleIf(config.receivedBubblesOutline)
+        updatePreview(settingsReceivedBubblesOutlineColorPreview, config.receivedBubblesOutlineColor)
+    }
+
+    private fun setupOutlines() = binding.apply {
+        val updatePreview = { view: View, color: Int ->
+            val bg = view.background as? android.graphics.drawable.LayerDrawable
+            if (bg != null) {
+                bg.findDrawableByLayerId(R.id.color_preview_main)?.mutate()?.setColorFilter(color, android.graphics.PorterDuff.Mode.SRC_IN)
+            } else {
+                view.background?.applyColorFilter(color)
+            }
+        }
+
+        settingsTopBarOutlineSwitch.setOnCheckedChangeListener { _, isChecked ->
+            config.topBarOutline = isChecked
+            settingsTopBarOutlineColorHolder.beVisibleIf(isChecked)
+        }
+        settingsTopBarOutlineColorPreview.setOnClickListener {
+            org.fossify.commons.dialogs.ColorPickerDialog(this@SettingsActivity, config.topBarOutlineColor) { wasPositive, color ->
+                if (wasPositive) {
+                    config.topBarOutlineColor = color
+                    updatePreview(settingsTopBarOutlineColorPreview, color)
+                }
+            }
+        }
+
+        settingsSearchBarOutlineSwitch.setOnCheckedChangeListener { _, isChecked ->
+            config.searchBarOutline = isChecked
+            settingsSearchBarOutlineColorHolder.beVisibleIf(isChecked)
+        }
+        settingsSearchBarOutlineColorPreview.setOnClickListener {
+            org.fossify.commons.dialogs.ColorPickerDialog(this@SettingsActivity, config.searchBarOutlineColor) { wasPositive, color ->
+                if (wasPositive) {
+                    config.searchBarOutlineColor = color
+                    updatePreview(settingsSearchBarOutlineColorPreview, color)
+                }
+            }
+        }
+
+        settingsBigContactsOutlineSwitch.setOnCheckedChangeListener { _, isChecked ->
+            config.bigContactsOutline = isChecked
+            settingsBigContactsOutlineColorHolder.beVisibleIf(isChecked)
+        }
+        settingsBigContactsOutlineColorPreview.setOnClickListener {
+            org.fossify.commons.dialogs.ColorPickerDialog(this@SettingsActivity, config.bigContactsOutlineColor) { wasPositive, color ->
+                if (wasPositive) {
+                    config.bigContactsOutlineColor = color
+                    updatePreview(settingsBigContactsOutlineColorPreview, color)
+                }
+            }
+        }
+
+        settingsSmallContactsOutlineSwitch.setOnCheckedChangeListener { _, isChecked ->
+            config.smallContactsOutline = isChecked
+            settingsSmallContactsOutlineColorHolder.beVisibleIf(isChecked)
+        }
+        settingsSmallContactsOutlineColorPreview.setOnClickListener {
+            org.fossify.commons.dialogs.ColorPickerDialog(this@SettingsActivity, config.smallContactsOutlineColor) { wasPositive, color ->
+                if (wasPositive) {
+                    config.smallContactsOutlineColor = color
+                    updatePreview(settingsSmallContactsOutlineColorPreview, color)
+                }
+            }
+        }
+
+        settingsSentBubblesOutlineSwitch.setOnCheckedChangeListener { _, isChecked ->
+            config.sentBubblesOutline = isChecked
+            settingsSentBubblesOutlineColorHolder.beVisibleIf(isChecked)
+        }
+        settingsSentBubblesOutlineColorPreview.setOnClickListener {
+            org.fossify.commons.dialogs.ColorPickerDialog(this@SettingsActivity, config.sentBubblesOutlineColor) { wasPositive, color ->
+                if (wasPositive) {
+                    config.sentBubblesOutlineColor = color
+                    updatePreview(settingsSentBubblesOutlineColorPreview, color)
+                }
+            }
+        }
+
+        settingsReceivedBubblesOutlineSwitch.setOnCheckedChangeListener { _, isChecked ->
+            config.receivedBubblesOutline = isChecked
+            settingsReceivedBubblesOutlineColorHolder.beVisibleIf(isChecked)
+        }
+        settingsReceivedBubblesOutlineColorPreview.setOnClickListener {
+            org.fossify.commons.dialogs.ColorPickerDialog(this@SettingsActivity, config.receivedBubblesOutlineColor) { wasPositive, color ->
+                if (wasPositive) {
+                    config.receivedBubblesOutlineColor = color
+                    updatePreview(settingsReceivedBubblesOutlineColorPreview, color)
+                }
+            }
+        }
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, resultData: Intent?) {
@@ -151,6 +371,13 @@ class SettingsActivity : SimpleActivity() {
 
         val uri = resultData?.data ?: return
         val uriString = uri.toString()
+
+        try {
+            contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        } catch (_: Exception) {
+            // Not all URIs support persistable permissions (e.g. some file managers)
+        }
+
         when (requestCode) {
             PICK_TOP_BAR_IMAGE_INTENT -> startCropper(uriString, CROP_TARGET_TOP_BAR)
             PICK_MAIN_BG_IMAGE_INTENT -> startCropper(uriString, CROP_TARGET_BACKGROUND)
@@ -404,18 +631,51 @@ class SettingsActivity : SimpleActivity() {
         settingsNewUiSwitch.isChecked = config.useNewUi
         settingsNewUiColorsSection.beVisibleIf(config.useNewUi)
         settingsAlwaysExpandSearchBarHolder.beVisibleIf(config.useNewUi)
+        settingsContactSortingHolder.beVisibleIf(config.useNewUi)
         
         settingsNewUiHolder.setOnClickListener {
             settingsNewUiSwitch.toggle()
             config.useNewUi = settingsNewUiSwitch.isChecked
             settingsNewUiColorsSection.beVisibleIf(config.useNewUi)
             settingsAlwaysExpandSearchBarHolder.beVisibleIf(config.useNewUi)
+            settingsContactSortingHolder.beVisibleIf(config.useNewUi)
         }
 
         settingsAlwaysExpandSearchBarSwitch.isChecked = config.alwaysExpandSearchBar
         settingsAlwaysExpandSearchBarHolder.setOnClickListener {
             settingsAlwaysExpandSearchBarSwitch.toggle()
             config.alwaysExpandSearchBar = settingsAlwaysExpandSearchBarSwitch.isChecked
+        }
+
+        setupContactSorting()
+    }
+
+    private fun setupContactSorting() = binding.apply {
+        val modes = arrayOf("Manual", "Alphabetical", "Recently Used")
+        val adapter = object : ArrayAdapter<String>(this@SettingsActivity, android.R.layout.simple_spinner_item, modes) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = super.getView(position, convertView, parent) as TextView
+                view.setTextColor(config.mainTextColor)
+                return view
+            }
+
+            override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = super.getDropDownView(position, convertView, parent) as TextView
+                view.setTextColor(config.mainTextColor)
+                view.setBackgroundColor(config.mainBackgroundColor)
+                return view
+            }
+        }
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        settingsContactSortingSpinner.adapter = adapter
+        settingsContactSortingSpinner.setSelection(config.contactSortingMode)
+
+        settingsContactSortingSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                config.contactSortingMode = position
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
     }
 
@@ -488,14 +748,34 @@ class SettingsActivity : SimpleActivity() {
     }
 
     private fun setupPresets() = binding.apply {
+        settingsPreset1Label.setOnClickListener { renamePreset(1) }
         settingsSavePreset1.setOnClickListener { config.savePreset(1); toast("Preset 1 Saved") }
         settingsLoadPreset1.setOnClickListener { loadAndRefresh(1) }
         
+        settingsPreset2Label.setOnClickListener { renamePreset(2) }
         settingsSavePreset2.setOnClickListener { config.savePreset(2); toast("Preset 2 Saved") }
         settingsLoadPreset2.setOnClickListener { loadAndRefresh(2) }
         
+        settingsPreset3Label.setOnClickListener { renamePreset(3) }
         settingsSavePreset3.setOnClickListener { config.savePreset(3); toast("Preset 3 Saved") }
         settingsLoadPreset3.setOnClickListener { loadAndRefresh(3) }
+    }
+
+    private fun renamePreset(id: Int) {
+        val currentName = when (id) {
+            1 -> config.preset1Name
+            2 -> config.preset2Name
+            else -> config.preset3Name
+        }
+        
+        RenamePresetDialog(this, currentName) { newName ->
+            when (id) {
+                1 -> config.preset1Name = newName
+                2 -> config.preset2Name = newName
+                else -> config.preset3Name = newName
+            }
+            updateCustomizationUI()
+        }
     }
 
     private fun loadAndRefresh(id: Int) {

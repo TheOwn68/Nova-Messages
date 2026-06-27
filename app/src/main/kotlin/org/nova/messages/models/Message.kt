@@ -25,8 +25,11 @@ data class Message(
     @ColumnInfo(name = "sender_name") var senderName: String,
     @ColumnInfo(name = "sender_photo_uri") val senderPhotoUri: String,
     @ColumnInfo(name = "subscription_id") var subscriptionId: Int,
-    @ColumnInfo(name = "is_scheduled") var isScheduled: Boolean = false
+    @ColumnInfo(name = "is_scheduled") var isScheduled: Boolean = false,
+    @ColumnInfo(name = "reaction") var reaction: String? = null
 ) : ThreadItem() {
+
+    @androidx.room.Ignore var isReactionMessage: Boolean = false
 
     fun isReceivedMessage() = type == Telephony.Sms.MESSAGE_TYPE_INBOX
 

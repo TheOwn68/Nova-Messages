@@ -74,6 +74,9 @@ interface MessagesDao {
         deleteFromRecycleBin(id)
     }
 
+    @Query("UPDATE messages SET reaction = :reaction WHERE id = :id")
+    fun updateReaction(id: Long, reaction: String?)
+
     @Query("DELETE FROM messages WHERE id = :id")
     fun deleteFromMessages(id: Long)
 

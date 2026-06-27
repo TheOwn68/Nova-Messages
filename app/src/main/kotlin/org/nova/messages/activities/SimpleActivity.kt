@@ -110,7 +110,9 @@ open class SimpleActivity : BaseSimpleActivity() {
                 R.id.thread_sim_number,
                 R.id.thread_message_carrier_warning,
                 R.id.conversations_fab,
-                R.id.settings_gear
+                R.id.nav_home_icon,
+                R.id.nav_settings_icon,
+                R.id.nova_search_icon
             )
                              
             if (!excludedIds.contains(id)) {
@@ -205,19 +207,13 @@ open class SimpleActivity : BaseSimpleActivity() {
             
             // Force title tinting for main screen icons if they exist
             val topTextColor = config.topBarTextColor
-            findViewById<ImageView>(R.id.settings_gear)?.let {
-                it.visibility = View.VISIBLE
-                it.imageTintList = ColorStateList.valueOf(topTextColor)
-                if (useNewUi) {
-                    it.alpha = 0.4f
-                    it.elevation = 20 * density
-                    it.translationZ = 10 * density
-                    it.bringToFront()
-                } else {
-                    it.alpha = 1.0f
-                    it.elevation = 0f
-                    it.translationZ = 0f
-                }
+            findViewById<View>(R.id.nova_nav_container)?.let {
+                val inputBarTextColor = config.inputBarTextColor
+                findViewById<ImageView>(R.id.nav_home_icon)?.imageTintList = ColorStateList.valueOf(inputBarTextColor)
+                findViewById<ImageView>(R.id.nav_settings_icon)?.imageTintList = ColorStateList.valueOf(inputBarTextColor)
+                findViewById<ImageView>(R.id.nova_search_icon)?.imageTintList = ColorStateList.valueOf(inputBarTextColor)
+                findViewById<View>(R.id.nav_divider1)?.setBackgroundColor(inputBarTextColor.withAlpha(0.2f))
+                findViewById<View>(R.id.nav_divider2)?.setBackgroundColor(inputBarTextColor.withAlpha(0.2f))
             }
 
             findViewById<TextView>(R.id.conversations_fab)?.let {
@@ -265,7 +261,7 @@ open class SimpleActivity : BaseSimpleActivity() {
         titleText?.setTextColor(config.topBarTextColor)
         
         // 4. Apply input bar colors (Maintaining Rounded Shape)
-        val inputBar = findViewById<View>(R.id.nova_search_bar) ?: 
+        val inputBar = findViewById<View>(R.id.nova_nav_container) ?: 
                        findViewById<View>(R.id.nova_message_input_bar) ?:
                        findViewById<View>(R.id.new_conversation_search_container)
         if (inputBar != null) {
@@ -336,15 +332,6 @@ open class SimpleActivity : BaseSimpleActivity() {
         
         // Apply gear icon and plus button colors (Force 100% Sync with Top Bar Text, 70% Transparent)
         val topTextColor = config.topBarTextColor
-        findViewById<ImageView>(R.id.settings_gear)?.let {
-            it.imageTintList = ColorStateList.valueOf(topTextColor)
-            it.alpha = 0.3f // 70% transparent = 0.3 opacity
-            if (config.useNewUi) {
-                it.elevation = 12 * density
-                it.bringToFront()
-            }
-        }
-
         findViewById<TextView>(R.id.conversations_fab)?.let {
             it.setTextColor(topTextColor)
             it.alpha = 0.3f // 70% transparent = 0.3 opacity
@@ -566,10 +553,16 @@ open class SimpleActivity : BaseSimpleActivity() {
                                android.util.Log.e("SelectionBar", "Bar container NOT FOUND")
                                return
                            }
+
+        val newVisibility = if (show) View.VISIBLE else View.GONE
+        if (barContainer.visibility != newVisibility) {
+            barContainer.visibility = newVisibility
+            if (show) {
+                barContainer.alpha = 1f
+            }
+        }
+
         if (show) {
-            barContainer.visibility = View.VISIBLE
-            barContainer.alpha = 1f
-            
             val countText = findViewById<TextView>(R.id.selection_count)
             countText?.text = "$count selected"
             countText?.setTextColor(config.topBarTextColor)

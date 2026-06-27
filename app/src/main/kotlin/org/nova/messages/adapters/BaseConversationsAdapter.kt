@@ -1,7 +1,6 @@
 package org.nova.messages.adapters
 
 import android.annotation.SuppressLint
-import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Parcelable
@@ -54,11 +53,13 @@ abstract class BaseConversationsAdapter(
     private var isDragging = false
     private var initialDragPosition = -1
     private var lastTargetPosition = -1
+    private var hoveredPosition = -1
     private var pendingUpdate: ArrayList<Conversation>? = null
     private var pendingNotify = false
+    private var suppressStateRestoration = false
 
     private var fontSize = activity.getScaledTextSize()
-    private var iconSize = (activity as SimpleActivity).getScaledDimen(org.fossify.commons.R.dimen.list_icon_size_medium)
+    private var iconSize = activity.getScaledDimen(org.fossify.commons.R.dimen.list_icon_size_medium)
 
     private var recyclerViewState: Parcelable? = null
 
@@ -68,15 +69,15 @@ abstract class BaseConversationsAdapter(
 
         registerAdapterDataObserver(object : RecyclerView.AdapterDataObserver() {
             override fun onChanged() {
-                restoreRecyclerViewState()
+                if (!suppressStateRestoration) restoreRecyclerViewState()
                 updateCustomSelectionBar()
             }
             override fun onItemRangeMoved(fromPosition: Int, toPosition: Int, itemCount: Int) {
-                restoreRecyclerViewState()
+                if (!suppressStateRestoration) restoreRecyclerViewState()
             }
 
             override fun onItemRangeInserted(positionStart: Int, itemCount: Int) {
-                restoreRecyclerViewState()
+                if (!suppressStateRestoration) restoreRecyclerViewState()
             }
             
             override fun onItemRangeChanged(positionStart: Int, itemCount: Int) {
@@ -91,6 +92,7 @@ abstract class BaseConversationsAdapter(
 
     fun updateConversations(
         newConversations: ArrayList<Conversation>,
+        shouldSuppressStateRestoration: Boolean = false,
         commitCallback: (() -> Unit)? = null,
     ) {
         if (isDragging) {
@@ -98,8 +100,18 @@ abstract class BaseConversationsAdapter(
             return
         }
 
-        saveRecyclerViewState()
-        submitList(newConversations.toList(), commitCallback)
+        // OPTIMIZATION: Check if the list actually changed to avoid redundant DiffUtil work
+        if (currentList.size == newConversations.size && currentList.hashCode() == newConversations.hashCode()) {
+            commitCallback?.invoke()
+            return
+        }
+
+        suppressStateRestoration = shouldSuppressStateRestoration
+        if (!suppressStateRestoration) saveRecyclerViewState()
+        submitList(newConversations.toList()) {
+            commitCallback?.invoke()
+            suppressStateRestoration = false // Reset after update is committed
+        }
     }
 
     @SuppressLint("NotifyDataSetChanged")
@@ -175,6 +187,32 @@ abstract class BaseConversationsAdapter(
         return createViewHolder(binding.root)
     }
 
+    override fun onBindViewHolder(holder: ViewHolder, position: Int, payloads: MutableList<Any>) {
+        if (payloads.contains(HOVER_PAYLOAD)) {
+            if (activity.config.useNewUi && position >= 2) {
+                updatePillHoverState(holder, position)
+            }
+            return
+        }
+        super.onBindViewHolder(holder, position, payloads)
+    }
+
+    private fun updatePillHoverState(holder: ViewHolder, position: Int) {
+        val conversation = getItem(position)
+        org.nova.messages.databinding.ItemConversationPillBinding.bind(holder.itemView).apply {
+            val isSelected = selectedKeys.contains(conversation.hashCode())
+            val isHoverTarget = hoveredPosition == position
+            pillSelectionGlow.beVisibleIf(isSelected || isHoverTarget)
+            if (isHoverTarget) {
+                pillSelectionGlow.background?.applyColorFilter(properPrimaryColor)
+                pillSelectionGlow.alpha = 0.5f
+            } else {
+                pillSelectionGlow.background?.applyColorFilter(properPrimaryColor)
+                pillSelectionGlow.alpha = 1.0f
+            }
+        }
+    }
+
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val conversation = getItem(position)
         holder.bindView(
@@ -193,52 +231,126 @@ abstract class BaseConversationsAdapter(
 
     fun onDragStarted(position: Int) {
         if (!activity.config.useNewUi || position < 2) return
+        android.util.Log.d("DRAG_DEBUG", "Drag STARTED at position: $position")
         isDragging = true
         pendingNotify = false
         initialDragPosition = position
         lastTargetPosition = position
+        hoveredPosition = -1 // Reset hover target at start
+        
+        // Prevent the dragged View from being recycled by boosting the off-screen cache.
+        // This stops ItemTouchHelper from cancelling the drag if we scroll far from the origin.
+        recyclerView.setItemViewCacheSize(100)
+        
+        // Explicitly tell the LayoutManager/RecyclerView not to recycle the view we are holding
+        recyclerView.findViewHolderForAdapterPosition(position)?.setIsRecyclable(false)
     }
 
-    fun onItemSwapped(toPosition: Int) {
-        if (!isDragging || toPosition < 2) return
+    fun getInitialDragPosition() = initialDragPosition
+
+    fun updateHoverTarget(toPosition: Int) {
+        if (!isDragging || toPosition == hoveredPosition) return
         
-        // Instant visual swap for buttery smooth feedback
-        val list = currentList.toArrayList()
-        val from = lastTargetPosition
-        if (from != -1 && from < list.size && toPosition < list.size) {
-            java.util.Collections.swap(list, from, toPosition)
-            submitList(list)
+        // Block target detection for the top "Recent" cards (0 and 1)
+        val validTarget = if (toPosition >= 2 && toPosition != initialDragPosition) toPosition else -1
+        
+        val oldHover = hoveredPosition
+        hoveredPosition = validTarget
+        val newHover = hoveredPosition
+
+        // Wrap UI updates in post to avoid IllegalStateException during scroll/layout
+        recyclerView.post {
+            if (!isDragging) return@post
+            if (oldHover != -1) notifyItemChanged(oldHover, HOVER_PAYLOAD)
+            if (newHover != -1) notifyItemChanged(newHover, HOVER_PAYLOAD)
         }
-        
-        lastTargetPosition = toPosition
     }
 
     fun onDragEnded() {
-        if (!isDragging) return
+        if (!isDragging) {
+            android.util.Log.d("DRAG_DEBUG", "onDragEnded called but isDragging was FALSE (already handled or never started)")
+            return
+        }
         
+        // Save state immediately
         val start = initialDragPosition
-        val end = lastTargetPosition
-        
+        val end = hoveredPosition 
+        val oldHover = hoveredPosition
+
+        android.util.Log.d("DRAG_DEBUG", "Drag ENDED. Start: $start, End (Hover): $end")
+
+        // Immediately set isDragging to false to prevent multiple calls or interruptions
         isDragging = false
         initialDragPosition = -1
         lastTargetPosition = -1
+        hoveredPosition = -1
+
+        // Restore normal cache size
+        recyclerView.setItemViewCacheSize(2)
         
-        if (start != -1 && end != -1 && start != end) {
-            // Save the final order (The list is already visually swapped by onItemSwapped)
-            val others = currentList.drop(2)
-            activity.config.conversationOrder = others.joinToString(",") { it.threadId.toString() }
+        // Allow the previously dragged view to be recycled again
+        if (start != -1) {
+            recyclerView.findViewHolderForAdapterPosition(start)?.setIsRecyclable(true)
         }
 
-        // Process any refresh that happened during the drag
-        pendingUpdate?.let { 
-            val update = it
-            pendingUpdate = null
-            updateConversations(update)
-        }
-        
-        if (pendingNotify) {
-            pendingNotify = false
-            notifyDataSetChanged()
+        // Defer all UI updates to post to avoid IllegalStateException during scroll/layout
+        recyclerView.post {
+            // ... (rest of the post block remains the same)
+            // Clear visual hover states immediately
+            if (oldHover != -1) notifyItemChanged(oldHover, HOVER_PAYLOAD)
+            
+            // Force cleanup of the visual item view to prevent it getting stuck on screen
+            val cleanupView = { view: View ->
+                view.translationX = 0f
+                view.translationY = 0f
+                view.translationZ = 0f
+                view.scaleX = 1f
+                view.scaleY = 1f
+                view.elevation = 0f
+                view.alpha = 1f
+            }
+
+            if (start != -1) recyclerView.findViewHolderForAdapterPosition(start)?.itemView?.let { cleanupView(it) }
+            if (end != -1) recyclerView.findViewHolderForAdapterPosition(end)?.itemView?.let { cleanupView(it) }
+            
+            // Comprehensive pass on all visible children
+            for (i in 0 until recyclerView.childCount) {
+                recyclerView.getChildAt(i)?.let { cleanupView(it) }
+            }
+
+            if (start >= 2 && end >= 2 && start != end) {
+                // Atomic One-to-One Swap: Direct and Stable
+                val list = currentList.toArrayList()
+                if (start < list.size && end < list.size) {
+                    java.util.Collections.swap(list, start, end)
+                    
+                    // Save the final order
+                    val others = list.drop(2)
+                    activity.config.conversationOrder = others.joinToString(",") { it.threadId.toString() }
+                    
+                    // Finalize the list state with a fresh copy to ensure clean animations
+                    // SKIP state restoration here to prevent the "jump" and "flash"
+                    suppressStateRestoration = true
+                    submitList(list.toList()) {
+                        suppressStateRestoration = false
+                        // Visual cleanup
+                        notifyItemChanged(start, HOVER_PAYLOAD)
+                        notifyItemChanged(end, HOVER_PAYLOAD)
+                    }
+                }
+            }
+
+            // Process any refresh that happened during the drag
+            pendingUpdate?.let { 
+                val update = it
+                pendingUpdate = null
+                updateConversations(update)
+            }
+            
+            if (pendingNotify) {
+                pendingNotify = false
+                safeNotifyDataSetChanged()
+            }
         }
     }
 
@@ -278,10 +390,15 @@ abstract class BaseConversationsAdapter(
             val baseColor = activity.config.recentColor
             
             // Modern Vertical Gradient
-            val lightened = adjustColor(baseColor, 1.2f)
-            val darkened = adjustColor(baseColor, 0.8f)
+            val lightened = baseColor.adjustColor(1.2f)
+            val darkened = baseColor.adjustColor(0.8f)
             val gd = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(lightened, baseColor, darkened))
             gd.cornerRadius = 1000f
+            
+            if (activity.config.bigContactsOutline && activity.config.useNewUi) {
+                gd.setStroke((1.5 * resources.displayMetrics.density).toInt(), activity.config.bigContactsOutlineColor)
+            }
+
             recentFrame.background = gd
             
             // Hard Force Elevation (High Visibility)
@@ -346,10 +463,15 @@ abstract class BaseConversationsAdapter(
             }
             
             // Modern Vertical Gradient (Slightly Lighter for M3 look)
-            val lightened = adjustColor(baseColor, 1.2f)
-            val darkened = adjustColor(baseColor, 0.8f)
+            val lightened = baseColor.adjustColor(1.2f)
+            val darkened = baseColor.adjustColor(0.8f)
             val gd = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(lightened, baseColor, darkened))
             gd.cornerRadius = 1000f
+            
+            if (activity.config.smallContactsOutline && activity.config.useNewUi) {
+                gd.setStroke((1.5 * resources.displayMetrics.density).toInt(), activity.config.smallContactsOutlineColor)
+            }
+
             pillFrame.background = gd
             
             // Hard Force Elevation (High Visibility)
@@ -360,7 +482,15 @@ abstract class BaseConversationsAdapter(
 
             // Selection Glow
             val isSelected = selectedKeys.contains(conversation.hashCode())
-            pillSelectionGlow.beVisibleIf(isSelected)
+            val isHoverTarget = hoveredPosition == position
+            pillSelectionGlow.beVisibleIf(isSelected || isHoverTarget)
+            if (isHoverTarget) {
+                pillSelectionGlow.background?.applyColorFilter(properPrimaryColor)
+                pillSelectionGlow.alpha = 0.5f
+            } else {
+                pillSelectionGlow.background?.applyColorFilter(properPrimaryColor)
+                pillSelectionGlow.alpha = 1.0f
+            }
 
             pillFrame.setOnClickListener {
                 // Click Guard: If we just finished a drag, ignore this click
@@ -412,14 +542,6 @@ abstract class BaseConversationsAdapter(
                 placeholderName = conversation.title
             )
         }
-    }
-
-    private fun adjustColor(color: Int, factor: Float): Int {
-        val a = Color.alpha(color)
-        val r = Math.round(Color.red(color) * factor).coerceIn(0, 255)
-        val g = Math.round(Color.green(color) * factor).coerceIn(0, 255)
-        val b = Math.round(Color.blue(color) * factor).coerceIn(0, 255)
-        return Color.argb(a, r, g, b)
     }
 
     override fun getItemId(position: Int) = getItem(position).threadId
@@ -581,6 +703,7 @@ abstract class BaseConversationsAdapter(
     override fun onChange(position: Int) = currentList.getOrNull(position)?.title ?: ""
 
     private fun saveRecyclerViewState() {
+        if (suppressStateRestoration) return
         recyclerViewState = recyclerView.layoutManager?.onSaveInstanceState()
     }
 
@@ -591,11 +714,16 @@ abstract class BaseConversationsAdapter(
     }
 
     @SuppressLint("NotifyDataSetChanged")
-    fun safeNotifyDataSetChanged() {
+    fun safeNotifyDataSetChanged(shouldSuppressStateRestoration: Boolean = false) {
         if (isDragging) {
             pendingNotify = true
         } else {
+            suppressStateRestoration = shouldSuppressStateRestoration
             notifyDataSetChanged()
+            if (shouldSuppressStateRestoration) {
+                // Reset flag soon after notifyDataSetChanged starts processing
+                recyclerView.post { suppressStateRestoration = false }
+            }
         }
     }
 
@@ -619,5 +747,6 @@ abstract class BaseConversationsAdapter(
         const val VIEW_TYPE_DEFAULT = 0
         const val VIEW_TYPE_RECENT = 1
         const val VIEW_TYPE_PILL = 2
+        private const val HOVER_PAYLOAD = "hover_payload"
     }
 }

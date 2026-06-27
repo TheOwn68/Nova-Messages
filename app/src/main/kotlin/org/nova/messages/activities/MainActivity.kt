@@ -1,5 +1,8 @@
 package org.nova.messages.activities
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.app.role.RoleManager
 import android.content.Intent
@@ -11,6 +14,9 @@ import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AnimationUtils
+import android.view.animation.DecelerateInterpolator
+import android.view.animation.OvershootInterpolator
+import android.widget.LinearLayout
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.appcompat.widget.Toolbar
 import androidx.core.view.ViewCompat
@@ -40,8 +46,7 @@ import org.greenrobot.eventbus.ThreadMode
 
 class MainActivity : SimpleActivity() {
 
-    override var isSearchBarEnabled = false   // disable Nova search bar
-
+    override var isSearchBarEnabled = false
 
     private val MAKE_DEFAULT_APP_REQUEST = 1
     private var storedTextColor = 0
@@ -52,32 +57,26 @@ class MainActivity : SimpleActivity() {
     private var lastRefreshTime = 0L
     private var isInitialized = false
     private var wasImeVisible = false
+    private var isSearchExpanded = false
 
     private val binding by viewBinding(ActivityMainBinding::inflate)
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Force the app into light mode immediately so night resources won't make text white
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
-
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
 
-        // Nova title
         binding.novaTitle.text = "Nova Messages"
 
         setupEdgeToEdge(padBottomImeAndSystem = listOf(binding.conversationsList))
         setupSearchEdgeToEdge()
         setupTopAppBar(binding.mainAppbar, NavigationIcon.None, Color.TRANSPARENT)
 
-        // appLaunched(BuildConfig.APPLICATION_ID)
-
-        setupNovaSearchBar()
+        setupNovaNavBar()
         loadMessages()
         
-        // Background update check (New Clean Implementation)
         org.nova.messages.helpers.UpdateHelper.checkForUpdate(this)
 
-        // Keyboard Sync: Shrink search bar when keyboard goes down
         ViewCompat.setOnApplyWindowInsetsListener(binding.mainCoordinator) { _, insets ->
             val isImeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
             if (wasImeVisible && !isImeVisible && config.useNewUi && binding.novaSearchInput.text?.isEmpty() == true) {
@@ -91,10 +90,16 @@ class MainActivity : SimpleActivity() {
     override fun onResume() {
         super.onResume()
         isActivityVisible = true
+        applyOutlines()
 
         initMessenger()
-        // Force high-priority sync on resume to handle background incoming messages
-        syncConversations(ArrayList())
+        
+        val now = System.currentTimeMillis()
+        val currentAdapter = binding.conversationsList.adapter as? ConversationsAdapter
+        if (now - lastRefreshTime > 15000 || currentAdapter == null || currentAdapter.itemCount == 0) {
+            lastRefreshTime = now
+            syncConversations(ArrayList())
+        }
 
         val mainTextColor = config.mainTextColor
         getOrCreateConversationsAdapter().apply {
@@ -111,26 +116,20 @@ class MainActivity : SimpleActivity() {
             marginEnd = 12.getScaledPx()
         }
 
-        binding.settingsGear.updateLayoutParams<androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams> {
-            topMargin = 48.getScaledPx()
-        }
-
-        binding.novaSearchBar.updateLayoutParams {
+        binding.novaNavContainer.updateLayoutParams {
             height = 55.getScaledPx()
         }
 
         getOrCreateConversationsAdapter().updateScaling()
         applyCustomColors()
-        setupNovaSearchBar() // Force search bar to correct width on every resume
+        setupNovaNavBar()
 
         binding.conversationsFab.setTextColor(config.topBarTextColor)
-        binding.settingsGear.applyColorFilter(config.topBarTextColor)
         binding.novaSearchInput.setTextColor(config.inputBarTextColor)
         binding.novaSearchInput.setHintTextColor(config.inputBarTextColor.withAlpha(0.5f))
 
         if (isFirstResume && config.useNewUi) {
             isFirstResume = false
-            // Anchor at the top for stretching effect
             binding.mainAppbar.pivotY = 0f
             binding.mainAppbar.scaleY = 0.4f
             binding.mainAppbar.alpha = 0f
@@ -141,16 +140,12 @@ class MainActivity : SimpleActivity() {
                 .setInterpolator(android.view.animation.OvershootInterpolator(2.2f))
                 .start()
         }
-
-        android.util.Log.d("NAV_TRACE", "MainActivity.onResume finished")
     }
 
     override fun onPause() {
-        android.util.Log.d("NAV_TRACE", "MainActivity.onPause starting")
         super.onPause()
         isActivityVisible = false
         storedTextColor = getProperTextColor()
-        android.util.Log.d("NAV_TRACE", "MainActivity.onPause finished")
     }
 
     override fun onDestroy() {
@@ -158,135 +153,167 @@ class MainActivity : SimpleActivity() {
         bus?.unregister(this)
     }
 
-    // -----------------------------
-    // NOVA SEARCH BAR
-    // -----------------------------
-    private fun setupNovaSearchBar() {
+    private fun setupNovaNavBar() = binding.apply {
         if (config.useNewUi) {
-            val alwaysExpand = config.alwaysExpandSearchBar
+            novaNavContainer.beVisible()
             
-            // New UI: LargerCentered search bar that expands
-            binding.novaSearchBar.updateLayoutParams<androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams> {
-                width = if (alwaysExpand) androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams.MATCH_PARENT else 240.getScaledPx() 
+            // Apply compact width and transparency
+            novaNavContainer.updateLayoutParams<androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams> {
+                width = 240.getScaledPx()
                 gravity = android.view.Gravity.BOTTOM or android.view.Gravity.CENTER_HORIZONTAL
             }
-            binding.novaSearchBar.alpha = 0.95f // 95% opacity
-            binding.novaSearchBar.elevation = 10f * resources.displayMetrics.density
-            binding.novaSearchBar.translationZ = 4f
+            novaNavContainer.alpha = 0.92f
             
-            // Critical: Input must be enabled for text changes to fire, but not focusable until expansion
-            binding.novaSearchInput.isEnabled = true
-            binding.novaSearchInput.isFocusable = alwaysExpand
-            binding.novaSearchInput.isFocusableInTouchMode = alwaysExpand
+            // Set icon transparency
+            navHomeIcon.alpha = 0.9f // Lighter for active
+            navSettingsIcon.alpha = 0.6f
+            novaSearchIcon.alpha = 0.6f
             
-            binding.novaSearchBar.setOnClickListener {
-                if (!binding.novaSearchInput.isFocusable) {
-                    expandSearchBar()
-                } else {
-                    // Already expanded, ensure keyboard is shown if not visible
-                    showKeyboard(binding.novaSearchInput)
-                }
+            // Highlight Home (Current Screen) with subtle transparency
+            navHomeBtn.setBackgroundColor(Color.WHITE.withAlpha(0.1f))
+            
+            navSearchContainer.setOnClickListener {
+                if (!isSearchExpanded) expandSearchBar()
             }
             
-            // Allow clicking the input to expand as well
-            binding.novaSearchInput.setOnClickListener {
-                if (!binding.novaSearchInput.isFocusable) {
-                    expandSearchBar()
-                }
+            navSettingsBtn.setOnClickListener {
+                startActivity(Intent(this@MainActivity, SettingsActivity::class.java))
             }
             
-            // Shrink back when focus lost and empty
-            binding.novaSearchInput.setOnFocusChangeListener { _, hasFocus ->
-                if (!hasFocus && binding.novaSearchInput.text?.isEmpty() == true && !alwaysExpand) {
-                    shrinkSearchBar()
+            navHomeBtn.setOnClickListener {
+                binding.conversationsList.smoothScrollToPosition(0)
+            }
+
+            if (novaSearchInput.tag != "text_watcher_attached") {
+                novaSearchInput.addTextChangedListener { text ->
+                    searchTextChanged(text?.toString() ?: "")
                 }
+                novaSearchInput.tag = "text_watcher_attached"
+            }
+            
+            // Set initial state
+            if (!isSearchExpanded) {
+                navDivider1.beVisible()
+                navDivider2.beVisible()
+                navHomeBtn.beVisible()
+                navSettingsBtn.beVisible()
+                novaSearchInput.beGone()
+                
+                // Center search icon when collapsed
+                (novaSearchIcon.layoutParams as? LinearLayout.LayoutParams)?.marginStart = 0
+                navSearchContainer.gravity = android.view.Gravity.CENTER
             }
         } else {
-            // Classic UI: Full width, always focusable
-            binding.novaSearchBar.updateLayoutParams<androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams> {
-                width = androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams.MATCH_PARENT
-                gravity = android.view.Gravity.BOTTOM
-            }
-            binding.novaSearchBar.alpha = 1.0f
-            binding.novaSearchBar.elevation = 0f
-            binding.novaSearchBar.translationZ = 0f
-            
-            binding.novaSearchInput.isEnabled = true
-            binding.novaSearchInput.isFocusable = true
-            binding.novaSearchInput.isFocusableInTouchMode = true
-            
-            binding.novaSearchBar.setOnClickListener {
-                binding.novaSearchInput.requestFocus()
-                showKeyboard(binding.novaSearchInput)
-            }
-            binding.novaSearchInput.setOnClickListener(null)
-            binding.novaSearchInput.onFocusChangeListener = null
-        }
-        binding.novaSearchBar.requestLayout()
-
-        if (binding.novaSearchInput.tag != "text_watcher_attached") {
-            binding.novaSearchInput.addTextChangedListener { text ->
-                searchTextChanged(text?.toString() ?: "")
-            }
-            binding.novaSearchInput.tag = "text_watcher_attached"
+            novaNavContainer.beGone()
         }
     }
 
-    private fun expandSearchBar() {
-        val startWidth = binding.novaSearchBar.width
-        val endWidth = binding.mainCoordinator.width - 32.getScaledPx()
+    private fun expandSearchBar() = binding.apply {
+        if (isSearchExpanded) return@apply
+        isSearchExpanded = true
         
-        if (startWidth >= endWidth - 5) return // Already expanded
+        val startWidth = 240.getScaledPx()
+        val endWidth = root.width - 32.getScaledPx()
         
-        val animator = android.animation.ValueAnimator.ofInt(startWidth, endWidth)
-        animator.duration = 450 // Slightly longer for the bounce to feel natural
-        // OvershootInterpolator provides the "bounce at the end" effect
-        animator.interpolator = android.view.animation.OvershootInterpolator(1.2f)
+        val animator = ValueAnimator.ofFloat(0f, 1f)
+        animator.duration = 400
+        animator.interpolator = OvershootInterpolator(1.0f)
+        
         animator.addUpdateListener { animation ->
-            binding.novaSearchBar.updateLayoutParams {
-                width = animation.animatedValue as Int
-            }
+            val value = animation.animatedValue as Float
+            
+            // Expand width
+            val currentWidth = startWidth + ((endWidth - startWidth) * value).toInt()
+            novaNavContainer.updateLayoutParams { width = currentWidth }
+            
+            // Shrink side buttons weight
+            val weight = 1f - value
+            navHomeBtn.layoutParams = (navHomeBtn.layoutParams as LinearLayout.LayoutParams).apply { this.weight = weight }
+            navSettingsBtn.layoutParams = (navSettingsBtn.layoutParams as LinearLayout.LayoutParams).apply { this.weight = weight }
+            
+            // Expand search container weight
+            navSearchContainer.layoutParams = (navSearchContainer.layoutParams as LinearLayout.LayoutParams).apply { this.weight = 1f + (2f * value) }
+            
+            // Fade out dividers and side icons
+            navDivider1.alpha = 1f - value
+            navDivider2.alpha = 1f - value
+            navHomeIcon.alpha = 0.9f * (1f - value)
+            navSettingsIcon.alpha = 0.6f * (1f - value)
+            
+            // Move search icon to start
+            navSearchContainer.gravity = if (value > 0.5f) android.view.Gravity.CENTER_VERTICAL else android.view.Gravity.CENTER
+            (novaSearchIcon.layoutParams as? LinearLayout.LayoutParams)?.marginStart = (12.getScaledPx() * value).toInt()
+            
+            novaNavContainer.requestLayout()
         }
-        animator.addListener(object : android.animation.AnimatorListenerAdapter() {
-            override fun onAnimationEnd(animation: android.animation.Animator) {
-                binding.novaSearchInput.isFocusable = true
-                binding.novaSearchInput.isFocusableInTouchMode = true
-                binding.novaSearchInput.requestFocus()
-                showKeyboard(binding.novaSearchInput)
+        
+        animator.addListener(object : AnimatorListenerAdapter() {
+            override fun onAnimationStart(animation: Animator) {
+                novaNavContainer.alpha = 1.0f // Solid when searching
+            }
+            override fun onAnimationEnd(animation: Animator) {
+                navHomeBtn.beGone()
+                navSettingsBtn.beGone()
+                navDivider1.beGone()
+                navDivider2.beGone()
+                novaSearchInput.beVisible()
+                novaSearchInput.requestFocus()
+                showKeyboard(novaSearchInput)
             }
         })
         animator.start()
     }
 
-    private fun shrinkSearchBar() {
-        if (config.alwaysExpandSearchBar) return
-
-        val startWidth = binding.novaSearchBar.width
+    private fun shrinkSearchBar() = binding.apply {
+        if (!isSearchExpanded) return@apply
+        isSearchExpanded = false
+        
+        navHomeBtn.beVisible()
+        navSettingsBtn.beVisible()
+        navDivider1.beVisible()
+        navDivider2.beVisible()
+        novaSearchInput.beGone()
+        hideKeyboard()
+        
+        val startWidth = novaNavContainer.width
         val endWidth = 240.getScaledPx()
         
-        if (startWidth <= endWidth + 5) return // Already shrunk
+        val animator = ValueAnimator.ofFloat(1f, 0f)
+        animator.duration = 300
+        animator.interpolator = DecelerateInterpolator()
         
-        val animator = android.animation.ValueAnimator.ofInt(startWidth, endWidth)
-        animator.duration = 300 // Slightly slower shrink for smoothness
-        animator.interpolator = android.view.animation.DecelerateInterpolator()
         animator.addUpdateListener { animation ->
-            binding.novaSearchBar.updateLayoutParams {
-                width = animation.animatedValue as Int
-            }
+            val value = animation.animatedValue as Float
+            
+            // Shrink width
+            val currentWidth = endWidth + ((startWidth - endWidth) * value).toInt()
+            novaNavContainer.updateLayoutParams { width = currentWidth }
+            
+            val weight = 1f - value
+            navHomeBtn.layoutParams = (navHomeBtn.layoutParams as LinearLayout.LayoutParams).apply { this.weight = weight }
+            navSettingsBtn.layoutParams = (navSettingsBtn.layoutParams as LinearLayout.LayoutParams).apply { this.weight = weight }
+            navSearchContainer.layoutParams = (navSearchContainer.layoutParams as LinearLayout.LayoutParams).apply { this.weight = 1f + (2f * value) }
+            
+            navDivider1.alpha = 1f - value
+            navDivider2.alpha = 1f - value
+            navHomeIcon.alpha = 0.9f * (1f - value)
+            navSettingsIcon.alpha = 0.6f * (1f - value)
+            
+            // Recenter search icon
+            navSearchContainer.gravity = if (value < 0.5f) android.view.Gravity.CENTER else android.view.Gravity.CENTER_VERTICAL
+            (novaSearchIcon.layoutParams as? LinearLayout.LayoutParams)?.marginStart = (12.getScaledPx() * value).toInt()
+            
+            novaNavContainer.requestLayout()
         }
-        animator.addListener(object : android.animation.AnimatorListenerAdapter() {
-            override fun onAnimationEnd(animation: android.animation.Animator) {
-                binding.novaSearchInput.isFocusable = false
-                binding.novaSearchInput.isFocusableInTouchMode = false
-                hideKeyboard()
+        
+        animator.addListener(object : AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: Animator) {
+                novaNavContainer.alpha = 0.92f // Less transparent when idle
             }
         })
         animator.start()
     }
 
-    // -----------------------------
-    // DEFAULT SMS APP + PERMISSIONS
-    // -----------------------------
     private fun loadMessages() {
         if (isQPlus()) {
             val roleManager = getSystemService(RoleManager::class.java)
@@ -368,25 +395,15 @@ class MainActivity : SimpleActivity() {
         }
     }
 
-    // -----------------------------
-    // LOADING + DISPLAYING MESSAGES
-    // -----------------------------
-    private fun initMessenger() {
+    private fun initMessenger(isManualReorder: Boolean = false) {
         if (isFinishing || isDestroyed) return
-        
-        // Removed 1000ms throttle to ensure immediate loading on launch
-        // val now = System.currentTimeMillis()
-        // if (now - lastRefreshTime < 1000) return
-        // lastRefreshTime = now
-
         try {
             if (!isInitialized) {
                 setupOneTimeViews()
                 isInitialized = true
             }
-
             checkWhatsNewDialog()
-            getCachedConversations()
+            getCachedConversations(isManualReorder)
         } catch (e: Exception) {
             android.util.Log.e("MainActivity", "Failed to init messenger during transition", e)
         }
@@ -395,19 +412,17 @@ class MainActivity : SimpleActivity() {
     private fun setupOneTimeViews() {
         binding.noConversationsPlaceholder2.setOnClickListener { launchNewConversation() }
         binding.conversationsFab.setOnClickListener { launchNewConversation() }
-        binding.settingsGear.setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
 
         val fabAnim = AnimationUtils.loadAnimation(this, R.anim.fab_in)
         binding.conversationsFab.startAnimation(fabAnim)
-        binding.settingsGear.startAnimation(fabAnim)
 
         val searchAnim = AnimationUtils.loadAnimation(this, R.anim.slide_in_bottom)
-        binding.novaSearchBar.startAnimation(searchAnim)
+        binding.novaNavContainer.startAnimation(searchAnim)
 
         binding.novaSearchInput.setTextSize(TypedValue.COMPLEX_UNIT_PX, getScaledTextSize())
     }
 
-    private fun getCachedConversations() {
+    private fun getCachedConversations(isManualReorder: Boolean = false) {
         ensureBackgroundThread {
             val conversations = try {
                 conversationsDB.getNonArchived().toMutableList() as ArrayList<Conversation>
@@ -417,38 +432,26 @@ class MainActivity : SimpleActivity() {
 
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
-                setupConversations(conversations, cached = true)
-                syncConversations((conversations + archived).toMutableList() as ArrayList<Conversation>)
+                setupConversations(conversations, cached = true, isManualReorder = isManualReorder)
+                syncConversations((conversations + archived).toMutableList() as ArrayList<Conversation>, isManualReorder = isManualReorder)
+                applyOutlines()
             }
 
             conversations.forEach { clearExpiredScheduledMessages(it.threadId) }
         }
     }
 
-    private fun syncConversations(cached: ArrayList<Conversation>) {
+    private fun syncConversations(cached: ArrayList<Conversation>, isManualReorder: Boolean = false) {
         val privateCursor = getMyContactsCursor(favoritesOnly = false, withPhoneNumbersOnly = true)
         ensureBackgroundThread {
             val privateContacts = MyContactsContentProvider.getSimpleContacts(this, privateCursor)
             val conversations = getConversations(privateContacts = privateContacts)
-
-            conversations.forEach { conv ->
-                // ALWAYS insert or update to get latest date and snippet from system Telephony provider
-                insertOrUpdateConversation(conv)
-            }
-
+            insertOrUpdateConversations(conversations)
             val all = conversationsDB.getNonArchived() as ArrayList<Conversation>
             runOnUiThread { 
                 if (!isFinishing && !isDestroyed) {
-                    setupConversations(all)
-                }
-            }
-
-            if (config.appRunCount == 1) {
-                conversations.map { it.threadId }.forEach { threadId ->
-                    val messages = getMessages(threadId, includeScheduledMessages = false)
-                    messages.chunked(30).forEach { chunk ->
-                        messagesDB.insertMessages(*chunk.toTypedArray())
-                    }
+                    setupConversations(all, isManualReorder = isManualReorder)
+                    applyOutlines()
                 }
             }
         }
@@ -470,47 +473,45 @@ class MainActivity : SimpleActivity() {
         return curr as ConversationsAdapter
     }
 
-    private fun setupConversations(conversations: ArrayList<Conversation>, cached: Boolean = false) {
+    private fun setupConversations(conversations: ArrayList<Conversation>, cached: Boolean = false, isManualReorder: Boolean = false) {
         val useNewUi = config.useNewUi
-        
-        // Force adapter reset if UI mode changed
         val currentAdapter = binding.conversationsList.adapter as? ConversationsAdapter
         if (currentAdapter != null && currentAdapter.itemCount > 0) {
              val isCurrentlyNewUi = binding.conversationsList.layoutManager is androidx.recyclerview.widget.GridLayoutManager
              if (isCurrentlyNewUi != useNewUi) {
                  binding.conversationsList.adapter = null
-                 // Clear all decorations when switching UI modes
                  while (binding.conversationsList.itemDecorationCount > 0) {
                      binding.conversationsList.removeItemDecorationAt(0)
                  }
              }
         }
 
-        // Sorting logic based on UI mode
         val sorted = if (useNewUi) {
-            // For new UI: Top 2 are absolute most recent duplicates, others follow manual order or latest
             val allSortedByDate = conversations.sortedByDescending { it.date }
             if (allSortedByDate.isEmpty()) {
                 allSortedByDate
             } else {
                 val top2 = allSortedByDate.take(2)
+                val remaining = allSortedByDate.filter { conv -> !top2.any { it.threadId == conv.threadId } }
                 
-                // Load manual order if exists
-                val manualOrder = config.conversationOrder.split(",").filter { it.isNotEmpty() }.map { it.toLong() }
-                val manuallySortedOthers = ArrayList<Conversation>()
-                
-                // Add those in manual order first
-                manualOrder.forEach { id ->
-                    conversations.find { it.threadId == id }?.let { manuallySortedOthers.add(it) }
-                }
-                
-                // Add any leftovers not in manual order
-                allSortedByDate.forEach { conv ->
-                    if (!manuallySortedOthers.any { it.threadId == conv.threadId }) {
-                        manuallySortedOthers.add(conv)
+                val sortedPills = when (config.contactSortingMode) {
+                    1 -> remaining.sortedBy { it.title.lowercase() }
+                    2 -> remaining.sortedByDescending { it.date }
+                    else -> {
+                        val manualOrder = config.conversationOrder.split(",").filter { it.isNotEmpty() }.map { it.toLong() }
+                        val manuallySorted = ArrayList<Conversation>()
+                        manualOrder.forEach { id ->
+                            remaining.find { it.threadId == id }?.let { manuallySorted.add(it) }
+                        }
+                        remaining.forEach { conv ->
+                            if (!manuallySorted.any { it.threadId == conv.threadId }) {
+                                manuallySorted.add(conv)
+                            }
+                        }
+                        manuallySorted
                     }
                 }
-                top2 + manuallySortedOthers
+                top2 + sortedPills
             }
         } else {
             conversations.sortedWith(
@@ -526,28 +527,19 @@ class MainActivity : SimpleActivity() {
             showOrHidePlaceholder(conversations.isEmpty())
         }
 
-        // Setup LayoutManager
         if (useNewUi) {
             if (binding.conversationsList.layoutManager !is androidx.recyclerview.widget.GridLayoutManager) {
                 val gm = androidx.recyclerview.widget.GridLayoutManager(this, 2)
                 gm.spanSizeLookup = object : androidx.recyclerview.widget.GridLayoutManager.SpanSizeLookup() {
-                    override fun getSpanSize(position: Int): Int {
-                        return if (position < 2) 2 else 1
-                    }
+                    override fun getSpanSize(position: Int): Int = if (position < 2) 2 else 1
                 }
                 binding.conversationsList.layoutManager = gm
-                
-                // Add ItemDecoration for spacing between Top 2 and Grid
                 binding.conversationsList.addItemDecoration(object : androidx.recyclerview.widget.RecyclerView.ItemDecoration() {
                     override fun getItemOffsets(outRect: android.graphics.Rect, view: View, parent: androidx.recyclerview.widget.RecyclerView, state: androidx.recyclerview.widget.RecyclerView.State) {
                         val position = parent.getChildAdapterPosition(view)
-                        if (position == 2 || position == 3) {
-                            outRect.top = 32.getScaledPx() // Increased spacing between Recent and Pills
-                        }
+                        if (position == 2 || position == 3) outRect.top = 32.getScaledPx()
                     }
                 })
-
-                // Attach Drag & Drop
                 val callback = org.nova.messages.helpers.ModernDragCallback(getOrCreateConversationsAdapter())
                 val touchHelper = androidx.recyclerview.widget.ItemTouchHelper(callback)
                 touchHelper.attachToRecyclerView(binding.conversationsList)
@@ -561,7 +553,7 @@ class MainActivity : SimpleActivity() {
 
         try {
             getOrCreateConversationsAdapter().apply {
-                updateConversations(sorted) {
+                updateConversations(sorted, shouldSuppressStateRestoration = isManualReorder) {
                     if (!cached) showOrHidePlaceholder(currentList.isEmpty())
                 }
             }
@@ -585,8 +577,8 @@ class MainActivity : SimpleActivity() {
     }
 
     @SuppressLint("NotifyDataSetChanged")
-    private fun notifyDatasetChanged() {
-        getOrCreateConversationsAdapter().safeNotifyDataSetChanged()
+    private fun notifyDatasetChanged(isManualReorder: Boolean = false) {
+        getOrCreateConversationsAdapter().safeNotifyDataSetChanged(shouldSuppressStateRestoration = isManualReorder)
     }
 
     private fun handleConversationClick(any: Any) {
@@ -598,26 +590,17 @@ class MainActivity : SimpleActivity() {
         }
     }
 
-    private fun handleLongClick(any: Any) {
-        // Not used
-    }
-
     private fun launchNewConversation() {
         hideKeyboard()
         startActivity(Intent(this, NewConversationActivity::class.java))
     }
 
-    // -----------------------------
-    // SEARCH RESULTS
-    // -----------------------------
     private fun searchTextChanged(text: String) {
         lastSearchedText = text
-
         if (text.length >= 2) {
             binding.mainNestedScrollview.getChildAt(0).beGone()
             binding.searchHolder.beVisible()
             binding.searchHolder.animate().alpha(1f).setDuration(200L).start()
-
             ensureBackgroundThread {
                 val searchQuery = "%$text%"
                 val messages = messagesDB.getMessagesWithText(searchQuery)
@@ -635,80 +618,34 @@ class MainActivity : SimpleActivity() {
         ViewCompat.setOnApplyWindowInsetsListener(binding.novaSearchInput) { _, insets ->
             val imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime())
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-
-            binding.novaSearchBar.updateLayoutParams<androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams> {
-                bottomMargin = if (imeInsets.bottom > 0) {
-                    imeInsets.bottom + 16.getScaledPx()
-                } else {
-                    systemBars.bottom + 16.getScaledPx()
-                }
+            binding.novaNavContainer.updateLayoutParams<androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams> {
+                bottomMargin = (if (imeInsets.bottom > 0) imeInsets.bottom else systemBars.bottom) + 16.getScaledPx()
             }
             insets
         }
     }
 
-    private fun showSearchResults(
-        messages: List<Message>,
-        conversations: List<Conversation>,
-        searchedText: String
-    ) {
+    private fun showSearchResults(messages: List<Message>, conversations: List<Conversation>, searchedText: String) {
         val results = ArrayList<SearchResult>()
-
         conversations.forEach { conv ->
-            val date = (conv.date * 1000L).formatDateOrTime(
-                context = this,
-                hideTimeOnOtherDays = true,
-                showCurrentYear = true
-            )
-            results.add(
-                SearchResult(
-                    messageId = -1,
-                    title = conv.title,
-                    snippet = conv.phoneNumber,
-                    date = date,
-                    threadId = conv.threadId,
-                    photoUri = conv.photoUri
-                )
-            )
+            val date = (conv.date * 1000L).formatDateOrTime(context = this, hideTimeOnOtherDays = true, showCurrentYear = true)
+            results.add(SearchResult(messageId = -1, title = conv.title, snippet = conv.phoneNumber, date = date, threadId = conv.threadId, photoUri = conv.photoUri))
         }
-
         messages.sortedByDescending { it.id }.forEach { msg ->
             var recipient = msg.senderName
             if (recipient.isEmpty() && msg.participants.isNotEmpty()) {
                 recipient = TextUtils.join(", ", msg.participants.map { it.name })
             }
-
-            val date = (msg.date * 1000L).formatDateOrTime(
-                context = this,
-                hideTimeOnOtherDays = true,
-                showCurrentYear = true
-            )
-
-            results.add(
-                SearchResult(
-                    messageId = msg.id,
-                    title = recipient,
-                    snippet = msg.body,
-                    date = date,
-                    threadId = msg.threadId,
-                    photoUri = msg.senderPhotoUri
-                )
-            )
+            val date = (msg.date * 1000L).formatDateOrTime(context = this, hideTimeOnOtherDays = true, showCurrentYear = true)
+            results.add(SearchResult(messageId = msg.id, title = recipient, snippet = msg.body, date = date, threadId = msg.threadId, photoUri = msg.senderPhotoUri))
         }
-
         runOnUiThread {
             if (isFinishing || isDestroyed) return@runOnUiThread
             binding.searchPlaceholder.beGoneIf(results.isNotEmpty())
             binding.searchPlaceholder2.beGoneIf(results.isNotEmpty())
-
             val curr = binding.searchResultsList.adapter
             if (curr == null) {
-                SearchResultsAdapter(
-                    this,
-                    results,
-                    binding.searchResultsList,
-                    searchedText
-                ) {
+                SearchResultsAdapter(this, results, binding.searchResultsList, searchedText) {
                     hideKeyboard()
                     Intent(this, ThreadActivity::class.java).apply {
                         putExtra(THREAD_ID, (it as SearchResult).threadId)
@@ -716,28 +653,58 @@ class MainActivity : SimpleActivity() {
                         putExtra(SEARCHED_MESSAGE_ID, it.messageId)
                         startActivity(this)
                     }
-                }.also {
-                    binding.searchResultsList.adapter = it
-                }
+                }.also { binding.searchResultsList.adapter = it }
             } else {
                 (curr as SearchResultsAdapter).updateItems(results, searchedText)
             }
         }
     }
 
-    // -----------------------------
-    // SHORTCUTS + WHATS NEW
-    // -----------------------------
     @Subscribe(threadMode = ThreadMode.MAIN)
     fun refreshConversations(@Suppress("unused") event: Events.RefreshConversations) {
         if (isActivityVisible && !isFinishing && !isDestroyed) {
-            initMessenger()
+            initMessenger(isManualReorder = event.isManualReorder)
         }
     }
 
-    private fun checkWhatsNewDialog() {
-        // arrayListOf<org.fossify.commons.models.Release>().apply {
-        //     checkWhatsNew(this, BuildConfig.VERSION_CODE)
-        // }
+    private fun checkWhatsNewDialog() {}
+
+    private fun applyOutlines() = binding.apply {
+        val density = resources.displayMetrics.density
+        val thickStroke = (2.5 * density).toInt()
+        val inputBarTextColor = config.inputBarTextColor
+        
+        if (config.topBarOutline && config.useNewUi) {
+            val r26 = 26f * density
+            val drawable = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                setStroke(thickStroke, config.topBarOutlineColor)
+                setColor(Color.TRANSPARENT)
+                // Match the 26dp bottom corners of the modern top bar
+                cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, r26, r26, r26, r26)
+            }
+            binding.mainAppbar.foreground = drawable
+        } else {
+            binding.mainAppbar.foreground = null
+        }
+
+        if (config.searchBarOutline && config.useNewUi) {
+            val drawable = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                setStroke(thickStroke, config.searchBarOutlineColor)
+                cornerRadius = 100f * density
+                setColor(Color.TRANSPARENT)
+            }
+            binding.novaNavContainer.foreground = drawable
+            
+            // Sync icon and divider colors with search bar text color
+            binding.navHomeIcon.imageTintList = android.content.res.ColorStateList.valueOf(inputBarTextColor)
+            binding.navSettingsIcon.imageTintList = android.content.res.ColorStateList.valueOf(inputBarTextColor)
+            binding.novaSearchIcon.imageTintList = android.content.res.ColorStateList.valueOf(inputBarTextColor)
+            binding.navDivider1.setBackgroundColor(inputBarTextColor.withAlpha(0.2f))
+            binding.navDivider2.setBackgroundColor(inputBarTextColor.withAlpha(0.2f))
+        } else {
+            binding.novaNavContainer.foreground = null
+        }
     }
 }

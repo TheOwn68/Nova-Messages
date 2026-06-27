@@ -74,8 +74,8 @@ class ContactsAdapter(
 
     override fun onBindViewHolder(holder: MyRecyclerViewListAdapter<Any>.ViewHolder, position: Int) {
         val item = getItem(position)
-        if (getItemViewType(position) == VIEW_TYPE_SUGGESTION) {
-            setupSuggestionView(holder.itemView, item as ConversationListItem, holder)
+        if (getItemViewType(position) == VIEW_TYPE_SUGGESTION && item is ConversationListItem) {
+            setupSuggestionView(holder.itemView, item, holder)
         } else {
             setupContactView(holder.itemView, item, holder)
         }

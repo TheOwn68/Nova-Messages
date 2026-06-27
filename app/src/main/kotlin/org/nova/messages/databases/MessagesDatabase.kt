@@ -14,11 +14,13 @@ import org.nova.messages.interfaces.ConversationsDao
 import org.nova.messages.interfaces.DraftsDao
 import org.nova.messages.interfaces.MessageAttachmentsDao
 import org.nova.messages.interfaces.MessagesDao
+import org.nova.messages.interfaces.ReactionsDao
 import org.nova.messages.models.Attachment
 import org.nova.messages.models.Conversation
 import org.nova.messages.models.Draft
 import org.nova.messages.models.Message
 import org.nova.messages.models.MessageAttachment
+import org.nova.messages.models.Reaction
 import org.nova.messages.models.RecycleBinMessage
 
 @Database(
@@ -28,9 +30,10 @@ import org.nova.messages.models.RecycleBinMessage
         MessageAttachment::class,
         Message::class,
         RecycleBinMessage::class,
-        Draft::class
+        Draft::class,
+        Reaction::class
     ],
-    version = 10
+    version = 12
 )
 @TypeConverters(Converters::class)
 abstract class MessagesDatabase : RoomDatabase() {
@@ -44,6 +47,8 @@ abstract class MessagesDatabase : RoomDatabase() {
     abstract fun MessagesDao(): MessagesDao
 
     abstract fun DraftsDao(): DraftsDao
+
+    abstract fun ReactionsDao(): ReactionsDao
 
     companion object {
         private var db: MessagesDatabase? = null
@@ -67,11 +72,25 @@ abstract class MessagesDatabase : RoomDatabase() {
                             .addMigrations(MIGRATION_7_8)
                             .addMigrations(MIGRATION_8_9)
                             .addMigrations(MIGRATION_9_10)
+                            .addMigrations(MIGRATION_10_11)
+                            .addMigrations(MIGRATION_11_12)
                             .build()
                     }
                 }
             }
             return db!!
+        }
+
+        private val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `reactions` (`message_id` INTEGER NOT NULL, `is_mms` INTEGER NOT NULL, `thread_id` INTEGER NOT NULL, `emoji` TEXT NOT NULL, PRIMARY KEY(`message_id`, `is_mms`))")
+            }
+        }
+
+        private val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE messages ADD COLUMN reaction TEXT")
+            }
         }
 
         private val MIGRATION_1_2 = object : Migration(1, 2) {

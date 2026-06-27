@@ -65,6 +65,7 @@ import org.nova.messages.interfaces.ConversationsDao
 import org.nova.messages.interfaces.DraftsDao
 import org.nova.messages.interfaces.MessageAttachmentsDao
 import org.nova.messages.interfaces.MessagesDao
+import org.nova.messages.interfaces.ReactionsDao
 import org.nova.messages.messaging.MessagingUtils
 import org.nova.messages.messaging.MessagingUtils.Companion.ADDRESS_SEPARATOR
 import org.nova.messages.messaging.SmsSender
@@ -96,6 +97,9 @@ val Context.messageAttachmentsDB: MessageAttachmentsDao
 
 val Context.messagesDB: MessagesDao
     get() = getMessagesDB().MessagesDao()
+
+val Context.reactionsDB: ReactionsDao
+    get() = getMessagesDB().ReactionsDao()
 
 val Context.draftsDB: DraftsDao
     get() = getMessagesDB().DraftsDao()
@@ -1215,15 +1219,31 @@ fun Context.updateLastConversationMessage(threadIds: Iterable<Long>) {
         "1 = 0" // always-false condition, because we don't actually want to delete any messages
     try {
         contentResolver.delete(uri, selection, null)
-        for (threadId in threadIds) {
-            val systemConvs = getConversations(threadId)
-            if (systemConvs.isNotEmpty()) {
-                val newConversation = systemConvs[0]
-                insertOrUpdateConversation(newConversation)
-            }
+        val allSystemConvs = getConversations()
+        val toUpdate = allSystemConvs.filter { it.threadId in threadIds }
+        if (toUpdate.isNotEmpty()) {
+            insertOrUpdateConversations(toUpdate)
         }
     } catch (_: Exception) {
     }
+}
+
+fun Context.insertOrUpdateConversations(conversations: List<Conversation>) {
+    val existing = conversationsDB.getNonArchived().associateBy { it.threadId }
+    val updated = conversations.map { conv ->
+        val cachedConv = existing[conv.threadId]
+        var updatedConv = conv
+        if (cachedConv != null) {
+            if (cachedConv.date > updatedConv.date) {
+                updatedConv.date = cachedConv.date
+            }
+            if (cachedConv.usesCustomTitle) {
+                updatedConv = updatedConv.copy(title = cachedConv.title, usesCustomTitle = true)
+            }
+        }
+        updatedConv
+    }
+    conversationsDB.insertOrUpdateAll(updated)
 }
 
 fun Context.getFileSizeFromUri(uri: Uri): Long {
