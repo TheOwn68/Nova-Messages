@@ -30,8 +30,12 @@ data class Message(
 ) : ThreadItem() {
 
     @androidx.room.Ignore var isReactionMessage: Boolean = false
+    @androidx.room.Ignore var reactionDate: Int = 0
 
-    fun isReceivedMessage() = type == Telephony.Sms.MESSAGE_TYPE_INBOX
+    fun isReceivedMessage(): Boolean {
+        // SMS Inbox = 1, MMS Inbox = 1. SENT = 2.
+        return type == Telephony.Sms.MESSAGE_TYPE_INBOX || type == 1
+    }
 
     fun millis() = date * 1000L
 
@@ -66,7 +70,8 @@ data class Message(
                 old.senderName == new.senderName &&
                 old.senderPhotoUri == new.senderPhotoUri &&
                 old.isScheduled == new.isScheduled &&
-                old.status == new.status
+                old.status == new.status &&
+                old.reaction == new.reaction
         }
     }
 }

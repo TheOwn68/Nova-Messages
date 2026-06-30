@@ -2,15 +2,18 @@ package org.nova.messages.dialogs
 
 import android.content.Context
 import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
-import android.widget.PopupWindow
 import android.widget.TextView
-import org.fossify.commons.extensions.applyColorFilter
+import android.widget.FrameLayout
+import com.google.android.material.bottomsheet.BottomSheetDialog
+import org.nova.messages.R
 import org.nova.messages.extensions.config
 
 class ReactionPickerDialog(
@@ -18,74 +21,126 @@ class ReactionPickerDialog(
     private val anchor: View,
     private val onReactionSelected: (String) -> Unit
 ) {
-    private val popupWindow: PopupWindow
+    private val dialog: BottomSheetDialog
     private val emojis = listOf("👍", "❤️", "😂", "😮", "😢", "😡", "👎", "⁉️", "❓", "🔥", "💯", "👏", "✅", "🎉")
 
     init {
+        val density = context.resources.displayMetrics.density
+        val config = context.config
+        val isNewUi = config.useNewUi
+        
+        val barColor = if (config.topBarColor != 0) config.topBarColor else Color.BLACK
+        val barRadius = 26 * density
+        // Use Top Bar outline thickness for the picker as well
+        val thickStroke = (config.topBarOutlineThickness * density).toInt()
+        
+        val root = FrameLayout(context).apply {
+            layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            setPadding(0, 0, 0, (24 * density).toInt())
+        }
+
+        val pill = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            
+            val background = if (isNewUi) {
+                val lightened = adjustColor(barColor, 1.2f)
+                val darkened = adjustColor(barColor, 0.8f)
+                GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(lightened, barColor, darkened)).apply {
+                    shape = GradientDrawable.RECTANGLE
+                    cornerRadius = barRadius + thickStroke
+                    
+                    if (config.topBarOutline) {
+                        setStroke(thickStroke * 2, config.topBarOutlineColor)
+                    }
+                }
+            } else {
+                GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    cornerRadius = barRadius
+                    setColor(barColor)
+                }
+            }
+            
+            if (isNewUi && config.topBarOutline) {
+                val layerDrawable = LayerDrawable(arrayOf(background))
+                val inset = -thickStroke + 1
+                layerDrawable.setLayerInset(0, inset, inset, inset, inset)
+                this.background = layerDrawable
+            } else {
+                this.background = background
+            }
+            
+            elevation = 14 * density
+            
+            val pillWidth = (440 * density * config.uiScale).toInt()
+            layoutParams = FrameLayout.LayoutParams(pillWidth, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                gravity = Gravity.CENTER_HORIZONTAL
+            }
+        }
+        root.addView(pill)
+
         val container = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
-            val padding = (8 * context.resources.displayMetrics.density).toInt()
-            setPadding(padding, padding, padding, padding)
+            val px = (12 * density).toInt()
+            setPadding(px, 0, px, 0)
+            gravity = Gravity.CENTER
+            layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, (60 * density * config.uiScale).toInt())
         }
 
         val scrollView = HorizontalScrollView(context).apply {
-            layoutParams = ViewGroup.LayoutParams(
-                (280 * context.resources.displayMetrics.density).toInt(), // Max width to ensure it doesn't go off screen
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
             isHorizontalScrollBarEnabled = false
             overScrollMode = View.OVER_SCROLL_NEVER
-            
-            background = context.getDrawable(org.fossify.commons.R.drawable.pill_background).apply {
-                // Background color same as top bar
-                val color = if (context.config.topBarColor != 0) context.config.topBarColor else context.config.primaryColor
-                this?.applyColorFilter(color)
-            }
-            elevation = 10 * context.resources.displayMetrics.density
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
             addView(container)
         }
+        pill.addView(scrollView)
 
         emojis.forEach { emoji ->
             val textView = TextView(context).apply {
                 text = emoji
-                textSize = 24f
-                val paddingEmoji = (12 * context.resources.displayMetrics.density).toInt()
-                setPadding(paddingEmoji, paddingEmoji, paddingEmoji, paddingEmoji)
+                textSize = 32f * config.uiScale
+                val p = (8 * density).toInt()
+                setPadding(p, 0, p, 0)
+                gravity = Gravity.CENTER
                 isClickable = true
-                focusable = View.FOCUSABLE
-                setTextColor(Color.WHITE)
+                isFocusable = true
                 
                 setOnClickListener {
                     onReactionSelected(emoji)
-                    popupWindow.dismiss()
+                    dialog.dismiss()
                 }
             }
             container.addView(textView)
         }
 
-        popupWindow = PopupWindow(
-            scrollView,
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            true
-        ).apply {
-            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-            elevation = 15f
-            isOutsideTouchable = true
+        dialog = BottomSheetDialog(context, R.style.TransparentBottomSheetDialogTheme)
+        dialog.setContentView(root)
+        dialog.window?.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+        
+        dialog.setOnShowListener {
+            dialog.window?.let { window ->
+                window.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)?.apply {
+                    background = null
+                    setBackgroundColor(Color.TRANSPARENT)
+                }
+            }
         }
     }
 
+    private fun adjustColor(color: Int, factor: Float): Int {
+        val a = Color.alpha(color)
+        val r = Math.round(Color.red(color) * factor).coerceIn(0, 255)
+        val g = Math.round(Color.green(color) * factor).coerceIn(0, 255)
+        val b = Math.round(Color.blue(color) * factor).coerceIn(0, 255)
+        return Color.argb(a, r, g, b)
+    }
+
     fun show() {
-        if (anchor.windowToken == null) return
-        
-        anchor.post {
-            try {
-                // Show right under the anchor, centered horizontally
-                popupWindow.showAsDropDown(anchor, 0, (4 * context.resources.displayMetrics.density).toInt(), Gravity.CENTER_HORIZONTAL)
-                android.util.Log.d("ReactionPicker", "PopupWindow shown with topBarColor: ${context.config.topBarColor}")
-            } catch (e: Exception) {
-                android.util.Log.e("ReactionPicker", "Error showing popup", e)
-            }
+        try {
+            dialog.show()
+        } catch (e: Exception) {
+            android.util.Log.e("ReactionInteraction", "Failed to show BottomSheetDialog", e)
         }
     }
 }

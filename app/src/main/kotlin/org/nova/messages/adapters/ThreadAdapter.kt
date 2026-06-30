@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
 import android.util.TypedValue
 import android.view.Menu
 import android.view.View
@@ -121,10 +122,6 @@ class ThreadAdapter(
             actions.add(R.id.cab_save_as)
         }
         
-        if (isRecycleBin) {
-            actions.add(R.id.cab_restore)
-        }
-        
         return actions
     }
 
@@ -227,6 +224,11 @@ class ThreadAdapter(
         val binding = (holder as ThreadViewHolder).binding
         when (item) {
             is Message -> {
+                // Use bindView for robust interaction handling (tap/long-press synchronization)
+                holder.bindView(item, allowSingleClick = true, allowLongClick = true) { _, _ ->
+                    // Root click is handled by bodyHolder/bodyView logic for reactions
+                }
+                
                 setupView(holder, binding, item)
                 
                 // Bubble Entry Animation
@@ -309,19 +311,10 @@ class ThreadAdapter(
 
     private fun askConfirmDelete() {
         val items = getSelectedItems().filterIsInstance<Message>()
-        val binding = DialogDeleteConfirmationBinding.inflate(layoutInflater)
-        binding.skipTheRecycleBinCheckbox.beVisible()
-        (activity as SimpleActivity).updateAppFonts(binding.root)
-
-        val baseString = if (isRecycleBin) {
-            org.fossify.commons.R.string.deletion_confirmation
-        } else {
-            org.fossify.commons.R.string.move_to_recycle_bin_confirmation
-        }
-
+        val baseString = org.fossify.commons.R.string.deletion_confirmation
         val message = String.format(activity.getString(baseString), items.size)
         ConfirmationDialog(activity, message) {
-            deleteMessages(items, !isRecycleBin && !binding.skipTheRecycleBinCheckbox.isChecked, isRecycleBin)
+            deleteMessages(items, false, false)
             finishActMode()
         }
     }
@@ -390,8 +383,7 @@ class ThreadAdapter(
         reactionView.beVisibleIf(message.reaction != null)
         reactionView.text = message.reaction ?: ""
         if (message.reaction != null) {
-            reactionView.setTextColor(activity.config.mainTextColor)
-            reactionView.background?.applyColorFilter(activity.config.mainBackgroundColor)
+            org.nova.messages.helpers.ReactionStyleUtils.setupReactionBubble(reactionView, activity)
         }
 
         // Selection Overlay Logic (Theme Perfect)
@@ -431,23 +423,38 @@ class ThreadAdapter(
                 val r18 = 18f * density
                 val r4 = 4f * density
                 
-                val radii = if (isReceived) {
+                val baseRadii = if (isReceived) {
                     floatArrayOf(r18, r18, r18, r18, r18, r18, r4, r4)
                 } else {
                     floatArrayOf(r18, r18, r18, r18, r4, r4, r18, r18)
                 }
-                gd.cornerRadii = radii
                 
                 // Bubble Outlines
                 if (config.useNewUi) {
                     val outlineOn = if (isReceived) config.receivedBubblesOutline else config.sentBubblesOutline
                     if (outlineOn) {
                         val outlineColor = if (isReceived) config.receivedBubblesOutlineColor else config.sentBubblesOutlineColor
-                        gd.setStroke((1.5 * density).toInt(), outlineColor)
+                        val thickness = if (isReceived) config.receivedBubblesOutlineThickness else config.sentBubblesOutlineThickness
+                        val thickStroke = (thickness * density).toInt()
+                        
+                        val adjRadii = baseRadii.map { if (it > 0) it + thickStroke else 0f }.toFloatArray()
+                        gd.cornerRadii = adjRadii
+                        gd.setStroke(thickStroke * 2, outlineColor)
+                        
+                        val layerDrawable = LayerDrawable(arrayOf(gd))
+                        val inset = -thickStroke + 1
+                        layerDrawable.setLayerInset(0, inset, inset, inset, inset)
+                        background = layerDrawable
+                    } else {
+                        val radii = baseRadii
+                        gd.cornerRadii = baseRadii
+                        background = gd
                     }
+                } else {
+                    val radii = baseRadii
+                    gd.cornerRadii = baseRadii
+                    background = gd
                 }
-
-                background = gd
                 
                 // Material 3 Depth (Standardized for stability)
                 elevation = 4f * density
@@ -455,9 +462,10 @@ class ThreadAdapter(
                 outlineProvider = object : android.view.ViewOutlineProvider() {
                     override fun getOutline(view: View, outline: android.graphics.Outline) {
                         val path = android.graphics.Path()
+                        // Use baseRadii for clipping to ensure content matches the visual interior
                         path.addRoundRect(
                             0f, 0f, view.width.toFloat(), view.height.toFloat(),
-                            radii, android.graphics.Path.Direction.CW
+                            baseRadii, android.graphics.Path.Direction.CW
                         )
                         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
                             outline.setPath(path)
@@ -478,26 +486,28 @@ class ThreadAdapter(
             }
 
             setOnLongClickListener {
-                android.util.Log.d("ReactionPicker", "Long click triggered on bodyHolder for message: ${message.id}")
-                if (!isSelectionModeActive()) {
-                    org.nova.messages.dialogs.ReactionPickerDialog(activity, bodyHolder) { emoji ->
-                        (activity as? ThreadActivity)?.onReactionPicked(message, emoji)
-                    }.show()
-                    true
-                } else {
-                    holder.viewLongClicked()
-                    updateCustomSelectionBar()
-                    true
-                }
+                holder.viewLongClicked()
+                updateCustomSelectionBar()
+                true
             }
 
             setOnClickListener {
-                android.util.Log.d("ThreadSelection", "Click on message: ${message.id}, selection mode: ${isSelectionModeActive()}")
+                android.util.Log.d("ReactionInteraction", "bodyHolder tapped for message ${message.id} (type=${message.type}, isReceived=${message.isReceivedMessage()}, reaction=${message.reaction})")
                 if (isSelectionModeActive()) {
                     holder.viewLongClicked()
                     updateCustomSelectionBar()
+                } else if (message.isReceivedMessage() && message.reaction == null) {
+                    android.util.Log.d("ReactionInteraction", "Showing ReactionPickerDialog for message ${message.id}")
+                    try {
+                        org.nova.messages.dialogs.ReactionPickerDialog(activity, this) { emoji ->
+                            android.util.Log.d("ReactionInteraction", "Reaction $emoji picked for message ${message.id}")
+                            (activity as? ThreadActivity)?.onReactionPicked(message, emoji)
+                        }.show()
+                    } catch (e: Exception) {
+                        android.util.Log.e("ReactionPicker", "Failed to show dialog from bubble tap", e)
+                    }
                 } else {
-                    holder.viewClicked(message)
+                    android.util.Log.d("ReactionInteraction", "Reaction picker disabled for message ${message.id}: isReceived=${message.isReceivedMessage()}, hasReaction=${message.reaction != null}")
                 }
             }
         }
@@ -529,22 +539,20 @@ class ThreadAdapter(
             val style = if (message.isScheduled) Typeface.ITALIC else Typeface.NORMAL
             typeface = Typeface.create(customTypeface, style)
 
-            setOnLongClickListener {
-                bodyHolder.performLongClick()
-                true
-            }
+            // Ensure clicks pass through to the bubble container
+            isClickable = true
+            isFocusable = true
+            isLongClickable = true
+            movementMethod = null 
 
             setOnClickListener {
-                android.util.Log.d("ThreadSelection", "Click on text: ${message.id}, selection mode: ${isSelectionModeActive()}")
-                if (isSelectionModeActive()) {
-                    holder.viewLongClicked()
-                    updateCustomSelectionBar()
-                } else {
-                    // Clicks on auto-links are handled by the TextView's movement method
-                    // If selection mode is OFF, we might want to let the standard link behavior happen
-                    // But if it's NOT a link, we might want to trigger normal click
-                    holder.viewClicked(message)
-                }
+                android.util.Log.d("ReactionInteraction", "bodyView tapped for message ${message.id}, delegating to bodyHolder")
+                bodyHolder.performClick()
+            }
+            
+            setOnLongClickListener {
+                android.util.Log.d("ReactionInteraction", "bodyView long-pressed for message ${message.id}, delegating to bodyHolder")
+                bodyHolder.performLongClick()
             }
 
             if (!isReceived && message.isScheduled) {

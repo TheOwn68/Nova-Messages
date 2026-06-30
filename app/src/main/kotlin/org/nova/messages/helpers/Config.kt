@@ -297,6 +297,10 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getInt(TOP_BAR_OUTLINE_COLOR, Color.BLACK)
         set(topBarOutlineColor) = prefs.edit().putInt(TOP_BAR_OUTLINE_COLOR, topBarOutlineColor).apply()
 
+    var topBarOutlineThickness: Int
+        get() = prefs.getInt(TOP_BAR_OUTLINE_THICKNESS, 2)
+        set(topBarOutlineThickness) = prefs.edit().putInt(TOP_BAR_OUTLINE_THICKNESS, topBarOutlineThickness).apply()
+
     var searchBarOutline: Boolean
         get() = prefs.getBoolean(SEARCH_BAR_OUTLINE, false)
         set(searchBarOutline) = prefs.edit().putBoolean(SEARCH_BAR_OUTLINE, searchBarOutline).apply()
@@ -304,6 +308,10 @@ class Config(context: Context) : BaseConfig(context) {
     var searchBarOutlineColor: Int
         get() = prefs.getInt(SEARCH_BAR_OUTLINE_COLOR, Color.BLACK)
         set(searchBarOutlineColor) = prefs.edit().putInt(SEARCH_BAR_OUTLINE_COLOR, searchBarOutlineColor).apply()
+
+    var searchBarOutlineThickness: Int
+        get() = prefs.getInt(SEARCH_BAR_OUTLINE_THICKNESS, 2)
+        set(searchBarOutlineThickness) = prefs.edit().putInt(SEARCH_BAR_OUTLINE_THICKNESS, searchBarOutlineThickness).apply()
 
     var bigContactsOutline: Boolean
         get() = prefs.getBoolean(BIG_CONTACTS_OUTLINE, false)
@@ -313,6 +321,10 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getInt(BIG_CONTACTS_OUTLINE_COLOR, Color.BLACK)
         set(bigContactsOutlineColor) = prefs.edit().putInt(BIG_CONTACTS_OUTLINE_COLOR, bigContactsOutlineColor).apply()
 
+    var bigContactsOutlineThickness: Int
+        get() = prefs.getInt(BIG_CONTACTS_OUTLINE_THICKNESS, 2)
+        set(bigContactsOutlineThickness) = prefs.edit().putInt(BIG_CONTACTS_OUTLINE_THICKNESS, bigContactsOutlineThickness).apply()
+
     var smallContactsOutline: Boolean
         get() = prefs.getBoolean(SMALL_CONTACTS_OUTLINE, false)
         set(smallContactsOutline) = prefs.edit().putBoolean(SMALL_CONTACTS_OUTLINE, smallContactsOutline).apply()
@@ -320,6 +332,10 @@ class Config(context: Context) : BaseConfig(context) {
     var smallContactsOutlineColor: Int
         get() = prefs.getInt(SMALL_CONTACTS_OUTLINE_COLOR, Color.BLACK)
         set(smallContactsOutlineColor) = prefs.edit().putInt(SMALL_CONTACTS_OUTLINE_COLOR, smallContactsOutlineColor).apply()
+
+    var smallContactsOutlineThickness: Int
+        get() = prefs.getInt(SMALL_CONTACTS_OUTLINE_THICKNESS, 2)
+        set(smallContactsOutlineThickness) = prefs.edit().putInt(SMALL_CONTACTS_OUTLINE_THICKNESS, smallContactsOutlineThickness).apply()
 
     var sentBubblesOutline: Boolean
         get() = prefs.getBoolean(SENT_BUBBLES_OUTLINE, false)
@@ -329,6 +345,10 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getInt(SENT_BUBBLES_OUTLINE_COLOR, Color.BLACK)
         set(sentBubblesOutlineColor) = prefs.edit().putInt(SENT_BUBBLES_OUTLINE_COLOR, sentBubblesOutlineColor).apply()
 
+    var sentBubblesOutlineThickness: Int
+        get() = prefs.getInt(SENT_BUBBLES_OUTLINE_THICKNESS, 2)
+        set(sentBubblesOutlineThickness) = prefs.edit().putInt(SENT_BUBBLES_OUTLINE_THICKNESS, sentBubblesOutlineThickness).apply()
+
     var receivedBubblesOutline: Boolean
         get() = prefs.getBoolean(RECEIVED_BUBBLES_OUTLINE, false)
         set(receivedBubblesOutline) = prefs.edit().putBoolean(RECEIVED_BUBBLES_OUTLINE, receivedBubblesOutline).apply()
@@ -336,6 +356,10 @@ class Config(context: Context) : BaseConfig(context) {
     var receivedBubblesOutlineColor: Int
         get() = prefs.getInt(RECEIVED_BUBBLES_OUTLINE_COLOR, Color.BLACK)
         set(receivedBubblesOutlineColor) = prefs.edit().putInt(RECEIVED_BUBBLES_OUTLINE_COLOR, receivedBubblesOutlineColor).apply()
+
+    var receivedBubblesOutlineThickness: Int
+        get() = prefs.getInt(RECEIVED_BUBBLES_OUTLINE_THICKNESS, 2)
+        set(receivedBubblesOutlineThickness) = prefs.edit().putInt(RECEIVED_BUBBLES_OUTLINE_THICKNESS, receivedBubblesOutlineThickness).apply()
 
     fun savePreset(id: Int) {
         val prefix = "preset_${id}_"

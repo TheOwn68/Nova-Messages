@@ -48,6 +48,8 @@
         android:id="@+id/thread_holder"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:clipChildren="false"
+        android:clipToPadding="false"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <RelativeLayout
@@ -133,6 +135,7 @@
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:clipToPadding="false"
+            android:clipChildren="false"
             android:overScrollMode="ifContentScrolls"
             android:paddingTop="12dp"
             android:paddingBottom="86dp"

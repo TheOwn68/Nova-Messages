@@ -346,23 +346,23 @@ open class SimpleActivity : BaseSimpleActivity() {
         val settingsLabels = listOf(
             R.id.settings_customization_label,
             R.id.settings_top_bar_label,
-            R.id.settings_top_bar_text_color_label,
             R.id.settings_main_bg_label,
-            R.id.settings_main_text_color_label,
             R.id.settings_input_bar_label,
-            R.id.settings_input_bar_text_color_label,
             R.id.settings_bubble_customization_label,
-            R.id.settings_sent_bubble_color_label,
-            R.id.settings_sent_bubble_text_color_label,
-            R.id.settings_received_bubble_color_label,
-            R.id.settings_received_bubble_text_color_label,
             R.id.settings_general_label,
             R.id.settings_ui_scale_label,
             R.id.settings_font_size_label,
             R.id.settings_font_label,
             R.id.settings_reset_defaults,
             R.id.settings_font_size,
-            R.id.settings_font
+            R.id.settings_font,
+            R.id.settings_top_bar_text_color_label,
+            R.id.settings_background_color_label,
+            R.id.settings_input_bar_text_color_label,
+            R.id.settings_sent_bubble_color_label,
+            R.id.settings_sent_bubble_text_color_label,
+            R.id.settings_received_bubble_color_label,
+            R.id.settings_received_bubble_text_color_label
         )
         
         settingsLabels.forEach { labelId ->

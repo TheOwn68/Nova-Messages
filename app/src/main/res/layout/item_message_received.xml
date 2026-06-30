@@ -65,7 +65,6 @@
                 android:id="@+id/thread_message_body"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:autoLink="email|web"
                 android:drawablePadding="8dp"
                 android:padding="@dimen/normal_margin"
                 android:textSize="@dimen/normal_text_size"

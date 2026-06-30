@@ -13,4 +13,5 @@
     <item name="manage_people" type="id" />
     <item name="copy_number" type="id" />
     <item name="add_number_to_contact" type="id" />
+    <item name="remove_reaction" type="id" />
 </resources>

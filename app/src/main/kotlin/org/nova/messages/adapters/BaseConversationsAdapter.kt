@@ -3,6 +3,7 @@ package org.nova.messages.adapters
 import android.annotation.SuppressLint
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
 import android.os.Parcelable
 import android.util.TypedValue
 import android.view.View
@@ -393,13 +394,22 @@ abstract class BaseConversationsAdapter(
             val lightened = baseColor.adjustColor(1.2f)
             val darkened = baseColor.adjustColor(0.8f)
             val gd = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(lightened, baseColor, darkened))
-            gd.cornerRadius = 1000f
+            val r_base = 1000f
             
             if (activity.config.bigContactsOutline && activity.config.useNewUi) {
-                gd.setStroke((1.5 * resources.displayMetrics.density).toInt(), activity.config.bigContactsOutlineColor)
+                val thickness = activity.config.bigContactsOutlineThickness
+                val thickStroke = (thickness * resources.displayMetrics.density).toInt()
+                gd.cornerRadius = r_base + thickStroke
+                gd.setStroke(thickStroke * 2, activity.config.bigContactsOutlineColor)
+                
+                val layerDrawable = LayerDrawable(arrayOf(gd))
+                val inset = -thickStroke + 1
+                layerDrawable.setLayerInset(0, inset, inset, inset, inset)
+                recentFrame.background = layerDrawable
+            } else {
+                gd.cornerRadius = r_base
+                recentFrame.background = gd
             }
-
-            recentFrame.background = gd
             
             // Hard Force Elevation (High Visibility)
             recentFrame.elevation = 14f * resources.displayMetrics.density
@@ -466,13 +476,22 @@ abstract class BaseConversationsAdapter(
             val lightened = baseColor.adjustColor(1.2f)
             val darkened = baseColor.adjustColor(0.8f)
             val gd = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(lightened, baseColor, darkened))
-            gd.cornerRadius = 1000f
+            val r_base = 1000f
             
             if (activity.config.smallContactsOutline && activity.config.useNewUi) {
-                gd.setStroke((1.5 * resources.displayMetrics.density).toInt(), activity.config.smallContactsOutlineColor)
+                val thickness = activity.config.smallContactsOutlineThickness
+                val thickStroke = (thickness * resources.displayMetrics.density).toInt()
+                gd.cornerRadius = r_base + thickStroke
+                gd.setStroke(thickStroke * 2, activity.config.smallContactsOutlineColor)
+                
+                val layerDrawable = LayerDrawable(arrayOf(gd))
+                val inset = -thickStroke + 1
+                layerDrawable.setLayerInset(0, inset, inset, inset, inset)
+                pillFrame.background = layerDrawable
+            } else {
+                gd.cornerRadius = r_base
+                pillFrame.background = gd
             }
-
-            pillFrame.background = gd
             
             // Hard Force Elevation (High Visibility)
             pillFrame.elevation = 12f * resources.displayMetrics.density

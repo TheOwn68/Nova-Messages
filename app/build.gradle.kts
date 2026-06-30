@@ -157,4 +157,6 @@ dependencies {
     ksp("com.github.bumptech.glide:ksp:5.0.7")
     ksp(libs.androidx.room.compiler)
     detektPlugins(libs.compose.detekt)
+
+    testImplementation("junit:junit:4.13.2")
 }

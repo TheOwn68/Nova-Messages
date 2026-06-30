@@ -378,19 +378,23 @@ class NewConversationActivity : SimpleActivity() {
 
     private fun applyOutlines() = binding.apply {
         val density = resources.displayMetrics.density
-        val thickStroke = (2.5 * density).toInt()
         val isNewUi = config.useNewUi
         
         // Top Bar Outline (New Conversation)
         if (config.topBarOutline && isNewUi) {
             val r26 = 26f * density
-            val drawable = android.graphics.drawable.GradientDrawable().apply {
+            val thickness = config.topBarOutlineThickness
+            val thickStroke = (thickness * density).toInt()
+            val outline = android.graphics.drawable.GradientDrawable().apply {
                 shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                setStroke(thickStroke, config.topBarOutlineColor)
+                setStroke(thickStroke * 2, config.topBarOutlineColor)
                 setColor(Color.TRANSPARENT)
-                // Match the 26dp bottom corners of the modern top bar
-                cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, r26, r26, r26, r26)
+                val r_adj = r26 + thickStroke
+                cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, r_adj, r_adj, r_adj, r_adj)
             }
+            val drawable = android.graphics.drawable.LayerDrawable(arrayOf(outline))
+            val inset = -thickStroke + 1
+            drawable.setLayerInset(0, inset, inset, inset, 0)
             binding.newConversationAppbar.foreground = drawable
         } else {
             binding.newConversationAppbar.foreground = null
@@ -398,13 +402,19 @@ class NewConversationActivity : SimpleActivity() {
 
         // Search Bar Outline
         if (config.searchBarOutline && isNewUi) {
+            val thickness = config.searchBarOutlineThickness
+            val thickStroke = (thickness * density).toInt()
+            val r_base = 100f * density
             val drawable = android.graphics.drawable.GradientDrawable().apply {
                 shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                setStroke(thickStroke, config.searchBarOutlineColor)
-                cornerRadius = 100f * density
+                setStroke(thickStroke * 2, config.searchBarOutlineColor)
+                cornerRadius = r_base + thickStroke
                 setColor(Color.TRANSPARENT)
             }
-            binding.newConversationSearchContainer.foreground = drawable
+            val layerDrawable = android.graphics.drawable.LayerDrawable(arrayOf(drawable))
+            val inset = -thickStroke + 1
+            layerDrawable.setLayerInset(0, inset, inset, inset, inset)
+            binding.newConversationSearchContainer.foreground = layerDrawable
         } else {
             binding.newConversationSearchContainer.foreground = null
         }
