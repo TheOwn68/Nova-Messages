@@ -48,10 +48,10 @@ class ReactionPickerDialog(
                 val darkened = adjustColor(barColor, 0.8f)
                 GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(lightened, barColor, darkened)).apply {
                     shape = GradientDrawable.RECTANGLE
-                    cornerRadius = barRadius + thickStroke
+                    cornerRadius = barRadius
                     
                     if (config.topBarOutline) {
-                        setStroke(thickStroke * 2, config.topBarOutlineColor)
+                        setStroke(thickStroke, config.topBarOutlineColor)
                     }
                 }
             } else {
@@ -64,8 +64,7 @@ class ReactionPickerDialog(
             
             if (isNewUi && config.topBarOutline) {
                 val layerDrawable = LayerDrawable(arrayOf(background))
-                val inset = -thickStroke + 1
-                layerDrawable.setLayerInset(0, inset, inset, inset, inset)
+                layerDrawable.setLayerInset(0, 0, 0, 0, 0)
                 this.background = layerDrawable
             } else {
                 this.background = background

@@ -399,12 +399,11 @@ abstract class BaseConversationsAdapter(
             if (activity.config.bigContactsOutline && activity.config.useNewUi) {
                 val thickness = activity.config.bigContactsOutlineThickness
                 val thickStroke = (thickness * resources.displayMetrics.density).toInt()
-                gd.cornerRadius = r_base + thickStroke
-                gd.setStroke(thickStroke * 2, activity.config.bigContactsOutlineColor)
+                gd.cornerRadius = r_base
+                gd.setStroke(thickStroke, activity.config.bigContactsOutlineColor)
                 
                 val layerDrawable = LayerDrawable(arrayOf(gd))
-                val inset = -thickStroke + 1
-                layerDrawable.setLayerInset(0, inset, inset, inset, inset)
+                layerDrawable.setLayerInset(0, 0, 0, 0, 0)
                 recentFrame.background = layerDrawable
             } else {
                 gd.cornerRadius = r_base
@@ -481,12 +480,11 @@ abstract class BaseConversationsAdapter(
             if (activity.config.smallContactsOutline && activity.config.useNewUi) {
                 val thickness = activity.config.smallContactsOutlineThickness
                 val thickStroke = (thickness * resources.displayMetrics.density).toInt()
-                gd.cornerRadius = r_base + thickStroke
-                gd.setStroke(thickStroke * 2, activity.config.smallContactsOutlineColor)
+                gd.cornerRadius = r_base
+                gd.setStroke(thickStroke, activity.config.smallContactsOutlineColor)
                 
                 val layerDrawable = LayerDrawable(arrayOf(gd))
-                val inset = -thickStroke + 1
-                layerDrawable.setLayerInset(0, inset, inset, inset, inset)
+                layerDrawable.setLayerInset(0, 0, 0, 0, 0)
                 pillFrame.background = layerDrawable
             } else {
                 gd.cornerRadius = r_base

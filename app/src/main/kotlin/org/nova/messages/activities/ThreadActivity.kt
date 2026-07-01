@@ -1217,9 +1217,28 @@ class ThreadActivity : SimpleActivity() {
         refreshMenuItems()
     }
 
-    private fun managePeople() {}
-    private fun addNumberToContact() {}
-    private fun copyNumberToClipboard() {}
+    private fun managePeople() {
+        val numbers = participants.flatMap { it.phoneNumbers.map { pn -> pn.normalizedNumber } }.distinct()
+        Intent(Intent.ACTION_INSERT_OR_EDIT).apply {
+            type = ContactsContract.Contacts.CONTENT_ITEM_TYPE
+            putExtra(ContactsContract.Intents.Insert.PHONE, numbers.joinToString(";"))
+            startActivity(this)
+        }
+    }
+
+    private fun addNumberToContact() {
+        val number = participants.firstOrNull()?.phoneNumbers?.firstOrNull()?.value ?: return
+        Intent(Intent.ACTION_INSERT_OR_EDIT).apply {
+            type = ContactsContract.Contacts.CONTENT_ITEM_TYPE
+            putExtra(ContactsContract.Intents.Insert.PHONE, number)
+            startActivity(this)
+        }
+    }
+
+    private fun copyNumberToClipboard() {
+        val number = participants.firstOrNull()?.phoneNumbers?.firstOrNull()?.value ?: return
+        copyToClipboard(number)
+    }
     private fun renameConversation() {
         if (conversation != null) {
             RenameConversationDialog(this, conversation!!) {
@@ -1368,12 +1387,23 @@ class ThreadActivity : SimpleActivity() {
             if (messages.size != combinedMessages.size || messages.hashCode() != combinedMessages.hashCode()) {
                 messages = ArrayList(combinedMessages)
                 val forceScroll = isSendingMessage
-                isSendingMessage = false
-                refreshedSinceSent = true
                 allMessagesFetched = false
-                if (!isDestroyed && !isFinishing) setupAdapter(forceScroll)
+                if (!isDestroyed && !isFinishing) {
+                    setupAdapter(forceScroll)
+                    if (forceScroll) {
+                        runOnUiThread {
+                            binding.threadMessagesList.postDelayed({
+                                scrollToBottom(forceScroll = true)
+                                isSendingMessage = false
+                            }, 100)
+                        }
+                    }
+                }
             } else {
-                isSendingMessage = false
+                if (isSendingMessage) {
+                    isSendingMessage = false
+                    runOnUiThread { scrollToBottom(forceScroll = true) }
+                }
             }
         }
     }
@@ -1381,19 +1411,8 @@ class ThreadActivity : SimpleActivity() {
     fun onReactionPicked(message: Message, emoji: String) {
         if (message.reaction == emoji) return
         
-        val prefix = when (emoji) {
-            "👍" -> "Liked"
-            "❤️" -> "Loved"
-            "👎" -> "Disliked"
-            "😂" -> "Laughed at"
-            "😮" -> "Surprised by"
-            "😢" -> "Cried at"
-            "😡" -> "Angry at"
-            else -> "Liked"
-        }
-        
         val bodySnippet = message.body.take(30).trim()
-        val text = "$prefix message '$bodySnippet '"
+        val text = "$emoji to '$bodySnippet'"
         
         runOnUiThread {
             message.reaction = emoji
@@ -1476,8 +1495,8 @@ class ThreadActivity : SimpleActivity() {
 
     private fun getReactionTools(): Pair<Regex, Map<String, String>> {
         // Regex 1: "Liked message '...'" (Old format)
-        // Regex 2: "👍 to '...'" (Google Messages format)
-        val reactionRegex = Regex("^(?:(Liked|Loved|Disliked|Laughed at|Surprised by|Cried at|Angry at|Emphasized|Questioned)\\s+(?:message\\s+)?|([👍❤️👎😂😮😢😡‼️❓])\\s+to\\s+)['\"](.*?)['\"]?\\s*$")
+        // Regex 2: "👍 to '...'" (Modern format)
+        val reactionRegex = Regex("^(?:(Liked|Loved|Disliked|Laughed at|Surprised by|Cried at|Angry at|Emphasized|Questioned)\\s+(?:message\\s+)?|([👍❤️👎😂😮😢😡⁉️❓🔥💯👏✅🎉]+|\\p{So}+)\\s+to\\s+)['\"](.*?)['\"]?\\s*$")
         
         val reactionMap = mapOf(
             "Liked" to "👍",
@@ -1489,16 +1508,10 @@ class ThreadActivity : SimpleActivity() {
             "Angry at" to "😡",
             "Emphasized" to "‼️",
             "Questioned" to "❓",
-            // Reverse mapping for the new format
-            "👍" to "👍",
-            "❤️" to "❤️",
-            "👎" to "👎",
-            "😂" to "😂",
-            "😮" to "😮",
-            "😢" to "😢",
-            "😡" to "😡",
-            "‼️" to "‼️",
-            "❓" to "❓"
+            // Direct emoji mapping (identity)
+            "👍" to "👍", "❤️" to "❤️", "😂" to "😂", "😮" to "😮", "😢" to "😢", "😡" to "😡", "👎" to "👎", 
+            "⁉️" to "⁉️", "❓" to "❓", "🔥" to "🔥", "💯" to "💯", "👏" to "👏", "✅" to "✅", "🎉" to "🎉",
+            "‼️" to "‼️"
         )
         return Pair(reactionRegex, reactionMap)
     }
@@ -1622,14 +1635,12 @@ class ThreadActivity : SimpleActivity() {
             val thickStroke = (thickness * density).toInt()
             val outline = android.graphics.drawable.GradientDrawable().apply {
                 shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                setStroke(thickStroke * 2, config.topBarOutlineColor)
+                setStroke(thickStroke, config.topBarOutlineColor)
                 setColor(Color.TRANSPARENT)
-                val r_adj = r26 + thickStroke
-                cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, r_adj, r_adj, r_adj, r_adj)
+                cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, r26, r26, r26, r26)
             }
             val drawable = android.graphics.drawable.LayerDrawable(arrayOf(outline))
-            val inset = -thickStroke + 1
-            drawable.setLayerInset(0, inset, inset, inset, 0)
+            drawable.setLayerInset(0, -thickStroke, -thickStroke, -thickStroke, 0)
             binding.threadAppbar.foreground = drawable
         } else {
             binding.threadAppbar.foreground = null
@@ -1643,13 +1654,12 @@ class ThreadActivity : SimpleActivity() {
             val r_base = 100f * density
             val drawable = android.graphics.drawable.GradientDrawable().apply {
                 shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                setStroke(thickStroke * 2, config.searchBarOutlineColor)
-                cornerRadius = r_base + thickStroke
+                setStroke(thickStroke, config.searchBarOutlineColor)
+                cornerRadius = r_base
                 setColor(Color.TRANSPARENT)
             }
             val layerDrawable = android.graphics.drawable.LayerDrawable(arrayOf(drawable))
-            val inset = -thickStroke + 1
-            layerDrawable.setLayerInset(0, inset, inset, inset, inset)
+            layerDrawable.setLayerInset(0, 0, 0, 0, 0)
             inputBar.foreground = layerDrawable
         } else if (inputBar != null) {
             inputBar.foreground = null

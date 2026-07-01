@@ -2,11 +2,13 @@ package org.nova.messages.adapters
 
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import org.fossify.commons.adapters.MyRecyclerViewListAdapter
+import org.fossify.commons.helpers.SimpleContactsHelper
 import org.fossify.commons.models.SimpleContact
 import org.fossify.commons.views.MyRecyclerView
 import org.nova.messages.R
@@ -30,11 +32,17 @@ class ContactsAdapter(
     onRefresh = {}
 ) {
 
+    private var useModernPills: Boolean = false
     private var suggestionsCount: Int = 0
+
+    fun setUseModernPills(use: Boolean) {
+        useModernPills = use
+    }
 
     companion object {
         const val VIEW_TYPE_SUGGESTION = 1
         const val VIEW_TYPE_CONTACT = 2
+        const val VIEW_TYPE_MODERN_PILL = 3
     }
 
     init {
@@ -61,12 +69,14 @@ class ContactsAdapter(
     }
 
     override fun getItemViewType(position: Int): Int {
+        if (useModernPills) return VIEW_TYPE_MODERN_PILL
         return if (position < suggestionsCount) VIEW_TYPE_SUGGESTION else VIEW_TYPE_CONTACT
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MyRecyclerViewListAdapter<Any>.ViewHolder {
         val binding = when (viewType) {
-            VIEW_TYPE_SUGGESTION -> ItemConversationRecentBinding.inflate(layoutInflater, parent, false)
+            VIEW_TYPE_SUGGESTION -> org.nova.messages.databinding.ItemConversationRecentBinding.inflate(layoutInflater, parent, false)
+            VIEW_TYPE_MODERN_PILL -> org.nova.messages.databinding.ItemConversationPillBinding.inflate(layoutInflater, parent, false)
             else -> ItemConversationBinding.inflate(layoutInflater, parent, false)
         }
         return ContactViewHolder(binding)
@@ -74,10 +84,11 @@ class ContactsAdapter(
 
     override fun onBindViewHolder(holder: MyRecyclerViewListAdapter<Any>.ViewHolder, position: Int) {
         val item = getItem(position)
-        if (getItemViewType(position) == VIEW_TYPE_SUGGESTION && item is ConversationListItem) {
-            setupSuggestionView(holder.itemView, item, holder)
-        } else {
-            setupContactView(holder.itemView, item, holder)
+        val view = holder.itemView
+        when (getItemViewType(position)) {
+            VIEW_TYPE_SUGGESTION -> if (item is ConversationListItem) setupSuggestionView(view, item, holder)
+            VIEW_TYPE_MODERN_PILL -> setupModernPillView(view, item, holder)
+            else -> setupContactView(view, item, holder)
         }
         bindViewHolder(holder)
     }
@@ -127,6 +138,46 @@ class ContactsAdapter(
             }
             conversationFrame.background = gd
             conversationFrame.setOnClickListener { holder.viewClicked(item) }
+        }
+    }
+
+    private fun setupModernPillView(view: View, item: Any, holder: MyRecyclerViewListAdapter<Any>.ViewHolder) {
+        org.nova.messages.databinding.ItemConversationPillBinding.bind(view).apply {
+            val mainTextColor = activity.config.mainTextColor
+            val contact = item as SimpleContact
+            pillAddress.text = contact.name
+            pillAddress.setTextColor(mainTextColor)
+            
+            SimpleContactsHelper(activity).loadContactImage(
+                path = contact.photoUri,
+                imageView = pillImage,
+                placeholderName = contact.name
+            )
+
+            // Setup modern gradient/outline
+            val baseColor = activity.config.recentColor
+            val lightened = baseColor.adjustColor(1.2f)
+            val darkened = baseColor.adjustColor(0.8f)
+            val gd = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(lightened, baseColor, darkened))
+            val r_base = 1000f
+            
+            val density = resources.displayMetrics.density
+            if (activity.config.smallContactsOutline && activity.config.useNewUi) {
+                val thickness = activity.config.smallContactsOutlineThickness
+                val thickStroke = (thickness * density).toInt()
+                gd.cornerRadius = r_base
+                gd.setStroke(thickStroke, activity.config.smallContactsOutlineColor)
+                
+                val layerDrawable = LayerDrawable(arrayOf(gd))
+                layerDrawable.setLayerInset(0, 0, 0, 0, 0)
+                pillFrame.background = layerDrawable
+            } else {
+                gd.cornerRadius = r_base
+                pillFrame.background = gd
+            }
+            
+            pillFrame.elevation = 6f * density
+            pillFrame.setOnClickListener { holder.viewClicked(item) }
         }
     }
 

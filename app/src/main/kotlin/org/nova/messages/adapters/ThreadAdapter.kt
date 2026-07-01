@@ -437,13 +437,11 @@ class ThreadAdapter(
                         val thickness = if (isReceived) config.receivedBubblesOutlineThickness else config.sentBubblesOutlineThickness
                         val thickStroke = (thickness * density).toInt()
                         
-                        val adjRadii = baseRadii.map { if (it > 0) it + thickStroke else 0f }.toFloatArray()
-                        gd.cornerRadii = adjRadii
-                        gd.setStroke(thickStroke * 2, outlineColor)
+                        gd.cornerRadii = baseRadii
+                        gd.setStroke(thickStroke, outlineColor)
                         
                         val layerDrawable = LayerDrawable(arrayOf(gd))
-                        val inset = -thickStroke + 1
-                        layerDrawable.setLayerInset(0, inset, inset, inset, inset)
+                        layerDrawable.setLayerInset(0, 0, 0, 0, 0)
                         background = layerDrawable
                     } else {
                         val radii = baseRadii

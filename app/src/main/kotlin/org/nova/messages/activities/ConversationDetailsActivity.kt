@@ -4,6 +4,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Intent
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
 import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.RingtoneManager
@@ -74,6 +75,24 @@ class ConversationDetailsActivity : SimpleActivity() {
         // Hero Shadows
         binding.detailsHeroSection.elevation = 10f * resources.displayMetrics.density
         binding.detailsHeroSection.outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
+
+        // Apply Outlines for Hero
+        if (config.topBarOutline && config.useNewUi) {
+            val thickness = config.topBarOutlineThickness
+            val thickStroke = (thickness * resources.displayMetrics.density).toInt()
+            val r_base = 24.getScaledPx(this).toFloat()
+            val outline = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                setStroke(thickStroke, config.topBarOutlineColor)
+                setColor(android.graphics.Color.TRANSPARENT)
+                cornerRadius = r_base
+            }
+            val drawable = LayerDrawable(arrayOf(outline))
+            drawable.setLayerInset(0, 0, 0, 0, 0)
+            binding.detailsHeroSection.foreground = drawable
+        } else {
+            binding.detailsHeroSection.foreground = null
+        }
     }
 
     private fun setupHeroSection() {
@@ -163,6 +182,7 @@ class ConversationDetailsActivity : SimpleActivity() {
                 }
             }
         }
+        adapter.setUseModernPills(true)
         binding.participantsGrid.adapter = adapter
     }
 }

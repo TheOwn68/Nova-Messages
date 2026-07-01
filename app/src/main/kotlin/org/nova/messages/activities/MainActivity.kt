@@ -680,14 +680,13 @@ class MainActivity : SimpleActivity() {
             val thickStroke = (thickness * density).toInt()
             val outline = android.graphics.drawable.GradientDrawable().apply {
                 shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                setStroke(thickStroke * 2, config.topBarOutlineColor)
+                setStroke(thickStroke, config.topBarOutlineColor)
                 setColor(Color.TRANSPARENT)
-                val r_adj = r26 + thickStroke
-                cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, r_adj, r_adj, r_adj, r_adj)
+                cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, r26, r26, r26, r26)
             }
             val drawable = android.graphics.drawable.LayerDrawable(arrayOf(outline))
-            val inset = -thickStroke + 1
-            drawable.setLayerInset(0, inset, inset, inset, 0)
+            // Hide top and sides by insetting them OUT of view
+            drawable.setLayerInset(0, -thickStroke, -thickStroke, -thickStroke, 0)
             binding.mainAppbar.foreground = drawable
         } else {
             binding.mainAppbar.foreground = null
@@ -699,13 +698,12 @@ class MainActivity : SimpleActivity() {
             val r_base = 100f * density
             val drawable = android.graphics.drawable.GradientDrawable().apply {
                 shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                setStroke(thickStroke * 2, config.searchBarOutlineColor)
-                cornerRadius = r_base + thickStroke
+                setStroke(thickStroke, config.searchBarOutlineColor)
+                cornerRadius = r_base
                 setColor(Color.TRANSPARENT)
             }
             val layerDrawable = android.graphics.drawable.LayerDrawable(arrayOf(drawable))
-            val inset = -thickStroke + 1
-            layerDrawable.setLayerInset(0, inset, inset, inset, inset)
+            layerDrawable.setLayerInset(0, 0, 0, 0, 0)
             binding.novaNavContainer.foreground = layerDrawable
             
             // Sync icon and divider colors with search bar text color
