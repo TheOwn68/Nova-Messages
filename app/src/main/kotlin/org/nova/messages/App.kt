@@ -40,10 +40,10 @@ class App : FossifyApp() {
             }
         }
 
-        config.appId = "org.nova.messages"
+        config.appId = packageName
         config.appSideloadingStatus = 0
         config.hadThankYouInstalled = true
-        config.appRunCount = 1 // Avoid initial setup dialogs
+        config.appRunCount = 100 // Avoid early popups
 
         ensureBackgroundThread {
             rescheduleAllScheduledMessages()

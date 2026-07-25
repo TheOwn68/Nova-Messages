@@ -1065,16 +1065,14 @@ fun Context.showReceivedMessageNotification(
         return
     }
 
-    Handler(Looper.getMainLooper()).post {
-        notificationHelper.showMessageNotification(
-            messageId = messageId,
-            address = address,
-            body = body,
-            threadId = threadId,
-            bitmap = bitmap,
-            sender = senderName
-        )
-    }
+    notificationHelper.showMessageNotification(
+        messageId = messageId,
+        address = address,
+        body = body,
+        threadId = threadId,
+        bitmap = bitmap,
+        sender = senderName
+    )
 }
 
 fun Context.getNameFromAddress(address: String, privateCursor: Cursor?): String {

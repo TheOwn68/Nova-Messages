@@ -36,28 +36,40 @@ class SmsReceiver : BroadcastReceiver() {
         ensureBackgroundThread {
             try {
                 val parts = Telephony.Sms.Intents.getMessagesFromIntent(intent)
-                if (parts.isEmpty()) return@ensureBackgroundThread
+                if (parts.isEmpty()) {
+                    android.util.Log.d("SmsReceiver", "No messages found in intent")
+                    return@ensureBackgroundThread
+                }
 
-                // this is how it has always worked, but need to revisit this.
-                val address = parts.last().originatingAddress.orEmpty()
-                if (address.isBlank()) return@ensureBackgroundThread
+                val address = parts.first().originatingAddress.orEmpty()
+                if (address.isBlank()) {
+                    android.util.Log.d("SmsReceiver", "Address is blank, dropping message")
+                    return@ensureBackgroundThread
+                }
                 val subject = parts.last().pseudoSubject.orEmpty()
                 val status = parts.last().status
                 val body = buildString { parts.forEach { append(it.messageBody.orEmpty()) } }
 
                 if (isMessageFilteredOut(appContext, body)) return@ensureBackgroundThread
-                if (appContext.isNumberBlocked(address)) return@ensureBackgroundThread
+                if (appContext.isNumberBlocked(address)) {
+                    android.util.Log.d("SmsReceiver", "Message blocked by number: '$address'")
+                    return@ensureBackgroundThread
+                }
                 if (appContext.baseConfig.blockUnknownNumbers) {
                     val privateCursor =
                         appContext.getMyContactsCursor(favoritesOnly = false, withPhoneNumbersOnly = true)
                     val result = SimpleContactsHelper(appContext).existsSync(address, privateCursor)
-                    if (result == ContactLookupResult.NotFound) return@ensureBackgroundThread
+                    if (result == ContactLookupResult.NotFound) {
+                        android.util.Log.d("SmsReceiver", "Message blocked: Unknown number '$address'")
+                        return@ensureBackgroundThread
+                    }
                 }
 
                 val date = System.currentTimeMillis()
                 val threadId = appContext.getThreadId(address)
                 val subscriptionId = intent.getIntExtra("subscription", -1)
 
+                android.util.Log.d("SmsReceiver", "Handling message from '$address', threadId: $threadId")
                 handleMessageSync(
                     context = appContext,
                     address = address,
@@ -143,6 +155,7 @@ class SmsReceiver : BroadcastReceiver() {
 
         refreshMessages()
         refreshConversations()
+        android.util.Log.d("SmsReceiver", "Showing notification for messageId: $newMessageId")
         context.showReceivedMessageNotification(
             messageId = newMessageId,
             address = address,

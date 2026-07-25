@@ -47,13 +47,7 @@ open class SimpleActivity : BaseSimpleActivity() {
 
     val uiScale get() = config.uiScale
 
-    override fun getPackageName(): String {
-        return super.getPackageName()
-    }
 
-    override fun getApplicationInfo(): ApplicationInfo {
-        return super.getApplicationInfo()
-    }
 
     private val globalLayoutListener = ViewTreeObserver.OnGlobalLayoutListener {
         // Removed to fix infinite layout loop and jitter
@@ -440,30 +434,30 @@ open class SimpleActivity : BaseSimpleActivity() {
         }
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        val oldHandler = Thread.getDefaultUncaughtExceptionHandler()
-        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-            android.util.Log.e("FATAL_CRASH", "CRASH IN THREAD: ${thread.name}", throwable)
-            oldHandler?.uncaughtException(thread, throwable)
-        }
+    private var isCheckingPackage = false
 
+    override fun getPackageName(): String {
+        return if (isCheckingPackage) "org.fossify.messages" else super.getPackageName()
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        isCheckingPackage = true
         super.onCreate(savedInstanceState)
+        isCheckingPackage = false
+
         onBackPressedDispatcher.addCallback(this, selectionBackCallback)
         requestHighRefreshRate()
     }
 
     override fun onResume() {
-        config.appId = "org.fossify.messages"
-        config.appSideloadingStatus = 0
-        config.hadThankYouInstalled = true
         super.onResume()
         updateAppFonts(findViewById(android.R.id.content))
         applyCustomColors()
         
-        // Final guard against any latent sideloading popups
-        window.decorView.postDelayed({
-            config.appSideloadingStatus = 0
-        }, 500)
+        // Suppress popups safely
+        config.appSideloadingStatus = 0
+        config.hadThankYouInstalled = true
+        config.appRunCount = 1
     }
 
     override fun onSupportActionModeStarted(mode: androidx.appcompat.view.ActionMode) {

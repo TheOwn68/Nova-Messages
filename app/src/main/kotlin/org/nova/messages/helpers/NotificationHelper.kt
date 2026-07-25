@@ -172,18 +172,16 @@ class NotificationHelper(private val context: Context) {
 
         var shortcut = context.shortcutHelper.getShortcut(threadId)
         if (shortcut == null) {
-            ensureBackgroundThread {
-                shortcut = context.shortcutHelper.createOrUpdateShortcut(threadId)
-                builder.setShortcutInfo(shortcut)
-                notificationManager.notify(notificationId, builder.build())
-                context.shortcutHelper.reportReceiveMessageUsage(threadId)
-            }
-        } else {
+            shortcut = context.shortcutHelper.createOrUpdateShortcut(threadId)
+        }
+        
+        if (shortcut != null) {
             builder.setShortcutInfo(shortcut)
-            notificationManager.notify(notificationId, builder.build())
-            ensureBackgroundThread {
-                context.shortcutHelper.reportReceiveMessageUsage(threadId)
-            }
+        }
+        
+        notificationManager.notify(notificationId, builder.build())
+        ensureBackgroundThread {
+            context.shortcutHelper.reportReceiveMessageUsage(threadId)
         }
     }
 

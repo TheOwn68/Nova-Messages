@@ -385,6 +385,7 @@ class ThreadActivity : SimpleActivity() {
                 CAPTURE_VIDEO_INTENT,
                 PICK_DOCUMENT_INTENT,
                 CAPTURE_AUDIO_INTENT,
+                PICK_AUDIO_INTENT,
                 PICK_PHOTO_INTENT,
                 PICK_VIDEO_INTENT -> {
                     if (clipData != null) {
@@ -1594,12 +1595,20 @@ class ThreadActivity : SimpleActivity() {
     private fun launchCapturePhotoIntent() {
         handlePermission(PERMISSION_CAMERA) {
             if (it) {
-                val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-                if (intent.resolveActivity(packageManager) != null) {
+                try {
+                    val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
                     val file = File(cacheDir, "photo.jpg")
                     capturedImageUri = getMyFileUri(file)
                     intent.putExtra(MediaStore.EXTRA_OUTPUT, capturedImageUri)
+                    intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
                     startActivityForResult(intent, CAPTURE_PHOTO_INTENT)
+                } catch (e: Exception) {
+                    // Fallback to general capture if specific file path fails
+                    try {
+                        startActivityForResult(Intent(MediaStore.ACTION_IMAGE_CAPTURE), CAPTURE_PHOTO_INTENT)
+                    } catch (e2: Exception) {
+                        toast(org.fossify.commons.R.string.no_app_found)
+                    }
                 }
             }
         }
@@ -1608,15 +1617,32 @@ class ThreadActivity : SimpleActivity() {
     private fun launchCaptureVideoIntent() {
         handlePermission(PERMISSION_CAMERA) {
             if (it) {
-                val intent = Intent(MediaStore.ACTION_VIDEO_CAPTURE)
-                startActivityForResult(intent, CAPTURE_VIDEO_INTENT)
+                try {
+                    startActivityForResult(Intent(MediaStore.ACTION_VIDEO_CAPTURE), CAPTURE_VIDEO_INTENT)
+                } catch (e: Exception) {
+                    toast(org.fossify.commons.R.string.no_app_found)
+                }
             }
         }
     }
 
     private fun launchCaptureAudioIntent() {
-        val intent = Intent(MediaStore.Audio.Media.RECORD_SOUND_ACTION)
-        startActivityForResult(intent, CAPTURE_AUDIO_INTENT)
+        handlePermission(PERMISSION_RECORD_AUDIO) {
+            if (it) {
+                try {
+                    startActivityForResult(Intent(MediaStore.Audio.Media.RECORD_SOUND_ACTION), CAPTURE_AUDIO_INTENT)
+                } catch (e: Exception) {
+                    val systemRecorderIntent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                        type = "audio/*"
+                    }
+                    try {
+                        startActivityForResult(systemRecorderIntent, PICK_AUDIO_INTENT)
+                    } catch (e2: Exception) {
+                        toast(org.fossify.commons.R.string.no_app_found)
+                    }
+                }
+            }
+        }
     }
 
     private fun launchPickContactIntent() {
