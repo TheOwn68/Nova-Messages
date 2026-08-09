@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/new_conversation_coordinator"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <org.fossify.commons.views.MyAppBarLayout
+        android:id="@+id/new_conversation_appbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@android:color/transparent"
+        app:elevation="0dp">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/new_conversation_toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="70dp"
+            android:background="@android:color/transparent"
+            app:contentInsetStart="0dp"
+            app:contentInsetStartWithNavigation="0dp">
+
+            <TextView
+                android:id="@+id/new_conversation_toolbar_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="#FFFFFF"
+                android:textSize="28sp"
+                android:textStyle="bold"
+                android:text="@string/new_conversation" />
+
+        </com.google.android.material.appbar.MaterialToolbar>
+
+    </org.fossify.commons.views.MyAppBarLayout>
+
+    <RelativeLayout
+        android:id="@+id/new_conversation_holder"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <org.fossify.commons.views.MyTextView
+            android:id="@+id/no_contacts_placeholder"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:alpha="0.8"
+            android:gravity="center"
+            android:paddingLeft="@dimen/activity_margin"
+            android:paddingRight="@dimen/activity_margin"
+            android:text="@string/no_access_to_contacts"
+            android:textSize="@dimen/bigger_text_size"
+            android:textStyle="italic"
+            android:visibility="gone" />
+
+        <org.fossify.commons.views.MyTextView
+            android:id="@+id/no_contacts_placeholder_2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/no_contacts_placeholder"
+            android:layout_centerHorizontal="true"
+            android:background="@drawable/ripple_all_corners"
+            android:gravity="center"
+            android:padding="@dimen/activity_margin"
+            android:text="@string/request_the_required_permissions"
+            android:textSize="@dimen/bigger_text_size"
+            android:visibility="gone" />
+
+        <org.fossify.commons.views.MyRecyclerView
+            android:id="@+id/contacts_list"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:layoutAnimation="@anim/layout_animation"
+            android:overScrollMode="ifContentScrolls"
+            android:scrollbars="none"
+            android:paddingTop="12dp"
+            android:paddingBottom="100dp"
+            android:paddingHorizontal="4dp"
+            android:clipChildren="false"
+            app:layoutManager="org.fossify.commons.views.MyLinearLayoutManager" />
+
+        <com.reddit.indicatorfastscroll.FastScrollerView
+            android:id="@+id/contacts_letter_fastscroller"
+            android:layout_width="32dp"
+            android:layout_height="wrap_content"
+            android:layout_alignTop="@+id/contacts_list"
+            android:layout_alignParentEnd="true"
+            android:paddingTop="@dimen/big_margin"
+            android:paddingBottom="@dimen/big_margin"
+            android:visibility="gone" />
+
+        <com.reddit.indicatorfastscroll.FastScrollerThumbView
+            android:id="@+id/contacts_letter_fastscroller_thumb"
+            android:layout_width="@dimen/fab_size"
+            android:layout_height="match_parent"
+            android:layout_alignTop="@+id/contacts_letter_fastscroller"
+            android:layout_alignBottom="@+id/contacts_letter_fastscroller"
+            android:layout_marginEnd="@dimen/activity_margin"
+            android:layout_toStartOf="@+id/contacts_letter_fastscroller"
+            android:visibility="gone" />
+
+    </RelativeLayout>
+
+    <LinearLayout
+        android:id="@+id/new_conversation_search_container"
+        android:layout_width="match_parent"
+        android:layout_height="55dp"
+        android:layout_margin="16dp"
+        android:layout_gravity="bottom"
+        android:background="@drawable/nova_searchbar_bg"
+        android:gravity="center_vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:elevation="6dp">
+
+        <ImageView
+            android:id="@+id/new_conversation_search_icon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_search_vector"
+            android:alpha="0.7"
+            app:tint="@android:color/white" />
+
+        <org.fossify.commons.views.MyEditText
+            android:id="@+id/new_conversation_address"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@android:color/transparent"
+            android:gravity="center_vertical"
+            android:hint="@string/add_contact_or_number"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:inputType="textCapWords"
+            android:textSize="18sp"
+            android:textColor="@android:color/white"
+            android:textColorHint="#888888" />
+
+        <ImageView
+            android:id="@+id/new_conversation_confirm"
+            android:layout_width="48dp"
+            android:layout_height="match_parent"
+            android:background="?selectableItemBackgroundBorderless"
+            android:padding="12dp"
+            android:src="@drawable/ic_check_vector"
+            android:visibility="gone" />
+
+    </LinearLayout>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

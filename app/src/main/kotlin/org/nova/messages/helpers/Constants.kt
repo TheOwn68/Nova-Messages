@@ -1,0 +1,199 @@
+package org.nova.messages.helpers
+
+import org.nova.messages.models.Events
+import org.greenrobot.eventbus.EventBus
+import org.joda.time.DateTime
+import org.joda.time.DateTimeZone
+import kotlin.math.abs
+import kotlin.random.Random
+
+const val THREAD_ID = "thread_id"
+const val THREAD_TITLE = "thread_title"
+const val THREAD_TEXT = "thread_text"
+const val THREAD_NUMBER = "thread_number"
+const val THREAD_ATTACHMENT_URI = "thread_attachment_uri"
+const val THREAD_ATTACHMENT_URIS = "thread_attachment_uris"
+const val SEARCHED_MESSAGE_ID = "searched_message_id"
+const val USE_SIM_ID_PREFIX = "use_sim_id_"
+const val NOTIFICATION_CHANNEL_ID = "nova_messages"
+const val SHOW_CHARACTER_COUNTER = "show_character_counter"
+const val USE_SIMPLE_CHARACTERS = "use_simple_characters"
+const val SEND_ON_ENTER = "send_on_enter"
+const val LOCK_SCREEN_VISIBILITY = "lock_screen_visibility"
+const val ENABLE_DELIVERY_REPORTS = "enable_delivery_reports"
+const val SEND_LONG_MESSAGE_MMS = "send_long_message_mms"
+const val SEND_GROUP_MESSAGE_MMS = "send_group_message_mms"
+const val MMS_FILE_SIZE_LIMIT = "mms_file_size_limit"
+const val PINNED_CONVERSATIONS = "pinned_conversations"
+const val BLOCKED_KEYWORDS = "blocked_keywords"
+const val LAST_BLOCKED_KEYWORD_EXPORT_PATH = "last_blocked_keyword_export_path"
+const val EXPORT_SMS = "export_sms"
+const val EXPORT_MMS = "export_mms"
+const val JSON_FILE_EXTENSION = ".json"
+const val JSON_MIME_TYPE = "application/json"
+const val XML_MIME_TYPE = "text/xml"
+const val TXT_MIME_TYPE = "text/plain"
+const val IMPORT_SMS = "import_sms"
+const val IMPORT_MMS = "import_mms"
+const val WAS_DB_CLEARED = "was_db_cleared_4"
+const val EXTRA_VCARD_URI = "vcard"
+const val SCHEDULED_MESSAGE_ID = "scheduled_message_id"
+const val SOFT_KEYBOARD_HEIGHT = "soft_keyboard_height"
+const val IS_MMS = "is_mms"
+const val MESSAGE_ID = "message_id"
+const val USE_RECYCLE_BIN = "use_recycle_bin"
+const val LAST_RECYCLE_BIN_CHECK = "last_recycle_bin_check"
+const val IS_RECYCLE_BIN = "is_recycle_bin"
+const val IS_ARCHIVE_AVAILABLE = "is_archive_available"
+const val CUSTOM_NOTIFICATIONS = "custom_notifications"
+const val IS_LAUNCHED_FROM_SHORTCUT = "is_launched_from_shortcut"
+const val IS_FROM_NOTIFICATION = "is_from_notification"
+const val KEEP_CONVERSATIONS_ARCHIVED = "keep_conversations_archived"
+const val USE_NEW_UI = "use_new_ui"
+const val CONVERSATION_ORDER = "conversation_order"
+const val CONTACT_SORTING_MODE = "contact_sorting_mode"
+const val RECENT_COLOR = "recent_color"
+const val ROW1_COLOR = "row1_color"
+const val ROW2_COLOR = "row2_color"
+const val ROW3_COLOR = "row3_color"
+const val UI_SCALE = "ui_scale"
+const val FONT_FAMILY = "font_family_nova"
+const val FONT_TYPE = "font_type"
+const val FONT_FAMILY_NOVA = "font_family_nova"
+
+// Customization constants
+const val TOP_BAR_COLOR = "top_bar_color"
+const val TOP_BAR_TEXT_COLOR = "top_bar_text_color"
+const val MAIN_TEXT_COLOR = "main_text_color"
+const val MAIN_BACKGROUND_COLOR = "main_background_color"
+const val INPUT_BAR_BACKGROUND_COLOR = "input_bar_background_color"
+const val INPUT_BAR_TEXT_COLOR = "input_bar_text_color"
+const val SENT_BUBBLE_COLOR = "sent_bubble_color"
+const val RECEIVED_BUBBLE_COLOR = "received_bubble_color"
+const val SENT_BUBBLE_TEXT_COLOR = "sent_bubble_text_color"
+const val RECEIVED_BUBBLE_TEXT_COLOR = "received_bubble_text_color"
+
+const val TOP_BAR_IMAGE = "top_bar_image_v2"
+const val MAIN_BACKGROUND_IMAGE = "main_background_image_v2"
+const val INPUT_BAR_IMAGE = "input_bar_image_v2"
+const val TOP_BAR_CROP_RECT = "top_bar_crop_rect"
+const val MAIN_BG_CROP_RECT = "main_bg_crop_rect"
+const val INPUT_BAR_CROP_RECT = "input_bar_crop_rect"
+const val CROP_TARGET = "crop_target"
+const val CROP_TARGET_TOP_BAR = 1
+const val CROP_TARGET_SEARCH_BAR = 2
+const val CROP_TARGET_BACKGROUND = 3
+const val TOP_BAR_BG_MODE = "top_bar_bg_mode"
+const val MAIN_BG_MODE = "main_bg_mode"
+const val INPUT_BAR_BG_MODE = "input_bar_bg_mode"
+
+const val BG_MODE_COLOR = 0
+const val BG_MODE_IMAGE = 1
+
+const val ALWAYS_EXPAND_SEARCH_BAR = "always_expand_search_bar"
+
+const val PRESET_1_NAME = "preset_1_name"
+const val PRESET_2_NAME = "preset_2_name"
+const val PRESET_3_NAME = "preset_3_name"
+
+const val TOP_BAR_OUTLINE = "top_bar_outline"
+const val TOP_BAR_OUTLINE_COLOR = "top_bar_outline_color"
+const val TOP_BAR_OUTLINE_THICKNESS = "top_bar_outline_thickness"
+
+const val SEARCH_BAR_OUTLINE = "search_bar_outline"
+const val SEARCH_BAR_OUTLINE_COLOR = "search_bar_outline_color"
+const val SEARCH_BAR_OUTLINE_THICKNESS = "search_bar_outline_thickness"
+
+const val BIG_CONTACTS_OUTLINE = "big_contacts_outline"
+const val BIG_CONTACTS_OUTLINE_COLOR = "big_contacts_outline_color"
+const val BIG_CONTACTS_OUTLINE_THICKNESS = "big_contacts_outline_thickness"
+
+const val SMALL_CONTACTS_OUTLINE = "small_contacts_outline"
+const val SMALL_CONTACTS_OUTLINE_COLOR = "small_contacts_outline_color"
+const val SMALL_CONTACTS_OUTLINE_THICKNESS = "small_contacts_outline_thickness"
+
+const val SENT_BUBBLES_OUTLINE = "sent_bubbles_outline"
+const val SENT_BUBBLES_OUTLINE_COLOR = "sent_bubbles_outline_color"
+const val SENT_BUBBLES_OUTLINE_THICKNESS = "sent_bubbles_outline_thickness"
+
+const val RECEIVED_BUBBLES_OUTLINE = "received_bubbles_outline"
+const val RECEIVED_BUBBLES_OUTLINE_COLOR = "received_bubbles_outline_color"
+const val RECEIVED_BUBBLES_OUTLINE_THICKNESS = "received_bubbles_outline_thickness"
+
+private const val PATH = "org.nova.org.nova.messages.action."
+const val MARK_AS_READ = PATH + "mark_as_read"
+const val REPLY = PATH + "reply"
+
+// view types for the thread list view
+const val THREAD_DATE_TIME = 1
+const val THREAD_RECEIVED_MESSAGE = 2
+const val THREAD_SENT_MESSAGE = 3
+const val THREAD_SENT_MESSAGE_ERROR = 4
+const val THREAD_SENT_MESSAGE_SENT = 5
+const val THREAD_SENT_MESSAGE_SENDING = 6
+const val THREAD_TYPE_BITS = 3
+const val THREAD_KEY_BITS = Long.SIZE_BITS - THREAD_TYPE_BITS
+const val THREAD_TYPE_SHIFT = THREAD_KEY_BITS
+const val THREAD_KEY_MASK = (1L shl THREAD_KEY_BITS) - 1
+
+// view types for attachment list
+const val ATTACHMENT_DOCUMENT = 7
+const val ATTACHMENT_MEDIA = 8
+const val ATTACHMENT_VCARD = 9
+
+// lock screen visibility constants
+const val LOCK_SCREEN_SENDER_MESSAGE = 1
+const val LOCK_SCREEN_SENDER = 2
+const val LOCK_SCREEN_NOTHING = 3
+
+const val FILE_SIZE_NONE = -1L
+const val FILE_SIZE_100_KB = 102_400L
+const val FILE_SIZE_200_KB = 204_800L
+const val FILE_SIZE_300_KB = 307_200L
+const val FILE_SIZE_600_KB = 614_400L
+const val FILE_SIZE_1_MB = 1_048_576L
+const val FILE_SIZE_2_MB = 2_097_152L
+const val FILE_SIZE_50_MB = 52_428_800L
+const val FILE_SIZE_100_MB = 104_857_600L
+
+const val MESSAGES_LIMIT = 50
+const val MAX_MESSAGE_LENGTH = 5000
+
+// intent launch request codes
+const val PICK_PHOTO_INTENT = 42
+const val PICK_VIDEO_INTENT = 49
+const val PICK_SAVE_FILE_INTENT = 43
+const val CAPTURE_PHOTO_INTENT = 44
+const val CAPTURE_VIDEO_INTENT = 45
+const val CAPTURE_AUDIO_INTENT = 46
+const val PICK_AUDIO_INTENT = 51
+const val PICK_DOCUMENT_INTENT = 47
+const val PICK_CONTACT_INTENT = 48
+const val PICK_SAVE_DIR_INTENT = 50
+const val PICK_TOP_BAR_IMAGE_INTENT = 2001
+const val PICK_MAIN_BG_IMAGE_INTENT = 2002
+const val PICK_INPUT_BAR_IMAGE_INTENT = 2003
+const val CROP_RESULT_INTENT = 2004
+
+const val BLOCKED_KEYWORDS_EXPORT_DELIMITER = ","
+const val BLOCKED_KEYWORDS_EXPORT_EXTENSION = ".txt"
+
+fun refreshMessages() {
+    EventBus.getDefault().post(Events.RefreshMessages())
+}
+
+fun refreshConversations(isManualReorder: Boolean = false) {
+    EventBus.getDefault().post(Events.RefreshConversations(isManualReorder))
+}
+
+/** Not to be used with real messages persisted in the telephony db. This is for internal use only (e.g. scheduled messages, notification ids etc). */
+fun generateRandomId(length: Int = 9): Long {
+    val millis = DateTime.now(DateTimeZone.UTC).millis
+    val random = abs(Random(millis).nextLong())
+    return random.toString().takeLast(length).toLong()
+}
+
+fun generateStableId(type: Int, key: Long): Long {
+    require(type in 0 until (1 shl THREAD_TYPE_BITS))
+    return (type.toLong() shl THREAD_TYPE_SHIFT) or (key and THREAD_KEY_MASK)
+}

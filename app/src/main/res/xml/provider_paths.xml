@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <cache-path name="compressed_files" path="compressed/"/>
+    <cache-path name="attachment_files" path="attachments/"/>
+    <cache-path name="cache_root" path="."/>
+</paths>

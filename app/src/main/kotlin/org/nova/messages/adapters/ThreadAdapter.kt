@@ -1,0 +1,833 @@
+package org.nova.messages.adapters
+
+import android.content.Intent
+import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.Drawable
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
+import android.util.TypedValue
+import android.view.Menu
+import android.view.View
+import android.view.ViewGroup
+import android.widget.LinearLayout
+import android.widget.RelativeLayout
+import android.widget.TextView
+import android.widget.ImageView
+import androidx.appcompat.content.res.AppCompatResources
+import androidx.constraintlayout.widget.ConstraintSet
+import androidx.core.graphics.drawable.toDrawable
+import androidx.core.view.updateLayoutParams
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.RecyclerView
+import androidx.viewbinding.ViewBinding
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.DataSource
+import com.bumptech.glide.load.engine.DiskCacheStrategy
+import com.bumptech.glide.load.engine.GlideException
+import com.bumptech.glide.load.resource.bitmap.DownsampleStrategy
+import com.bumptech.glide.load.resource.bitmap.FitCenter
+import com.bumptech.glide.request.RequestListener
+import com.bumptech.glide.request.RequestOptions
+import com.bumptech.glide.request.target.Target
+import org.fossify.commons.adapters.MyRecyclerViewListAdapter
+import org.fossify.commons.dialogs.ConfirmationDialog
+import org.fossify.commons.extensions.*
+import org.fossify.commons.views.MyRecyclerView
+import org.nova.messages.R
+import org.nova.messages.activities.NewConversationActivity
+import org.nova.messages.activities.SimpleActivity
+import org.nova.messages.activities.ThreadActivity
+import org.nova.messages.activities.VCardViewerActivity
+import org.nova.messages.databinding.*
+import org.nova.messages.extensions.*
+import org.nova.messages.helpers.*
+import org.nova.messages.models.Attachment
+import org.nova.messages.models.Message
+import org.nova.messages.models.ThreadItem
+import org.nova.messages.models.ThreadItem.ThreadDateTime
+import org.nova.messages.models.ThreadItem.ThreadError
+import org.nova.messages.models.ThreadItem.ThreadSending
+import org.nova.messages.models.ThreadItem.ThreadSent
+
+class ThreadAdapter(
+    activity: SimpleActivity,
+    recyclerView: MyRecyclerView,
+    itemClick: (Any) -> Unit,
+    private val isRecycleBin: Boolean,
+    private val deleteMessages: (messages: List<Message>, toRecycleBin: Boolean, fromRecycleBin: Boolean) -> Unit
+) : MyRecyclerViewListAdapter<ThreadItem>(activity, recyclerView, ThreadItemDiffCallback(), itemClick) {
+
+    private val hasMultipleSIMCards = try {
+        activity.subscriptionManagerCompat().activeSubscriptionInfoList?.size ?: 0 > 1
+    } catch (_: SecurityException) {
+        false
+    }
+    
+    private val uiScale get() = (activity as SimpleActivity).uiScale
+    private val maxChatBubbleWidth = (activity.usableScreenSize.x * 0.75f).toInt()
+    private var fontSize = (activity as SimpleActivity).getScaledTextSize()
+    private var lastAnimatedPosition = -1
+
+    fun updateScaling() {
+        fontSize = (activity as SimpleActivity).getScaledTextSize()
+        notifyItemRangeChanged(0, itemCount)
+    }
+
+    companion object {
+        private const val MAX_MEDIA_HEIGHT_RATIO = 2
+        private const val SIM_BITS = 10
+        private const val SIM_MASK = (1L shl SIM_BITS) - 1
+    }
+
+    init {
+        setupDragListener(true)
+        registerAdapterDataObserver(object : RecyclerView.AdapterDataObserver() {
+            override fun onChanged() {
+                updateCustomSelectionBar()
+            }
+            override fun onItemRangeChanged(positionStart: Int, itemCount: Int) {
+                updateCustomSelectionBar()
+            }
+            override fun onItemRangeRemoved(positionStart: Int, itemCount: Int) {
+                updateCustomSelectionBar()
+            }
+        })
+    }
+
+    override fun getActionMenuId() = R.menu.cab_thread
+
+    fun isSelectionModeActive() = selectedKeys.isNotEmpty()
+
+    private fun getCustomActions(): List<Int> {
+        val selectedItems = getSelectedItems()
+        if (selectedItems.isEmpty()) return emptyList()
+
+        val isOneItemSelected = selectedItems.size == 1
+        val selectedMessage = selectedItems.first() as? Message
+        val isMms = selectedMessage?.isMMS == true
+        
+        val actions = mutableListOf<Int>()
+        actions.add(R.id.cab_select_all)
+        actions.add(R.id.cab_delete)
+        
+        if (isOneItemSelected && !isMms) {
+            actions.add(R.id.cab_copy_to_clipboard)
+            actions.add(R.id.cab_share)
+            actions.add(R.id.cab_select_text)
+            actions.add(R.id.cab_forward_message)
+        }
+
+        if (isOneItemSelected && isMms && selectedMessage?.attachment?.attachments?.isNotEmpty() == true) {
+            actions.add(R.id.cab_save_as)
+        }
+        
+        return actions
+    }
+
+    override fun onActionModeCreated() {
+        android.util.Log.d("ThreadSelection", "Action mode created")
+        updateCustomSelectionBar()
+    }
+
+    override fun onActionModeDestroyed() {
+        android.util.Log.d("ThreadSelection", "Action mode destroyed")
+        (activity as? SimpleActivity)?.toggleCustomSelectionBar(false)
+    }
+
+    private fun updateCustomSelectionBar() {
+        val simpleActivity = activity as? SimpleActivity ?: return
+        val count = selectedKeys.size
+        if (count > 0) {
+            val actions = getCustomActions()
+            simpleActivity.toggleCustomSelectionBar(true, count, actions) { actionId ->
+                if (actionId == R.id.selection_cancel) {
+                    finishActMode()
+                } else {
+                    actionItemPressed(actionId)
+                }
+            }
+        } else {
+            simpleActivity.toggleCustomSelectionBar(false)
+        }
+    }
+
+    override fun prepareActionMode(menu: Menu) {
+        try {
+            val selectedItems = getSelectedItems()
+            if (selectedItems.isEmpty()) {
+                return
+            }
+
+            val isOneItemSelected = selectedItems.size == 1
+            val selectedMessage = selectedItems.first() as? Message
+            val isMms = selectedMessage?.isMMS == true
+
+            // ROBUST NULL SAFETY
+            menu.findItem(R.id.cab_copy_to_clipboard)?.isVisible = isOneItemSelected && !isMms
+            menu.findItem(R.id.cab_save_as)?.isVisible = isOneItemSelected && isMms && selectedMessage?.attachment?.attachments?.isNotEmpty() == true
+            menu.findItem(R.id.cab_share)?.isVisible = isOneItemSelected && !isMms
+            menu.findItem(R.id.cab_select_text)?.isVisible = isOneItemSelected && !isMms
+            menu.findItem(R.id.cab_properties)?.isVisible = isOneItemSelected && selectedMessage != null
+            menu.findItem(R.id.cab_forward_message)?.isVisible = isOneItemSelected && selectedMessage != null
+            menu.findItem(R.id.cab_restore)?.isVisible = isRecycleBin
+        } catch (e: Exception) {
+            android.util.Log.e("SelectionCrash", "Error preparing action mode", e)
+        }
+    }
+
+    override fun actionItemPressed(id: Int) {
+        if (selectedKeys.isEmpty()) {
+            return
+        }
+
+        when (id) {
+            R.id.cab_copy_to_clipboard -> copyToClipboard()
+            R.id.cab_save_as -> saveAs()
+            R.id.cab_share -> shareText()
+            R.id.cab_select_text -> selectText()
+            R.id.cab_properties -> showProperties()
+            R.id.cab_delete -> askConfirmDelete()
+            R.id.cab_restore -> askConfirmRestore()
+            R.id.cab_forward_message -> forwardMessage()
+            R.id.cab_select_all -> selectAll()
+        }
+    }
+
+    override fun getSelectableItemCount() = currentList.filterIsInstance<Message>().size
+
+    override fun getIsItemSelectable(position: Int) = currentList[position] is Message
+
+    override fun getItemSelectionKey(position: Int): Int? {
+        return (currentList.getOrNull(position) as? Message)?.getSelectionKey()
+    }
+
+    override fun getItemKeyPosition(key: Int): Int {
+        return currentList.indexOfFirst { (it as? Message)?.getSelectionKey() == key }
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+        val binding = when (viewType) {
+            THREAD_RECEIVED_MESSAGE -> ItemMessageReceivedBinding.inflate(layoutInflater, parent, false)
+            THREAD_SENT_MESSAGE -> ItemMessageSentBinding.inflate(layoutInflater, parent, false)
+            THREAD_DATE_TIME -> ItemThreadDateTimeBinding.inflate(layoutInflater, parent, false)
+            THREAD_SENT_MESSAGE_ERROR -> ItemThreadErrorBinding.inflate(layoutInflater, parent, false)
+            THREAD_SENT_MESSAGE_SENDING -> ItemThreadSendingBinding.inflate(layoutInflater, parent, false)
+            THREAD_SENT_MESSAGE_SENT -> ItemThreadSuccessBinding.inflate(layoutInflater, parent, false)
+            else -> ItemThreadSuccessBinding.inflate(layoutInflater, parent, false)
+        }
+        return ThreadViewHolder(binding)
+    }
+
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        val item = currentList[position]
+        val binding = (holder as ThreadViewHolder).binding
+        when (item) {
+            is Message -> {
+                // Use bindView for robust interaction handling (tap/long-press synchronization)
+                holder.bindView(item, allowSingleClick = true, allowLongClick = true) { _, _ ->
+                    // Root click is handled by bodyHolder/bodyView logic for reactions
+                }
+                
+                setupView(holder, binding, item)
+                
+                // Bubble Entry Animation
+                if (position > lastAnimatedPosition) {
+                    val isReceived = item.isReceivedMessage()
+                    val bodyHolder = if (binding is ItemMessageReceivedBinding) binding.threadMessageBodyHolder else (binding as ItemMessageSentBinding).threadMessageBodyHolder
+                    
+                    val anim = android.view.animation.ScaleAnimation(
+                        0.7f, 1.0f, 0.7f, 1.0f,
+                        android.view.animation.Animation.RELATIVE_TO_SELF, if (isReceived) 0f else 1.0f,
+                        android.view.animation.Animation.RELATIVE_TO_SELF, 1.0f
+                    )
+                    anim.duration = 400
+                    anim.interpolator = android.view.animation.OvershootInterpolator(1.2f)
+                    bodyHolder.startAnimation(anim)
+                    lastAnimatedPosition = position
+                }
+            }
+            is ThreadDateTime -> setupDateTime(binding.root, item)
+            is ThreadError -> setupThreadError(binding.root)
+            is ThreadSending -> setupThreadSending(binding.root)
+            is ThreadSent -> setupThreadSuccess(binding.root, item.delivered)
+        }
+        bindViewHolder(holder)
+    }
+
+    override fun getItemId(position: Int): Long {
+        val item = currentList.getOrNull(position) ?: return 0L
+        return getItemIdForRawItem(item)
+    }
+
+    override fun getItemViewType(position: Int): Int {
+        return when (val item = currentList[position]) {
+            is Message -> if (item.isReceivedMessage()) THREAD_RECEIVED_MESSAGE else THREAD_SENT_MESSAGE
+            is ThreadDateTime -> THREAD_DATE_TIME
+            is ThreadError -> THREAD_SENT_MESSAGE_ERROR
+            is ThreadSending -> THREAD_SENT_MESSAGE_SENDING
+            is ThreadSent -> THREAD_SENT_MESSAGE_SENT
+        }
+    }
+
+    private fun copyToClipboard() {
+        val message = getSelectedItems().first() as Message
+        activity.copyToClipboard(message.body)
+        finishActMode()
+    }
+
+    private fun getSelectedAttachments(): List<Attachment> {
+        val message = getSelectedItems().first() as Message
+        return message.attachment?.attachments ?: emptyList()
+    }
+
+    private fun saveAs() {
+        val attachments = getSelectedAttachments()
+        (activity as ThreadActivity).saveMMS(attachments)
+        finishActMode()
+    }
+
+    private fun shareText() {
+        val message = getSelectedItems().first() as Message
+        activity.shareTextIntent(message.body)
+        finishActMode()
+    }
+
+    private fun selectText() {
+        val message = getSelectedItems().first() as Message
+        val binding = DialogSelectTextBinding.inflate(layoutInflater)
+        binding.dialogSelectTextValue.text = message.body
+        (activity as SimpleActivity).updateAppFonts(binding.root)
+        ConfirmationDialog(activity, "", 0, org.fossify.commons.R.string.ok, 0, false, message.body) {
+            // Nothing to do
+        }
+    }
+
+    private fun showProperties() {
+        val message = getSelectedItems().first() as Message
+        (activity as ThreadActivity).showProperties(message)
+        finishActMode()
+    }
+
+    private fun askConfirmDelete() {
+        val items = getSelectedItems().filterIsInstance<Message>()
+        val baseString = org.fossify.commons.R.string.deletion_confirmation
+        val message = String.format(activity.getString(baseString), items.size)
+        ConfirmationDialog(activity, message) {
+            deleteMessages(items, false, false)
+            finishActMode()
+        }
+    }
+
+    private fun askConfirmRestore() {
+        val items = getSelectedItems().filterIsInstance<Message>()
+        val message = if (items.size == 1) {
+            activity.getString(R.string.restore_confirmation, items.first().senderName)
+        } else {
+            activity.getString(org.fossify.commons.R.string.files_restored_successfully, items.size)
+        }
+
+        ConfirmationDialog(activity, message) {
+            deleteMessages(items, false, true)
+            finishActMode()
+        }
+    }
+
+    private fun forwardMessage() {
+        val message = getSelectedItems().first() as Message
+        val intent = Intent(activity, NewConversationActivity::class.java).apply {
+            putExtra(THREAD_TEXT, message.body)
+            if (message.isMMS) {
+                putExtra(THREAD_ATTACHMENT_URIS, ArrayList(message.attachment?.attachments?.map { it.getUri().toString() } ?: emptyList()))
+            }
+        }
+        activity.startActivity(intent)
+        finishActMode()
+    }
+
+    private fun getSelectedItems(): ArrayList<ThreadItem> {
+        val items = ArrayList<ThreadItem>()
+        selectedKeys.forEach { key ->
+            val item = currentList.firstOrNull { (it as? Message)?.getSelectionKey() == key }
+            if (item != null) {
+                items.add(item)
+            }
+        }
+        return items
+    }
+
+    fun updateMessages(newMessages: ArrayList<ThreadItem>, callback: (() -> Unit)? = null) {
+        submitList(newMessages) {
+            callback?.invoke()
+        }
+    }
+
+    private fun setupView(holder: ViewHolder, binding: ViewBinding, message: Message) {
+        val isSelected = selectedKeys.contains(message.getSelectionKey())
+        val isReceived = message.isReceivedMessage()
+        
+        val wrapper = if (binding is ItemMessageReceivedBinding) binding.threadMessageWrapper else (binding as ItemMessageSentBinding).threadMessageWrapper
+        val holderView = if (binding is ItemMessageReceivedBinding) binding.threadMessageHolder else (binding as ItemMessageSentBinding).threadMessageHolder
+        val bodyView = if (binding is ItemMessageReceivedBinding) binding.threadMessageBody else (binding as ItemMessageSentBinding).threadMessageBody
+        val bodyHolder = if (binding is ItemMessageReceivedBinding) binding.threadMessageBodyHolder else (binding as ItemMessageSentBinding).threadMessageBodyHolder
+        val photoView = if (binding is ItemMessageReceivedBinding) binding.threadMessageSenderPhoto else (binding as ItemMessageSentBinding).threadMessageSenderPhoto
+        val attachmentsHolder = if (binding is ItemMessageReceivedBinding) binding.threadMessageAttachmentsHolder else (binding as ItemMessageSentBinding).threadMessageAttachmentsHolder
+        val playOutline = if (binding is ItemMessageReceivedBinding) binding.threadMessagePlayOutline else (binding as ItemMessageSentBinding).threadMessagePlayOutline
+        val overlay = if (binding is ItemMessageReceivedBinding) binding.selectionOverlay else (binding as ItemMessageSentBinding).selectionOverlay
+        val reactionView = if (binding is ItemMessageReceivedBinding) binding.messageReaction else (binding as ItemMessageSentBinding).messageReaction
+
+        holderView.visibility = View.VISIBLE
+        wrapper.visibility = View.VISIBLE
+
+        // Display reaction if present
+        reactionView.beVisibleIf(message.reaction != null)
+        reactionView.text = message.reaction ?: ""
+        if (message.reaction != null) {
+            org.nova.messages.helpers.ReactionStyleUtils.setupReactionBubble(reactionView, activity)
+        }
+
+        // Selection Overlay Logic (Theme Perfect)
+        overlay.beVisibleIf(isSelected)
+        if (isSelected) {
+            val simpleActivity = activity as SimpleActivity
+            val highlightColor = if (simpleActivity.config.topBarColor != 0) {
+                simpleActivity.run { simpleActivity.config.topBarColor.withAlpha(0.3f) }
+            } else {
+                simpleActivity.run { Color.BLACK.withAlpha(0.1f) }
+            }
+            
+            val radius = 20f * simpleActivity.resources.displayMetrics.density
+            val shape = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = radius
+                setColor(highlightColor)
+            }
+            overlay.background = shape
+        }
+
+        // NO LayoutParams logic here anymore! Alignment is handled by distinct XML files.
+
+        bodyHolder.apply {
+            val config = activity.config
+            val bgColor = if (isReceived) config.receivedBubbleColor else config.sentBubbleColor
+            
+            val isNewUi = (activity as SimpleActivity).config.useNewUi
+            val backgroundDrawable = AppCompatResources.getDrawable(activity, if (isReceived) R.drawable.item_received_background else R.drawable.item_sent_background)
+            
+            if (isNewUi) {
+                val lightened = adjustColor(bgColor, 1.2f)
+                val darkened = adjustColor(bgColor, 0.8f)
+                val gd = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(lightened, bgColor, darkened))
+                
+                val density = resources.displayMetrics.density
+                val r18 = 18f * density
+                val r4 = 4f * density
+                
+                val baseRadii = if (isReceived) {
+                    floatArrayOf(r18, r18, r18, r18, r18, r18, r4, r4)
+                } else {
+                    floatArrayOf(r18, r18, r18, r18, r4, r4, r18, r18)
+                }
+                
+                // Bubble Outlines
+                if (config.useNewUi) {
+                    val outlineOn = if (isReceived) config.receivedBubblesOutline else config.sentBubblesOutline
+                    if (outlineOn) {
+                        val outlineColor = if (isReceived) config.receivedBubblesOutlineColor else config.sentBubblesOutlineColor
+                        val thickness = if (isReceived) config.receivedBubblesOutlineThickness else config.sentBubblesOutlineThickness
+                        val thickStroke = (thickness * density).toInt()
+                        
+                        gd.cornerRadii = baseRadii
+                        gd.setStroke(thickStroke, outlineColor)
+                        
+                        val layerDrawable = LayerDrawable(arrayOf(gd))
+                        layerDrawable.setLayerInset(0, 0, 0, 0, 0)
+                        background = layerDrawable
+                    } else {
+                        val radii = baseRadii
+                        gd.cornerRadii = baseRadii
+                        background = gd
+                    }
+                } else {
+                    val radii = baseRadii
+                    gd.cornerRadii = baseRadii
+                    background = gd
+                }
+                
+                // Material 3 Depth (Standardized for stability)
+                elevation = 4f * density
+                clipToOutline = false 
+                outlineProvider = object : android.view.ViewOutlineProvider() {
+                    override fun getOutline(view: View, outline: android.graphics.Outline) {
+                        val path = android.graphics.Path()
+                        // Use baseRadii for clipping to ensure content matches the visual interior
+                        path.addRoundRect(
+                            0f, 0f, view.width.toFloat(), view.height.toFloat(),
+                            baseRadii, android.graphics.Path.Direction.CW
+                        )
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                            outline.setPath(path)
+                        } else {
+                            @Suppress("DEPRECATION")
+                            outline.setConvexPath(path)
+                        }
+                    }
+                }
+            } else {
+                if (backgroundDrawable is GradientDrawable) {
+                    backgroundDrawable.setColor(bgColor)
+                } else if (backgroundDrawable != null) {
+                    backgroundDrawable.applyColorFilter(bgColor)
+                }
+                background = backgroundDrawable
+                elevation = 0f
+            }
+
+            setOnLongClickListener {
+                holder.viewLongClicked()
+                updateCustomSelectionBar()
+                true
+            }
+
+            setOnClickListener {
+                android.util.Log.d("ReactionInteraction", "bodyHolder tapped for message ${message.id} (type=${message.type}, isReceived=${message.isReceivedMessage()}, reaction=${message.reaction})")
+                if (isSelectionModeActive()) {
+                    holder.viewLongClicked()
+                    updateCustomSelectionBar()
+                } else if (message.isReceivedMessage() && message.reaction == null) {
+                    android.util.Log.d("ReactionInteraction", "Showing ReactionPickerDialog for message ${message.id}")
+                    try {
+                        org.nova.messages.dialogs.ReactionPickerDialog(activity, this) { emoji ->
+                            android.util.Log.d("ReactionInteraction", "Reaction $emoji picked for message ${message.id}")
+                            (activity as? ThreadActivity)?.onReactionPicked(message, emoji)
+                        }.show()
+                    } catch (e: Exception) {
+                        android.util.Log.e("ReactionPicker", "Failed to show dialog from bubble tap", e)
+                    }
+                } else {
+                    android.util.Log.d("ReactionInteraction", "Reaction picker disabled for message ${message.id}: isReceived=${message.isReceivedMessage()}, hasReaction=${message.reaction != null}")
+                }
+            }
+        }
+
+        bodyView.apply {
+            val config = activity.config
+            val bgColor = if (isReceived) config.receivedBubbleColor else config.sentBubbleColor
+            val textColor = if (isReceived) config.receivedBubbleTextColor else config.sentBubbleTextColor
+            
+            // Safety: if background and text are too similar or transparent, use defaults
+            val finalTextColor = if (textColor == 0 || textColor == Color.TRANSPARENT || textColor == bgColor) {
+                if (bgColor == Color.WHITE) Color.BLACK else Color.WHITE
+            } else {
+                textColor
+            }
+
+            background = null // Managed by bodyHolder
+            elevation = 0f    // Managed by bodyHolder
+            
+            setTextColor(finalTextColor)
+            alpha = 1.0f
+            setLinkTextColor(if (isReceived) activity.getProperPrimaryColor() else finalTextColor)
+
+            text = message.body
+            visibility = if (message.body.isNotEmpty()) View.VISIBLE else View.GONE
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
+            
+            val customTypeface = (activity as SimpleActivity).getCustomTypeface()
+            val style = if (message.isScheduled) Typeface.ITALIC else Typeface.NORMAL
+            typeface = Typeface.create(customTypeface, style)
+
+            // Ensure clicks pass through to the bubble container
+            isClickable = true
+            isFocusable = true
+            isLongClickable = true
+            movementMethod = null 
+
+            setOnClickListener {
+                android.util.Log.d("ReactionInteraction", "bodyView tapped for message ${message.id}, delegating to bodyHolder")
+                bodyHolder.performClick()
+            }
+            
+            setOnLongClickListener {
+                android.util.Log.d("ReactionInteraction", "bodyView long-pressed for message ${message.id}, delegating to bodyHolder")
+                bodyHolder.performLongClick()
+            }
+
+            if (!isReceived && message.isScheduled) {
+                val scheduledDrawable = AppCompatResources.getDrawable(activity, org.fossify.commons.R.drawable.ic_clock_vector)?.apply {
+                    applyColorFilter(finalTextColor)
+                    val size = lineHeight
+                    setBounds(0, 0, size, size)
+                }
+                setCompoundDrawables(null, null, scheduledDrawable, null)
+            } else {
+                setCompoundDrawables(null, null, null, null)
+            }
+        }
+
+        if (message.attachment?.attachments?.isNotEmpty() == true) {
+            attachmentsHolder.beVisible()
+            if (attachmentsHolder.tag != message.id) {
+                attachmentsHolder.removeAllViews()
+                for (attachment in message.attachment.attachments) {
+                    val mimetype = attachment.mimetype
+                    when {
+                        mimetype.isImageMimeType() || mimetype.isVideoMimeType() -> setupImageView(holder, binding, message, attachment)
+                        mimetype.isVCardMimeType() -> setupVCardView(holder, attachmentsHolder, message, attachment)
+                        else -> setupFileView(holder, attachmentsHolder, message, attachment)
+                    }
+                }
+                attachmentsHolder.tag = message.id
+            }
+            
+            val hasVideo = message.attachment.attachments.any { it.mimetype.startsWith("video/") }
+            playOutline.beVisibleIf(hasVideo)
+        } else {
+            attachmentsHolder.beGone()
+            playOutline.beGone()
+            attachmentsHolder.tag = null
+        }
+    }
+
+    private fun setupImageView(holder: ViewHolder, binding: ViewBinding, message: Message, attachment: Attachment) {
+        val attachmentsHolder = if (binding is ItemMessageReceivedBinding) binding.threadMessageAttachmentsHolder else (binding as ItemMessageSentBinding).threadMessageAttachmentsHolder
+        val playOutline = if (binding is ItemMessageReceivedBinding) binding.threadMessagePlayOutline else (binding as ItemMessageSentBinding).threadMessagePlayOutline
+        
+        val mimetype = attachment.mimetype
+        val uri = attachment.getUri()
+
+        val imageViewBinding = ItemAttachmentImageBinding.inflate(layoutInflater)
+        attachmentsHolder.addView(imageViewBinding.root)
+
+        // Set stable placeholder height to prevent jitter
+        imageViewBinding.attachmentImage.updateLayoutParams<ViewGroup.LayoutParams> {
+            width = maxChatBubbleWidth
+            height = (maxChatBubbleWidth * 0.6f).toInt() // Stable aspect ratio placeholder
+        }
+
+        val placeholderDrawable = Color.TRANSPARENT.toDrawable()
+        val options = RequestOptions()
+            .diskCacheStrategy(DiskCacheStrategy.RESOURCE)
+            .placeholder(placeholderDrawable)
+            .transform(FitCenter())
+
+        Glide.with(activity)
+            .load(uri)
+            .apply(options)
+            .dontAnimate()
+            .override(maxChatBubbleWidth, (maxChatBubbleWidth * MAX_MEDIA_HEIGHT_RATIO))
+            .downsample(DownsampleStrategy.AT_MOST)
+            .listener(object : RequestListener<Drawable> {
+                override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean): Boolean {
+                    imageViewBinding.attachmentImage.updateLayoutParams<ViewGroup.LayoutParams> {
+                        width = maxChatBubbleWidth
+                        height = (maxChatBubbleWidth * 0.6f).toInt()
+                    }
+                    imageViewBinding.attachmentImage.setImageResource(R.drawable.ic_image_vector)
+                    imageViewBinding.attachmentImage.applyColorFilter(activity.getProperPrimaryColor())
+                    playOutline.beGone()
+                    return true
+                }
+
+                override fun onResourceReady(resource: Drawable?, model: Any?, target: Target<Drawable>?, dataSource: DataSource?, isFirstResource: Boolean): Boolean {
+                    // Adjust height only after load, but Glide does this smoothly with dontAnimate
+                    imageViewBinding.attachmentImage.updateLayoutParams<ViewGroup.LayoutParams> {
+                        width = maxChatBubbleWidth
+                        height = ViewGroup.LayoutParams.WRAP_CONTENT
+                    }
+                    return false
+                }
+            })
+            .into(imageViewBinding.attachmentImage)
+
+        imageViewBinding.attachmentImage.updateLayoutParams<ViewGroup.LayoutParams> {
+            width = maxChatBubbleWidth
+            height = ViewGroup.LayoutParams.WRAP_CONTENT
+        }
+
+        imageViewBinding.attachmentImage.setOnClickListener {
+            if (actModeCallback.isSelectable) {
+                holder.viewClicked(message)
+            } else {
+                activity.launchViewIntent(uri, mimetype, attachment.filename)
+            }
+        }
+        imageViewBinding.root.setOnLongClickListener {
+            holder.viewLongClicked()
+            true
+        }
+    }
+
+    private fun setupVCardView(holder: ViewHolder, parent: LinearLayout, message: Message, attachment: Attachment) {
+        val uri = attachment.getUri()
+        val vCardView = ItemAttachmentVcardBinding.inflate(layoutInflater).apply {
+            setupVCardPreview(
+                activity = activity,
+                uri = uri,
+                onClick = {
+                    if (actModeCallback.isSelectable) {
+                        holder.viewClicked(message)
+                    } else {
+                        val intent = Intent(activity, VCardViewerActivity::class.java).also {
+                            it.putExtra(EXTRA_VCARD_URI, uri)
+                        }
+                        activity.startActivity(intent)
+                    }
+                },
+                onLongClick = { holder.viewLongClicked() }
+            )
+        }.root
+
+        parent.addView(vCardView)
+    }
+
+    private fun setupFileView(holder: ViewHolder, parent: LinearLayout, message: Message, attachment: Attachment) {
+        val mimetype = attachment.mimetype
+        val uri = attachment.getUri()
+        val attachmentView = ItemAttachmentDocumentBinding.inflate(layoutInflater).apply {
+            setupDocumentPreview(
+                uri = uri,
+                title = attachment.filename,
+                mimeType = attachment.mimetype,
+                onClick = {
+                    if (actModeCallback.isSelectable) {
+                        holder.viewClicked(message)
+                    } else {
+                        activity.launchViewIntent(uri, mimetype, attachment.filename)
+                    }
+                },
+                onLongClick = { holder.viewLongClicked() }
+            )
+        }.root
+
+        parent.addView(attachmentView)
+    }
+
+    private fun setupDateTime(view: View, dateTime: ThreadDateTime) {
+        ItemThreadDateTimeBinding.bind(view).apply {
+            threadDateTime.apply {
+                visibility = View.VISIBLE
+                text = (dateTime.date * 1000L).formatDateOrTime(
+                    context = context,
+                    hideTimeOnOtherDays = false,
+                    showCurrentYear = false
+                )
+                setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize * 0.8f)
+                val customTypeface = (activity as SimpleActivity).getCustomTypeface()
+                typeface = Typeface.create(customTypeface, Typeface.NORMAL)
+            }
+            
+            val dateTimeColor = activity.config.mainTextColor
+            if (dateTimeColor != 0 && dateTimeColor != Color.TRANSPARENT) {
+                threadDateTime.setTextColor(dateTimeColor)
+                threadDateTime.alpha = 1.0f
+            }
+
+            threadSimIcon.beVisibleIf(hasMultipleSIMCards)
+            threadSimNumber.beVisibleIf(hasMultipleSIMCards)
+            if (hasMultipleSIMCards) {
+                threadSimNumber.text = dateTime.simID
+                val contrastColor = if (dateTimeColor == 0 || dateTimeColor == Color.TRANSPARENT) Color.BLACK else dateTimeColor.getContrastColor()
+                threadSimNumber.setTextColor(contrastColor)
+                threadSimIcon.applyColorFilter(dateTimeColor)
+                threadSimNumber.setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize * 0.6f)
+                
+                threadSimIcon.updateLayoutParams {
+                    width = (fontSize * 1.2f).toInt()
+                    height = (fontSize * 1.2f).toInt()
+                }
+            }
+        }
+    }
+
+    private fun setupThreadSuccess(view: View, isDelivered: Boolean) {
+        ItemThreadSuccessBinding.bind(view).apply {
+            threadSuccess.setImageResource(if (isDelivered) R.drawable.ic_check_double_vector else org.fossify.commons.R.drawable.ic_check_vector)
+            threadSuccess.applyColorFilter(Color.GRAY)
+        }
+    }
+
+    private fun setupThreadError(view: View) {
+        val binding = ItemThreadErrorBinding.bind(view)
+        binding.threadError.setTextColor(activity.getProperTextColor())
+    }
+
+    private fun setupThreadSending(view: View) {
+        ItemThreadSendingBinding.bind(view).threadSending.apply {
+            setTextColor(activity.getProperTextColor())
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize * 0.8f)
+        }
+    }
+
+    private fun adjustColor(color: Int, factor: Float): Int {
+        val a = Color.alpha(color)
+        val r = Math.round(Color.red(color) * factor).coerceIn(0, 255)
+        val g = Math.round(Color.green(color) * factor).coerceIn(0, 255)
+        val b = Math.round(Color.blue(color) * factor).coerceIn(0, 255)
+        return Color.argb(a, r, g, b)
+    }
+
+    override fun onViewRecycled(holder: ViewHolder) {
+        super.onViewRecycled(holder)
+        if (!activity.isDestroyed && !activity.isFinishing) {
+            val binding = (holder as ThreadViewHolder).binding
+            val photoView = if (binding is ItemMessageReceivedBinding) {
+                binding.threadMessageSenderPhoto
+            } else if (binding is ItemMessageSentBinding) {
+                binding.threadMessageSenderPhoto
+            } else {
+                null
+            }
+            
+            photoView?.let {
+                Glide.with(activity).clear(it)
+            }
+        }
+    }
+
+    inner class ThreadViewHolder(val binding: ViewBinding) : ViewHolder(binding.root)
+
+    private fun getItemIdForRawItem(item: ThreadItem): Long {
+        return when (item) {
+            is Message -> item.getStableId()
+            is ThreadDateTime -> {
+                val sim = (item.simID.hashCode().toLong() and SIM_MASK)
+                val key = (item.date.toLong() shl SIM_BITS) or sim
+                generateStableId(THREAD_DATE_TIME, key)
+            }
+            is ThreadError -> generateStableId(THREAD_SENT_MESSAGE_ERROR, item.messageId)
+            is ThreadSending -> generateStableId(THREAD_SENT_MESSAGE_SENDING, item.messageId)
+            is ThreadSent -> generateStableId(THREAD_SENT_MESSAGE_SENT, item.messageId)
+        }
+    }
+}
+
+private class ThreadItemDiffCallback : DiffUtil.ItemCallback<ThreadItem>() {
+
+    override fun areItemsTheSame(oldItem: ThreadItem, newItem: ThreadItem): Boolean {
+        if (oldItem::class.java != newItem::class.java) return false
+        return when (oldItem) {
+            is ThreadError -> oldItem.messageId == (newItem as ThreadError).messageId
+            is ThreadSent -> oldItem.messageId == (newItem as ThreadSent).messageId
+            is ThreadSending -> oldItem.messageId == (newItem as ThreadSending).messageId
+            is Message -> Message.areItemsTheSame(oldItem, newItem as Message)
+            is ThreadDateTime -> {
+                val new = newItem as ThreadDateTime
+                oldItem.date == new.date && oldItem.simID == new.simID
+            }
+            else -> false
+        }
+    }
+
+    override fun areContentsTheSame(oldItem: ThreadItem, newItem: ThreadItem): Boolean {
+        if (oldItem::class.java != newItem::class.java) return false
+        return when (oldItem) {
+            is ThreadSending -> true
+            is ThreadDateTime -> oldItem.simID == (newItem as ThreadDateTime).simID
+            is ThreadError -> oldItem.messageText == (newItem as ThreadError).messageText
+            is ThreadSent -> oldItem.delivered == (newItem as ThreadSent).delivered
+            is Message -> Message.areContentsTheSame(oldItem, newItem as Message)
+            else -> true
+        }
+    }
+}

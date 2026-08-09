@@ -1,0 +1,278 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/settings_coordinator"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/transparent">
+
+    <org.fossify.commons.views.MyAppBarLayout
+        android:id="@+id/settings_appbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@android:color/transparent"
+        app:elevation="0dp">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/settings_toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="70dp"
+            android:background="@android:color/transparent">
+
+            <TextView
+                android:id="@+id/settings_toolbar_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:text="@string/settings"
+                android:textColor="@android:color/white"
+                android:textSize="28sp"
+                android:textStyle="bold"
+                android:layout_marginEnd="60dp"
+                android:ellipsize="end"
+                android:maxLines="1" />
+
+        </com.google.android.material.appbar.MaterialToolbar>
+
+    </org.fossify.commons.views.MyAppBarLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/settings_nested_scrollview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        android:scrollbars="none"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <LinearLayout
+            android:id="@+id/settings_holder"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:animateLayoutChanges="true">
+
+            <!-- Reset Button -->
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="24dp">
+                <TextView
+                    android:id="@+id/settings_reset_defaults"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:background="?selectableItemBackground"
+                    android:padding="8dp"
+                    android:text="Reset All Customization"
+                    android:textColor="@color/colorPrimary"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </RelativeLayout>
+
+            <!-- Appearance Section -->
+            <RelativeLayout android:id="@+id/settings_appearance_header" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="12dp" android:background="?selectableItemBackground" android:clickable="true" android:focusable="true">
+                <TextView android:id="@+id/settings_customization_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_appearance_arrow" android:text="Appearance" android:textColor="@color/colorPrimary" android:textSize="20sp" android:textStyle="bold" />
+                <ImageView android:id="@+id/settings_appearance_arrow" android:layout_width="24dp" android:layout_height="24dp" android:layout_alignParentEnd="true" android:layout_centerVertical="true" android:src="@drawable/ic_expand_down" app:tint="@color/colorPrimary" />
+            </RelativeLayout>
+            <LinearLayout android:id="@+id/settings_appearance_container" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingLeft="8dp" android:visibility="gone">
+                <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="12dp">
+                    <TextView android:id="@+id/settings_top_bar_label" style="@style/SettingsTextLabelStyle" android:layout_width="match_parent" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_top_bar_bg_mode_spinner" android:layout_centerVertical="true" android:text="Top Bar Background" />
+                    <Spinner android:id="@+id/settings_top_bar_bg_mode_spinner" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_centerVertical="true" android:layout_toStartOf="@+id/settings_top_bar_preview_container" android:layout_marginEnd="12dp" />
+                    <FrameLayout android:id="@+id/settings_top_bar_preview_container" android:layout_width="32dp" android:layout_height="32dp" android:layout_alignParentEnd="true" android:layout_centerVertical="true"><View android:id="@+id/settings_top_bar_color_preview" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/color_preview_bg" /><ImageView android:id="@+id/settings_top_bar_image_icon" android:layout_width="match_parent" android:layout_height="match_parent" android:padding="4dp" android:src="@drawable/ic_image_vector" android:visibility="gone" /></FrameLayout>
+                </RelativeLayout>
+                <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="12dp">
+                    <TextView android:id="@+id/settings_main_bg_label" style="@style/SettingsTextLabelStyle" android:layout_width="match_parent" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_main_bg_mode_spinner" android:layout_centerVertical="true" android:text="Main Background" />
+                    <Spinner android:id="@+id/settings_main_bg_mode_spinner" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_centerVertical="true" android:layout_toStartOf="@+id/settings_main_bg_preview_container" android:layout_marginEnd="12dp" />
+                    <FrameLayout android:id="@+id/settings_main_bg_preview_container" android:layout_width="32dp" android:layout_height="32dp" android:layout_alignParentEnd="true" android:layout_centerVertical="true"><View android:id="@+id/settings_main_background_color_preview" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/color_preview_bg" /><ImageView android:id="@+id/settings_main_bg_image_icon" android:layout_width="match_parent" android:layout_height="match_parent" android:padding="4dp" android:src="@drawable/ic_image_vector" android:visibility="gone" /></FrameLayout>
+                </RelativeLayout>
+                <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="12dp">
+                    <TextView android:id="@+id/settings_input_bar_label" style="@style/SettingsTextLabelStyle" android:layout_width="match_parent" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_input_bar_bg_mode_spinner" android:layout_centerVertical="true" android:text="Search/Input Bar" />
+                    <Spinner android:id="@+id/settings_input_bar_bg_mode_spinner" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_centerVertical="true" android:layout_toStartOf="@+id/settings_input_bar_preview_container" android:layout_marginEnd="12dp" />
+                    <FrameLayout android:id="@+id/settings_input_bar_preview_container" android:layout_width="32dp" android:layout_height="32dp" android:layout_alignParentEnd="true" android:layout_centerVertical="true"><View android:id="@+id/settings_input_bar_background_color_preview" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/color_preview_bg" /><ImageView android:id="@+id/settings_input_bar_image_icon" android:layout_width="match_parent" android:layout_height="match_parent" android:padding="4dp" android:src="@drawable/ic_image_vector" android:visibility="gone" /></FrameLayout>
+                </RelativeLayout>
+                <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="12dp">
+                    <TextView android:id="@+id/settings_ui_scale_label" style="@style/SettingsTextLabelStyle" android:layout_width="match_parent" android:layout_alignParentStart="true" android:text="UI Scale" />
+                    <com.google.android.material.slider.Slider android:id="@+id/settings_ui_scale_slider" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_below="@id/settings_ui_scale_label" android:layout_marginTop="4dp" android:valueFrom="0.5" android:valueTo="1.5" android:stepSize="0.1" />
+                </RelativeLayout>
+                <RelativeLayout android:id="@+id/settings_font_size_holder" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="12dp" android:background="?selectableItemBackground" android:clickable="true" android:focusable="true">
+                    <TextView android:id="@+id/settings_font_size_label" style="@style/SettingsTextLabelStyle" android:layout_width="match_parent" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_font_size" android:layout_centerVertical="true" android:text="Font Size" />
+                    <TextView android:id="@+id/settings_font_size" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentEnd="true" android:layout_centerVertical="true" android:textColor="@android:color/white" android:textSize="16sp" />
+                </RelativeLayout>
+                <RelativeLayout android:id="@+id/settings_font_holder" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="12dp" android:background="?selectableItemBackground" android:clickable="true" android:focusable="true">
+                    <TextView android:id="@+id/settings_font_label" style="@style/SettingsTextLabelStyle" android:layout_width="match_parent" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_font" android:layout_centerVertical="true" android:text="Font Family" />
+                    <TextView android:id="@+id/settings_font" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentEnd="true" android:layout_centerVertical="true" android:textColor="@android:color/white" android:textSize="16sp" />
+                </RelativeLayout>
+            </LinearLayout>
+
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1AFFFFFF" android:layout_marginVertical="8dp" />
+
+            <!-- Colors Section -->
+            <RelativeLayout android:id="@+id/settings_colors_header" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="12dp" android:background="?selectableItemBackground" android:clickable="true" android:focusable="true">
+                <TextView android:id="@+id/settings_ui_colors_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_colors_arrow" android:text="UI Colors" android:textColor="@color/colorPrimary" android:textSize="20sp" android:textStyle="bold" />
+                <ImageView android:id="@+id/settings_colors_arrow" android:layout_width="24dp" android:layout_height="24dp" android:layout_alignParentEnd="true" android:layout_centerVertical="true" android:src="@drawable/ic_expand_down" app:tint="@color/colorPrimary" />
+            </RelativeLayout>
+            <LinearLayout android:id="@+id/settings_colors_container" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingLeft="8dp" android:visibility="gone">
+                <RelativeLayout android:id="@+id/settings_top_bar_text_color_holder" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="10dp"><TextView android:id="@+id/settings_top_bar_text_color_label" style="@style/SettingsTextLabelStyle" android:layout_width="match_parent" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_top_bar_text_color_preview" android:layout_centerVertical="true" android:text="Top Bar Text" /><View android:id="@+id/settings_top_bar_text_color_preview" android:layout_width="32dp" android:layout_height="32dp" android:layout_alignParentEnd="true" android:background="@drawable/color_preview_bg" /></RelativeLayout>
+                <RelativeLayout android:id="@+id/settings_main_text_color_holder" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="10dp"><TextView android:id="@+id/settings_background_color_label" style="@style/SettingsTextLabelStyle" android:layout_width="match_parent" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_main_text_color_preview" android:layout_centerVertical="true" android:text="Main Body Text" /><View android:id="@+id/settings_main_text_color_preview" android:layout_width="32dp" android:layout_height="32dp" android:layout_alignParentEnd="true" android:background="@drawable/color_preview_bg" /></RelativeLayout>
+                <RelativeLayout android:id="@+id/settings_input_bar_text_color_holder" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="10dp"><TextView android:id="@+id/settings_input_bar_text_color_label" style="@style/SettingsTextLabelStyle" android:layout_width="match_parent" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_input_bar_text_color_preview" android:layout_centerVertical="true" android:text="Search/Input Bar Text" /><View android:id="@+id/settings_input_bar_text_color_preview" android:layout_width="32dp" android:layout_height="32dp" android:layout_alignParentEnd="true" android:background="@drawable/color_preview_bg" /></RelativeLayout>
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1AFFFFFF" android:layout_marginVertical="12dp" />
+                <TextView style="@style/SettingsTextLabelStyle" android:layout_width="match_parent" android:text="Modern Contact Grids" android:textSize="14sp" android:layout_marginBottom="8dp" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center">
+                    <LinearLayout android:id="@+id/settings_color_recent_holder" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center" android:padding="8dp"><View android:id="@+id/settings_color_recent_preview" android:layout_width="32dp" android:layout_height="32dp" android:background="@drawable/color_preview_bg" /><TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Recent" android:textColor="#88FFFFFF" android:textSize="10sp" /></LinearLayout>
+                    <LinearLayout android:id="@+id/settings_color_row1_holder" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center" android:padding="8dp"><View android:id="@+id/settings_color_row1_preview" android:layout_width="32dp" android:layout_height="32dp" android:background="@drawable/color_preview_bg" /><TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Row 1" android:textColor="#88FFFFFF" android:textSize="10sp" /></LinearLayout>
+                    <LinearLayout android:id="@+id/settings_color_row2_holder" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center" android:padding="8dp"><View android:id="@+id/settings_color_row2_preview" android:layout_width="32dp" android:layout_height="32dp" android:background="@drawable/color_preview_bg" /><TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Row 2" android:textColor="#88FFFFFF" android:textSize="10sp" /></LinearLayout>
+                    <LinearLayout android:id="@+id/settings_color_row3_holder" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center" android:padding="8dp"><View android:id="@+id/settings_color_row3_preview" android:layout_width="32dp" android:layout_height="32dp" android:background="@drawable/color_preview_bg" /><TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Row 3" android:textColor="#88FFFFFF" android:textSize="10sp" /></LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1AFFFFFF" android:layout_marginVertical="8dp" />
+
+            <!-- Bubbles Section -->
+            <RelativeLayout android:id="@+id/settings_bubbles_header" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="12dp" android:background="?selectableItemBackground" android:clickable="true" android:focusable="true">
+                <TextView android:id="@+id/settings_bubble_customization_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_bubbles_arrow" android:text="Message Bubbles" android:textColor="@color/colorPrimary" android:textSize="20sp" android:textStyle="bold" />
+                <ImageView android:id="@+id/settings_bubbles_arrow" android:layout_width="24dp" android:layout_height="24dp" android:layout_alignParentEnd="true" android:layout_centerVertical="true" android:src="@drawable/ic_expand_down" app:tint="@color/colorPrimary" />
+            </RelativeLayout>
+            <LinearLayout android:id="@+id/settings_bubbles_container" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingLeft="8dp" android:visibility="gone">
+                <RelativeLayout android:id="@+id/settings_sent_bubble_color_holder" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="8dp"><TextView android:id="@+id/settings_sent_bubble_color_label" style="@style/SettingsTextLabelStyle" android:layout_width="match_parent" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_sent_bubble_color_preview" android:layout_centerVertical="true" android:text="Sent Bubble Color" /><View android:id="@+id/settings_sent_bubble_color_preview" android:layout_width="32dp" android:layout_height="32dp" android:layout_alignParentEnd="true" android:background="@drawable/color_preview_bg" /></RelativeLayout>
+                <RelativeLayout android:id="@+id/settings_sent_bubble_text_color_holder" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="8dp"><TextView android:id="@+id/settings_sent_bubble_text_color_label" style="@style/SettingsTextLabelStyle" android:layout_width="match_parent" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_sent_bubble_text_color_preview" android:layout_centerVertical="true" android:text="Sent Bubble Text" /><View android:id="@+id/settings_sent_bubble_text_color_preview" android:layout_width="32dp" android:layout_height="32dp" android:layout_alignParentEnd="true" android:background="@drawable/color_preview_bg" /></RelativeLayout>
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1AFFFFFF" android:layout_marginVertical="8dp" />
+                <RelativeLayout android:id="@+id/settings_received_bubble_color_holder" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="8dp"><TextView android:id="@+id/settings_received_bubble_color_label" style="@style/SettingsTextLabelStyle" android:layout_width="match_parent" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_received_bubble_color_preview" android:layout_centerVertical="true" android:text="Received Bubble Color" /><View android:id="@+id/settings_received_bubble_color_preview" android:layout_width="32dp" android:layout_height="32dp" android:layout_alignParentEnd="true" android:background="@drawable/color_preview_bg" /></RelativeLayout>
+                <RelativeLayout android:id="@+id/settings_received_bubble_text_color_holder" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="8dp"><TextView android:id="@+id/settings_received_bubble_text_color_label" style="@style/SettingsTextLabelStyle" android:layout_width="match_parent" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_received_bubble_text_color_preview" android:layout_centerVertical="true" android:text="Received Bubble Text" /><View android:id="@+id/settings_received_bubble_text_color_preview" android:layout_width="32dp" android:layout_height="32dp" android:layout_alignParentEnd="true" android:background="@drawable/color_preview_bg" /></RelativeLayout>
+            </LinearLayout>
+
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1AFFFFFF" android:layout_marginVertical="8dp" />
+
+            <!-- Messaging Section -->
+            <RelativeLayout android:id="@+id/settings_messaging_header" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="12dp" android:background="?selectableItemBackground" android:clickable="true" android:focusable="true">
+                <TextView android:id="@+id/settings_messaging_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_messaging_arrow" android:text="@string/messaging" android:textColor="@color/colorPrimary" android:textSize="20sp" android:textStyle="bold" />
+                <ImageView android:id="@+id/settings_messaging_arrow" android:layout_width="24dp" android:layout_height="24dp" android:layout_alignParentEnd="true" android:layout_centerVertical="true" android:src="@drawable/ic_expand_down" app:tint="@color/colorPrimary" />
+            </RelativeLayout>
+            <LinearLayout android:id="@+id/settings_messaging_container" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingLeft="8dp" android:visibility="gone">
+                <RelativeLayout android:id="@+id/settings_group_mms_holder" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="12dp"><TextView android:id="@+id/settings_group_mms_label" style="@style/SettingsTextLabelStyle" android:layout_width="match_parent" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_group_mms_switch" android:layout_centerVertical="true" android:text="@string/group_message_mms" /><org.fossify.commons.views.MyMaterialSwitch android:id="@+id/settings_group_mms_switch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentEnd="true" /></RelativeLayout>
+                <RelativeLayout android:id="@+id/settings_long_mms_holder" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="12dp"><TextView android:id="@+id/settings_long_mms_label" style="@style/SettingsTextLabelStyle" android:layout_width="match_parent" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_long_mms_switch" android:layout_centerVertical="true" android:text="@string/send_long_message_mms" /><org.fossify.commons.views.MyMaterialSwitch android:id="@+id/settings_long_mms_switch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentEnd="true" /></RelativeLayout>
+                <RelativeLayout android:id="@+id/settings_delivery_reports_holder" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="12dp"><TextView android:id="@+id/settings_delivery_reports_label" style="@style/SettingsTextLabelStyle" android:layout_width="match_parent" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_delivery_reports_switch" android:layout_centerVertical="true" android:text="@string/enable_delivery_reports" /><org.fossify.commons.views.MyMaterialSwitch android:id="@+id/settings_delivery_reports_switch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentEnd="true" /></RelativeLayout>
+            </LinearLayout>
+
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1AFFFFFF" android:layout_marginVertical="8dp" />
+
+            <!-- Layout Options Section -->
+            <RelativeLayout android:id="@+id/settings_layout_header" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="12dp" android:background="?selectableItemBackground" android:clickable="true" android:focusable="true">
+                <TextView android:id="@+id/settings_general_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_layout_arrow" android:text="Layout &amp; Behavior" android:textColor="@color/colorPrimary" android:textSize="20sp" android:textStyle="bold" />
+                <ImageView android:id="@+id/settings_layout_arrow" android:layout_width="24dp" android:layout_height="24dp" android:layout_alignParentEnd="true" android:layout_centerVertical="true" android:src="@drawable/ic_expand_down" app:tint="@color/colorPrimary" />
+            </RelativeLayout>
+            <LinearLayout android:id="@+id/settings_layout_container" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingLeft="8dp" android:visibility="gone">
+                <RelativeLayout android:id="@+id/settings_new_ui_holder" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="12dp"><TextView style="@style/SettingsTextLabelStyle" android:layout_width="match_parent" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_new_ui_switch" android:layout_centerVertical="true" android:text="Use Modern Layout" /><org.fossify.commons.views.MyMaterialSwitch android:id="@+id/settings_new_ui_switch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentEnd="true" /></RelativeLayout>
+                <RelativeLayout android:id="@+id/settings_contact_sorting_holder" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="12dp" android:visibility="gone"><TextView style="@style/SettingsTextLabelStyle" android:layout_width="match_parent" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_contact_sorting_spinner" android:layout_centerVertical="true" android:text="Contact Sorting" /><Spinner android:id="@+id/settings_contact_sorting_spinner" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentEnd="true" /></RelativeLayout>
+                <RelativeLayout android:id="@+id/settings_always_expand_search_bar_holder" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="12dp" android:visibility="gone"><TextView style="@style/SettingsTextLabelStyle" android:layout_width="match_parent" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_always_expand_search_bar_switch" android:layout_centerVertical="true" android:text="Always Expanded Search Bar" /><org.fossify.commons.views.MyMaterialSwitch android:id="@+id/settings_always_expand_search_bar_switch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentEnd="true" /></RelativeLayout>
+            </LinearLayout>
+
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1AFFFFFF" android:layout_marginVertical="8dp" />
+
+            <!-- Outlines Section -->
+            <RelativeLayout android:id="@+id/settings_outlines_header" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="12dp" android:background="?selectableItemBackground" android:clickable="true" android:focusable="true" android:visibility="gone">
+                <TextView android:id="@+id/settings_new_ui_colors_label_header" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_outlines_arrow" android:text="Modern Outlines" android:textColor="@color/colorPrimary" android:textSize="20sp" android:textStyle="bold" />
+                <ImageView android:id="@+id/settings_outlines_arrow" android:layout_width="24dp" android:layout_height="24dp" android:layout_alignParentEnd="true" android:layout_centerVertical="true" android:src="@drawable/ic_expand_down" app:tint="@color/colorPrimary" />
+            </RelativeLayout>
+            <LinearLayout android:id="@+id/settings_outlines_container" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingLeft="8dp" android:visibility="gone">
+                <!-- Top Bar Outline -->
+                <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="4dp"><TextView style="@style/SettingsTextLabelStyle" android:layout_width="match_parent" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_top_bar_outline_switch" android:layout_centerVertical="true" android:text="Top Bar" /><org.fossify.commons.views.MyMaterialSwitch android:id="@+id/settings_top_bar_outline_switch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentEnd="true" /></RelativeLayout>
+                <LinearLayout android:id="@+id/settings_top_bar_outline_thickness_holder" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingLeft="12dp" android:visibility="gone">
+                    <TextView style="@style/SettingsTextLabelStyle" android:text="Thickness" android:textSize="12sp" />
+                    <com.google.android.material.slider.Slider android:id="@+id/settings_top_bar_outline_thickness_slider" android:layout_width="match_parent" android:layout_height="wrap_content" android:valueFrom="1.0" android:valueTo="10.0" android:stepSize="1.0" />
+                    <RelativeLayout android:id="@+id/settings_top_bar_outline_color_holder" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="4dp"><TextView style="@style/SettingsTextLabelStyle" android:text="Color" android:textSize="12sp" /><View android:id="@+id/settings_top_bar_outline_color_preview" android:layout_width="24dp" android:layout_height="24dp" android:layout_alignParentEnd="true" android:background="@drawable/color_preview_bg" /></RelativeLayout>
+                </LinearLayout>
+
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#0AFFFFFF" android:layout_marginVertical="8dp" />
+
+                <!-- Search Bar Outline -->
+                <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="4dp"><TextView style="@style/SettingsTextLabelStyle" android:layout_width="match_parent" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_search_bar_outline_switch" android:layout_centerVertical="true" android:text="Search/Input Bar" /><org.fossify.commons.views.MyMaterialSwitch android:id="@+id/settings_search_bar_outline_switch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentEnd="true" /></RelativeLayout>
+                <LinearLayout android:id="@+id/settings_search_bar_outline_thickness_holder" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingLeft="12dp" android:visibility="gone">
+                    <TextView style="@style/SettingsTextLabelStyle" android:text="Thickness" android:textSize="12sp" />
+                    <com.google.android.material.slider.Slider android:id="@+id/settings_search_bar_outline_thickness_slider" android:layout_width="match_parent" android:layout_height="wrap_content" android:valueFrom="1.0" android:valueTo="10.0" android:stepSize="1.0" />
+                    <RelativeLayout android:id="@+id/settings_search_bar_outline_color_holder" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="4dp"><TextView style="@style/SettingsTextLabelStyle" android:text="Color" android:textSize="12sp" /><View android:id="@+id/settings_search_bar_outline_color_preview" android:layout_width="24dp" android:layout_height="24dp" android:layout_alignParentEnd="true" android:background="@drawable/color_preview_bg" /></RelativeLayout>
+                </LinearLayout>
+
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#0AFFFFFF" android:layout_marginVertical="8dp" />
+
+                <!-- Big Contacts Outline -->
+                <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="4dp"><TextView style="@style/SettingsTextLabelStyle" android:layout_width="match_parent" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_big_contacts_outline_switch" android:layout_centerVertical="true" android:text="Contact Avatars (Large)" /><org.fossify.commons.views.MyMaterialSwitch android:id="@+id/settings_big_contacts_outline_switch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentEnd="true" /></RelativeLayout>
+                <LinearLayout android:id="@+id/settings_big_contacts_outline_thickness_holder" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingLeft="12dp" android:visibility="gone">
+                    <TextView style="@style/SettingsTextLabelStyle" android:text="Thickness" android:textSize="12sp" />
+                    <com.google.android.material.slider.Slider android:id="@+id/settings_big_contacts_outline_thickness_slider" android:layout_width="match_parent" android:layout_height="wrap_content" android:valueFrom="1.0" android:valueTo="10.0" android:stepSize="1.0" />
+                    <RelativeLayout android:id="@+id/settings_big_contacts_outline_color_holder" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="4dp"><TextView style="@style/SettingsTextLabelStyle" android:text="Color" android:textSize="12sp" /><View android:id="@+id/settings_big_contacts_outline_color_preview" android:layout_width="24dp" android:layout_height="24dp" android:layout_alignParentEnd="true" android:background="@drawable/color_preview_bg" /></RelativeLayout>
+                </LinearLayout>
+
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#0AFFFFFF" android:layout_marginVertical="8dp" />
+
+                <!-- Small Contacts Outline -->
+                <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="4dp"><TextView style="@style/SettingsTextLabelStyle" android:layout_width="match_parent" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_small_contacts_outline_switch" android:layout_centerVertical="true" android:text="Contact Avatars (Pills)" /><org.fossify.commons.views.MyMaterialSwitch android:id="@+id/settings_small_contacts_outline_switch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentEnd="true" /></RelativeLayout>
+                <LinearLayout android:id="@+id/settings_small_contacts_outline_thickness_holder" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingLeft="12dp" android:visibility="gone">
+                    <TextView style="@style/SettingsTextLabelStyle" android:text="Thickness" android:textSize="12sp" />
+                    <com.google.android.material.slider.Slider android:id="@+id/settings_small_contacts_outline_thickness_slider" android:layout_width="match_parent" android:layout_height="wrap_content" android:valueFrom="1.0" android:valueTo="10.0" android:stepSize="1.0" />
+                    <RelativeLayout android:id="@+id/settings_small_contacts_outline_color_holder" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="4dp"><TextView style="@style/SettingsTextLabelStyle" android:text="Color" android:textSize="12sp" /><View android:id="@+id/settings_small_contacts_outline_color_preview" android:layout_width="24dp" android:layout_height="24dp" android:layout_alignParentEnd="true" android:background="@drawable/color_preview_bg" /></RelativeLayout>
+                </LinearLayout>
+
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#0AFFFFFF" android:layout_marginVertical="8dp" />
+
+                <!-- Sent Bubbles Outline -->
+                <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="4dp"><TextView style="@style/SettingsTextLabelStyle" android:layout_width="match_parent" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_sent_bubbles_outline_switch" android:layout_centerVertical="true" android:text="Sent Message Bubbles" /><org.fossify.commons.views.MyMaterialSwitch android:id="@+id/settings_sent_bubbles_outline_switch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentEnd="true" /></RelativeLayout>
+                <LinearLayout android:id="@+id/settings_sent_bubbles_outline_thickness_holder" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingLeft="12dp" android:visibility="gone">
+                    <TextView style="@style/SettingsTextLabelStyle" android:text="Thickness" android:textSize="12sp" />
+                    <com.google.android.material.slider.Slider android:id="@+id/settings_sent_bubbles_outline_thickness_slider" android:layout_width="match_parent" android:layout_height="wrap_content" android:valueFrom="1.0" android:valueTo="10.0" android:stepSize="1.0" />
+                    <RelativeLayout android:id="@+id/settings_sent_bubbles_outline_color_holder" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="4dp"><TextView style="@style/SettingsTextLabelStyle" android:text="Color" android:textSize="12sp" /><View android:id="@+id/settings_sent_bubbles_outline_color_preview" android:layout_width="24dp" android:layout_height="24dp" android:layout_alignParentEnd="true" android:background="@drawable/color_preview_bg" /></RelativeLayout>
+                </LinearLayout>
+
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#0AFFFFFF" android:layout_marginVertical="8dp" />
+
+                <!-- Received Bubbles Outline -->
+                <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="4dp"><TextView style="@style/SettingsTextLabelStyle" android:layout_width="match_parent" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_received_bubbles_outline_switch" android:layout_centerVertical="true" android:text="Received Message Bubbles" /><org.fossify.commons.views.MyMaterialSwitch android:id="@+id/settings_received_bubbles_outline_switch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentEnd="true" /></RelativeLayout>
+                <LinearLayout android:id="@+id/settings_received_bubbles_outline_thickness_holder" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingLeft="12dp" android:visibility="gone">
+                    <TextView style="@style/SettingsTextLabelStyle" android:text="Thickness" android:textSize="12sp" />
+                    <com.google.android.material.slider.Slider android:id="@+id/settings_received_bubbles_outline_thickness_slider" android:layout_width="match_parent" android:layout_height="wrap_content" android:valueFrom="1.0" android:valueTo="10.0" android:stepSize="1.0" />
+                    <RelativeLayout android:id="@+id/settings_received_bubbles_outline_color_holder" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="4dp"><TextView style="@style/SettingsTextLabelStyle" android:text="Color" android:textSize="12sp" /><View android:id="@+id/settings_received_bubbles_outline_color_preview" android:layout_width="24dp" android:layout_height="24dp" android:layout_alignParentEnd="true" android:background="@drawable/color_preview_bg" /></RelativeLayout>
+                </LinearLayout>
+            </LinearLayout>
+
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1AFFFFFF" android:layout_marginVertical="8dp" />
+
+            <!-- Presets Section -->
+            <RelativeLayout android:id="@+id/settings_presets_header" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="12dp" android:background="?selectableItemBackground" android:clickable="true" android:focusable="true">
+                <TextView android:id="@+id/settings_theme_presets_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_presets_arrow" android:text="Theme Presets" android:textColor="@color/colorPrimary" android:textSize="20sp" android:textStyle="bold" />
+                <ImageView android:id="@+id/settings_presets_arrow" android:layout_width="24dp" android:layout_height="24dp" android:layout_alignParentEnd="true" android:layout_centerVertical="true" android:src="@drawable/ic_expand_down" app:tint="@color/colorPrimary" />
+            </RelativeLayout>
+            <LinearLayout android:id="@+id/settings_presets_container" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingLeft="8dp" android:visibility="gone">
+                <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="8dp"><TextView android:id="@+id/settings_preset_1_label" style="@style/SettingsTextLabelStyle" android:layout_width="match_parent" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_save_preset_1_holder" android:layout_centerVertical="true" android:text="Preset 1" /><LinearLayout android:id="@+id/settings_save_preset_1_holder" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentEnd="true" android:orientation="horizontal"><TextView android:id="@+id/settings_save_preset_1" android:layout_width="wrap_content" android:layout_height="wrap_content" android:padding="8dp" android:text="Save" android:textColor="@color/colorPrimary" android:textSize="12sp" android:textStyle="bold" /><TextView android:id="@+id/settings_load_preset_1" android:layout_width="wrap_content" android:layout_height="wrap_content" android:padding="8dp" android:text="Load" android:textColor="@color/colorPrimary" android:textSize="12sp" android:textStyle="bold" /></LinearLayout></RelativeLayout>
+                <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="8dp"><TextView android:id="@+id/settings_preset_2_label" style="@style/SettingsTextLabelStyle" android:layout_width="match_parent" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_save_preset_2_holder" android:layout_centerVertical="true" android:text="Preset 2" /><LinearLayout android:id="@+id/settings_save_preset_2_holder" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentEnd="true" android:orientation="horizontal"><TextView android:id="@+id/settings_save_preset_2" android:layout_width="wrap_content" android:layout_height="wrap_content" android:padding="8dp" android:text="Save" android:textColor="@color/colorPrimary" android:textSize="12sp" android:textStyle="bold" /><TextView android:id="@+id/settings_load_preset_2" android:layout_width="wrap_content" android:layout_height="wrap_content" android:padding="8dp" android:text="Load" android:textColor="@color/colorPrimary" android:textSize="12sp" android:textStyle="bold" /></LinearLayout></RelativeLayout>
+                <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="8dp"><TextView android:id="@+id/settings_preset_3_label" style="@style/SettingsTextLabelStyle" android:layout_width="match_parent" android:layout_alignParentStart="true" android:layout_toStartOf="@+id/settings_save_preset_3_holder" android:layout_centerVertical="true" android:text="Preset 3" /><LinearLayout android:id="@+id/settings_save_preset_3_holder" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentEnd="true" android:orientation="horizontal"><TextView android:id="@+id/settings_save_preset_3" android:layout_width="wrap_content" android:layout_height="wrap_content" android:padding="8dp" android:text="Save" android:textColor="@color/colorPrimary" android:textSize="12sp" android:textStyle="bold" /><TextView android:id="@+id/settings_load_preset_3" android:layout_width="wrap_content" android:layout_height="wrap_content" android:padding="8dp" android:text="Load" android:textColor="@color/colorPrimary" android:textSize="12sp" android:textStyle="bold" /></LinearLayout></RelativeLayout>
+            </LinearLayout>
+
+            <View android:layout_width="match_parent" android:layout_height="120dp" />
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- NAVIGATION BAR -->
+    <LinearLayout
+        android:id="@+id/nova_nav_container"
+        android:layout_width="240dp"
+        android:layout_height="55dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_margin="16dp"
+        android:background="@drawable/nova_searchbar_bg"
+        android:alpha="0.92"
+        android:elevation="10dp"
+        android:orientation="horizontal"
+        android:paddingStart="4dp"
+        android:paddingEnd="4dp"
+        android:gravity="center_vertical">
+
+        <FrameLayout android:id="@+id/nav_home_btn" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="?selectableItemBackground"><ImageView android:id="@+id/nav_home_icon" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center" android:src="@drawable/ic_home_modern" android:alpha="0.6" app:tint="@android:color/white" /></FrameLayout>
+        <View android:id="@+id/nav_divider1" android:layout_width="1dp" android:layout_height="24dp" android:background="#22FFFFFF" />
+        <FrameLayout android:id="@+id/nav_search_btn" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="?selectableItemBackground"><ImageView android:id="@+id/nova_search_icon" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center" android:src="@drawable/ic_search_vector" android:alpha="0.6" app:tint="@android:color/white" /></FrameLayout>
+        <View android:id="@+id/nav_divider2" android:layout_width="1dp" android:layout_height="24dp" android:background="#22FFFFFF" />
+        <FrameLayout android:id="@+id/nav_settings_btn" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="?selectableItemBackground"><ImageView android:id="@+id/nav_settings_icon" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center" android:src="@drawable/ic_settings_cog_vector" android:alpha="0.9" app:tint="@android:color/white" /></FrameLayout>
+    </LinearLayout>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
