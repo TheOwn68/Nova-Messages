@@ -1,6 +1,7 @@
 package org.nova.messages.activities
 
 import android.content.Context
+import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.res.ColorStateList
 import android.graphics.Color
@@ -37,6 +38,7 @@ import org.fossify.commons.activities.BaseSimpleActivity
 import org.fossify.commons.helpers.isRPlus
 import org.fossify.commons.extensions.getTextSize
 import org.fossify.commons.extensions.applyColorFilter
+import org.fossify.commons.extensions.beVisibleIf
 import org.nova.messages.R
 import org.nova.messages.extensions.config
 import org.nova.messages.helpers.*
@@ -451,6 +453,9 @@ open class SimpleActivity : BaseSimpleActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (config.appLockType != LOCK_NONE && !AppLockActivity.isUnlocked && this !is AppLockActivity) {
+            startActivity(Intent(this, AppLockActivity::class.java))
+        }
         updateAppFonts(findViewById(android.R.id.content))
         applyCustomColors()
         
@@ -528,7 +533,7 @@ open class SimpleActivity : BaseSimpleActivity() {
         return barContainer?.visibility == View.VISIBLE
     }
 
-    fun toggleCustomSelectionBar(show: Boolean, count: Int = 0, actions: List<Int> = emptyList(), onAction: (Int) -> Unit = {}) {
+    fun toggleCustomSelectionBar(show: Boolean, count: Int = 0, actions: List<Int> = emptyList(), senderInfo: String? = null, onAction: (Int) -> Unit = {}) {
         android.util.Log.d("SelectionBar", "toggleCustomSelectionBar: show=$show, count=$count")
         
         selectionBackCallback.isEnabled = show
@@ -560,6 +565,11 @@ open class SimpleActivity : BaseSimpleActivity() {
             val countText = findViewById<TextView>(R.id.selection_count)
             countText?.text = "$count selected"
             countText?.setTextColor(config.topBarTextColor)
+
+            val senderInfoText = findViewById<TextView>(R.id.selection_sender_info)
+            senderInfoText?.beVisibleIf(!senderInfo.isNullOrEmpty())
+            senderInfoText?.text = senderInfo
+            senderInfoText?.setTextColor(config.topBarTextColor)
             
             val tint = ColorStateList.valueOf(config.topBarTextColor)
             

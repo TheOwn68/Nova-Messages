@@ -27,6 +27,16 @@ class Config(context: Context) : BaseConfig(context) {
         set(showCharacterCounter) = prefs.edit()
             .putBoolean(SHOW_CHARACTER_COUNTER, showCharacterCounter).apply()
 
+    var showDateTime: Boolean
+        get() = prefs.getBoolean(SHOW_DATE_TIME, true)
+        set(showDateTime) = prefs.edit()
+            .putBoolean(SHOW_DATE_TIME, showDateTime).apply()
+
+    var muteNonContactMessages: Boolean
+        get() = prefs.getBoolean(MUTE_NON_CONTACT_MESSAGES, false)
+        set(muteNonContactMessages) = prefs.edit()
+            .putBoolean(MUTE_NON_CONTACT_MESSAGES, muteNonContactMessages).apply()
+
     var useSimpleCharacters: Boolean
         get() = prefs.getBoolean(USE_SIMPLE_CHARACTERS, false)
         set(useSimpleCharacters) = prefs.edit()
@@ -163,6 +173,14 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getString(CONVERSATION_ORDER, "")!!
         set(conversationOrder) = prefs.edit().putString(CONVERSATION_ORDER, conversationOrder).apply()
 
+    var appLockType: Int
+        get() = prefs.getInt(APP_LOCK_TYPE, LOCK_NONE)
+        set(appLockType) = prefs.edit().putInt(APP_LOCK_TYPE, appLockType).apply()
+
+    var appLockPassword: String
+        get() = prefs.getString(APP_LOCK_PASSWORD, "")!!
+        set(appLockPassword) = prefs.edit().putString(APP_LOCK_PASSWORD, appLockPassword).apply()
+
     var contactSortingMode: Int
         get() = prefs.getInt(CONTACT_SORTING_MODE, 0) // 0: Manual, 1: Alphabetical, 2: Recent
         set(contactSortingMode) = prefs.edit().putInt(CONTACT_SORTING_MODE, contactSortingMode).apply()
@@ -273,9 +291,13 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getString(INPUT_BAR_CROP_RECT, "")!!
         set(inputBarCropRect) = prefs.edit().putString(INPUT_BAR_CROP_RECT, inputBarCropRect).apply()
 
-    var alwaysExpandSearchBar: Boolean
-        get() = prefs.getBoolean(ALWAYS_EXPAND_SEARCH_BAR, false)
-        set(alwaysExpandSearchBar) = prefs.edit().putBoolean(ALWAYS_EXPAND_SEARCH_BAR, alwaysExpandSearchBar).apply()
+    var notificationTextColor: Int
+        get() = prefs.getInt(NOTIFICATION_TEXT_COLOR, Color.BLACK)
+        set(notificationTextColor) = prefs.edit().putInt(NOTIFICATION_TEXT_COLOR, notificationTextColor).apply()
+
+    var notificationTextOvalColor: Int
+        get() = prefs.getInt(NOTIFICATION_TEXT_OVAL_COLOR, Color.WHITE)
+        set(notificationTextOvalColor) = prefs.edit().putInt(NOTIFICATION_TEXT_OVAL_COLOR, notificationTextOvalColor).apply()
 
     var preset1Name: String
         get() = prefs.getString(PRESET_1_NAME, "Preset 1")!!
@@ -372,7 +394,7 @@ class Config(context: Context) : BaseConfig(context) {
             TOP_BAR_CROP_RECT, MAIN_BG_CROP_RECT, INPUT_BAR_CROP_RECT,
             TOP_BAR_BG_MODE, MAIN_BG_MODE, INPUT_BAR_BG_MODE,
             RECENT_COLOR, ROW1_COLOR, ROW2_COLOR, ROW3_COLOR,
-            FONT_FAMILY_NOVA, UI_SCALE, ALWAYS_EXPAND_SEARCH_BAR, USE_NEW_UI,
+            FONT_FAMILY_NOVA, UI_SCALE, USE_NEW_UI,
             TOP_BAR_OUTLINE, TOP_BAR_OUTLINE_COLOR, SEARCH_BAR_OUTLINE, SEARCH_BAR_OUTLINE_COLOR,
             BIG_CONTACTS_OUTLINE, BIG_CONTACTS_OUTLINE_COLOR, SMALL_CONTACTS_OUTLINE, SMALL_CONTACTS_OUTLINE_COLOR,
             SENT_BUBBLES_OUTLINE, SENT_BUBBLES_OUTLINE_COLOR, RECEIVED_BUBBLES_OUTLINE, RECEIVED_BUBBLES_OUTLINE_COLOR,
@@ -404,7 +426,7 @@ class Config(context: Context) : BaseConfig(context) {
             TOP_BAR_CROP_RECT, MAIN_BG_CROP_RECT, INPUT_BAR_CROP_RECT,
             TOP_BAR_BG_MODE, MAIN_BG_MODE, INPUT_BAR_BG_MODE,
             RECENT_COLOR, ROW1_COLOR, ROW2_COLOR, ROW3_COLOR,
-            FONT_FAMILY_NOVA, UI_SCALE, ALWAYS_EXPAND_SEARCH_BAR, USE_NEW_UI,
+            FONT_FAMILY_NOVA, UI_SCALE, USE_NEW_UI,
             TOP_BAR_OUTLINE, TOP_BAR_OUTLINE_COLOR, SEARCH_BAR_OUTLINE, SEARCH_BAR_OUTLINE_COLOR,
             BIG_CONTACTS_OUTLINE, BIG_CONTACTS_OUTLINE_COLOR, SMALL_CONTACTS_OUTLINE, SMALL_CONTACTS_OUTLINE_COLOR,
             SENT_BUBBLES_OUTLINE, SENT_BUBBLES_OUTLINE_COLOR, RECEIVED_BUBBLES_OUTLINE, RECEIVED_BUBBLES_OUTLINE_COLOR,

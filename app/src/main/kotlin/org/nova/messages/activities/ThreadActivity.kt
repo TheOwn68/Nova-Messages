@@ -145,7 +145,7 @@ class ThreadActivity : SimpleActivity() {
         // Keyboard Sync: Shrink input bar when keyboard goes down
         ViewCompat.setOnApplyWindowInsetsListener(binding.threadHolder) { _, insets ->
             val isImeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
-            if (wasImeVisible && !isImeVisible && config.useNewUi && binding.messageHolder.threadTypeMessage.text?.isEmpty() == true && !config.alwaysExpandSearchBar) {
+            if (wasImeVisible && !isImeVisible && config.useNewUi && binding.messageHolder.threadTypeMessage.text?.isEmpty() == true) {
                 shrinkInputBar()
             }
             wasImeVisible = isImeVisible
@@ -158,11 +158,9 @@ class ThreadActivity : SimpleActivity() {
         val inputField = binding.messageHolder.threadTypeMessage
         
         if (config.useNewUi) {
-            val alwaysExpand = config.alwaysExpandSearchBar
-            
             // New UI: Small centered input bar that expands
             inputBar.updateLayoutParams<androidx.constraintlayout.widget.ConstraintLayout.LayoutParams> {
-                width = if (alwaysExpand) androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.MATCH_PARENT else 240.getScaledPx()
+                width = 240.getScaledPx()
                 startToStart = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
                 endToEnd = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
             }
@@ -170,8 +168,8 @@ class ThreadActivity : SimpleActivity() {
             inputBar.elevation = 10f * resources.displayMetrics.density
             inputBar.translationZ = 4f
             
-            inputField.isFocusable = alwaysExpand
-            inputField.isFocusableInTouchMode = alwaysExpand
+            inputField.isFocusable = false
+            inputField.isFocusableInTouchMode = false
             inputField.isEnabled = true
             
             inputBar.setOnClickListener {
@@ -187,7 +185,7 @@ class ThreadActivity : SimpleActivity() {
             }
             
             inputField.setOnFocusChangeListener { _, hasFocus ->
-                if (!hasFocus && inputField.text?.isEmpty() == true && !alwaysExpand) {
+                if (!hasFocus && inputField.text?.isEmpty() == true) {
                     shrinkInputBar()
                 }
             }
@@ -243,8 +241,6 @@ class ThreadActivity : SimpleActivity() {
     }
 
     private fun shrinkInputBar() {
-        if (config.alwaysExpandSearchBar) return
-
         val inputBar = binding.messageHolder.novaMessageInputBar
         val inputField = binding.messageHolder.threadTypeMessage
         
@@ -1303,8 +1299,9 @@ class ThreadActivity : SimpleActivity() {
     private fun getThreadItems(): ArrayList<ThreadItem> {
         val items = ArrayList<ThreadItem>()
         var prevDateTime = 0L
+        val showDateTime = config.showDateTime
         messages.forEach { message ->
-            if (message.date - prevDateTime > MIN_DATE_TIME_DIFF_SECS) {
+            if (showDateTime && message.date - prevDateTime > MIN_DATE_TIME_DIFF_SECS) {
                 items.add(ThreadDateTime(message.date, ""))
                 prevDateTime = message.date.toLong()
             }

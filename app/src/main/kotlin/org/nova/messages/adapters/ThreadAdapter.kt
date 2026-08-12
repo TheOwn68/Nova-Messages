@@ -137,10 +137,24 @@ class ThreadAdapter(
 
     private fun updateCustomSelectionBar() {
         val simpleActivity = activity as? SimpleActivity ?: return
-        val count = selectedKeys.size
+        val selectedItems = getSelectedItems().filterIsInstance<Message>()
+        val count = selectedItems.size
+        
         if (count > 0) {
             val actions = getCustomActions()
-            simpleActivity.toggleCustomSelectionBar(true, count, actions) { actionId ->
+            val senderInfo = if (count == 1) {
+                val msg = selectedItems.first()
+                msg.senderName.ifEmpty { msg.senderPhoneNumber }
+            } else {
+                val senders = selectedItems.map { it.senderName.ifEmpty { it.senderPhoneNumber } }.distinct()
+                if (senders.size == 1) {
+                    senders.first()
+                } else {
+                    "Multiple senders"
+                }
+            }
+
+            simpleActivity.toggleCustomSelectionBar(true, count, actions, senderInfo) { actionId ->
                 if (actionId == R.id.selection_cancel) {
                     finishActMode()
                 } else {

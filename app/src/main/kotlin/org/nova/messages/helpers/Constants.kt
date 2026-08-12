@@ -17,6 +17,8 @@ const val SEARCHED_MESSAGE_ID = "searched_message_id"
 const val USE_SIM_ID_PREFIX = "use_sim_id_"
 const val NOTIFICATION_CHANNEL_ID = "nova_messages"
 const val SHOW_CHARACTER_COUNTER = "show_character_counter"
+const val SHOW_DATE_TIME = "show_date_time"
+const val MUTE_NON_CONTACT_MESSAGES = "mute_non_contact_messages"
 const val USE_SIMPLE_CHARACTERS = "use_simple_characters"
 const val SEND_ON_ENTER = "send_on_enter"
 const val LOCK_SCREEN_VISIBILITY = "lock_screen_visibility"
@@ -60,6 +62,13 @@ const val UI_SCALE = "ui_scale"
 const val FONT_FAMILY = "font_family_nova"
 const val FONT_TYPE = "font_type"
 const val FONT_FAMILY_NOVA = "font_family_nova"
+const val APP_LOCK_TYPE = "app_lock_type"
+const val APP_LOCK_PASSWORD = "app_lock_password"
+
+const val LOCK_NONE = 0
+const val LOCK_PIN = 1
+const val LOCK_PASSWORD = 2
+const val LOCK_FINGERPRINT = 3
 
 // Customization constants
 const val TOP_BAR_COLOR = "top_bar_color"
@@ -90,7 +99,8 @@ const val INPUT_BAR_BG_MODE = "input_bar_bg_mode"
 const val BG_MODE_COLOR = 0
 const val BG_MODE_IMAGE = 1
 
-const val ALWAYS_EXPAND_SEARCH_BAR = "always_expand_search_bar"
+const val NOTIFICATION_TEXT_COLOR = "notification_text_color_v2"
+const val NOTIFICATION_TEXT_OVAL_COLOR = "notification_text_oval_color_v2"
 
 const val PRESET_1_NAME = "preset_1_name"
 const val PRESET_2_NAME = "preset_2_name"

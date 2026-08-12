@@ -10,6 +10,10 @@ import org.fossify.commons.FossifyApp
 import org.fossify.commons.extensions.hasPermission
 import org.fossify.commons.helpers.PERMISSION_READ_CONTACTS
 import org.fossify.commons.helpers.ensureBackgroundThread
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
+import org.nova.messages.activities.AppLockActivity
 import org.nova.messages.extensions.config
 import org.nova.messages.extensions.rescheduleAllScheduledMessages
 import org.nova.messages.helpers.MessagingCache
@@ -48,6 +52,12 @@ class App : FossifyApp() {
         ensureBackgroundThread {
             rescheduleAllScheduledMessages()
         }
+
+        ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
+            override fun onStop(owner: LifecycleOwner) {
+                AppLockActivity.isUnlocked = false
+            }
+        })
     }
 
     private val contactsObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {

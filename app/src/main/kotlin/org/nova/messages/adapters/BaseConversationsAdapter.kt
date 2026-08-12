@@ -152,10 +152,18 @@ abstract class BaseConversationsAdapter(
 
     private fun updateCustomSelectionBar() {
         val simpleActivity = activity as? SimpleActivity ?: return
-        val count = selectedKeys.size
+        val selectedItems = getSelectedItems()
+        val count = selectedItems.size
+        
         if (count > 0) {
             val actions = getCustomActions()
-            simpleActivity.toggleCustomSelectionBar(true, count, actions) { actionId ->
+            val senderInfo = if (count == 1) {
+                selectedItems.first().title
+            } else {
+                null
+            }
+
+            simpleActivity.toggleCustomSelectionBar(true, count, actions, senderInfo) { actionId ->
                 if (actionId == R.id.selection_cancel) {
                     finishActMode()
                 } else {

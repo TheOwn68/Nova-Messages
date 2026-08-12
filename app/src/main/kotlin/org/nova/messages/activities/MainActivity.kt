@@ -602,8 +602,16 @@ class MainActivity : SimpleActivity() {
             binding.searchHolder.beVisible()
             binding.searchHolder.animate().alpha(1f).setDuration(200L).start()
             ensureBackgroundThread {
+                val telephonyMessages = searchMessages(text)
                 val searchQuery = "%$text%"
-                val messages = messagesDB.getMessagesWithText(searchQuery)
+                val localMessages = try { messagesDB.getMessagesWithText(searchQuery) } catch (_: Exception) { emptyList() }
+                
+                // Filter out duplicates (messages that are in both, based on ID)
+                val telephonyIds = telephonyMessages.map { it.id }.toSet()
+                val uniqueLocal = localMessages.filter { it.id !in telephonyIds }
+                
+                val messages = (telephonyMessages + uniqueLocal).sortedByDescending { it.date }
+                
                 val conversations = conversationsDB.getConversationsWithText(searchQuery)
                 if (text == lastSearchedText) showSearchResults(messages, conversations, text)
             }

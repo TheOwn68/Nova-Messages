@@ -249,6 +249,7 @@ fun Context.getMMS(
     threadId: Long? = null,
     sortOrder: String? = null,
     dateFrom: Int = -1,
+    selectionOverride: String? = null
 ): ArrayList<Message> {
     val uri = Mms.CONTENT_URI
     val projection = arrayOf(
@@ -261,18 +262,20 @@ fun Context.getMMS(
         Mms.STATUS
     )
 
-    var selection: String? = null
+    var selection: String? = selectionOverride
     var selectionArgs: Array<String>? = null
 
-    if (threadId == null && dateFrom != -1) {
-        // Should not multiply 1000 here, because date in mms's database is different from sms's.
-        selection = "${Sms.DATE} < ${dateFrom.toLong()}"
-    } else if (threadId != null && dateFrom == -1) {
-        selection = "${Sms.THREAD_ID} = ?"
-        selectionArgs = arrayOf(threadId.toString())
-    } else if (threadId != null) {
-        selection = "${Sms.THREAD_ID} = ? AND ${Sms.DATE} < ${dateFrom.toLong()}"
-        selectionArgs = arrayOf(threadId.toString())
+    if (selectionOverride == null) {
+        if (threadId == null && dateFrom != -1) {
+            // Should not multiply 1000 here, because date in mms's database is different from sms's.
+            selection = "${Sms.DATE} < ${dateFrom.toLong()}"
+        } else if (threadId != null && dateFrom == -1) {
+            selection = "${Sms.THREAD_ID} = ?"
+            selectionArgs = arrayOf(threadId.toString())
+        } else if (threadId != null) {
+            selection = "${Sms.THREAD_ID} = ? AND ${Sms.DATE} < ${dateFrom.toLong()}"
+            selectionArgs = arrayOf(threadId.toString())
+        }
     }
 
     val messages = ArrayList<Message>()
@@ -505,6 +508,89 @@ fun Context.getConversations(
 
     conversations.sortByDescending { it.date }
     return conversations
+}
+
+fun Context.searchMessages(text: String, limit: Int = MESSAGES_LIMIT): ArrayList<Message> {
+    val results = ArrayList<Message>()
+    val searchQuery = "%$text%"
+
+    // 1. Search SMS
+    val smsUri = Sms.CONTENT_URI
+    val smsProjection = arrayOf(
+        Sms._ID, Sms.BODY, Sms.TYPE, Sms.ADDRESS, Sms.DATE,
+        Sms.READ, Sms.THREAD_ID, Sms.SUBSCRIPTION_ID, Sms.STATUS
+    )
+    val smsSelection = "${Sms.BODY} LIKE ?"
+    val smsArgs = arrayOf(searchQuery)
+    val smsSort = "${Sms.DATE} DESC LIMIT $limit"
+
+    queryCursor(smsUri, smsProjection, smsSelection, smsArgs, smsSort) { cursor ->
+        val id = cursor.getLongValue(Sms._ID)
+        val body = cursor.getStringValue(Sms.BODY) ?: ""
+        val type = cursor.getIntValue(Sms.TYPE)
+        val address = cursor.getStringValue(Sms.ADDRESS) ?: ""
+        val date = (cursor.getLongValue(Sms.DATE) / 1000).toInt()
+        val read = cursor.getIntValue(Sms.READ) == 1
+        val threadId = cursor.getLongValue(Sms.THREAD_ID)
+        val status = cursor.getIntValue(Sms.STATUS)
+        val subscriptionId = cursor.getIntValueOr(Sms.SUBSCRIPTION_ID, -1)
+
+        val namePhoto = getNameAndPhotoFromPhoneNumber(address)
+        
+        var finalBody = body
+        var isEncrypted = false
+        val unwrapped = NovaCrypto.unwrapMessage(body)
+        if (unwrapped != null) {
+            val (token, encryptedPart) = unwrapped
+            val conversation = conversationsDB.getConversationWithThreadId(threadId)
+            if (conversation != null) {
+                try {
+                    val newKey = NovaCrypto.evolveKey(conversation.novaSharedSecret, token)
+                    val decodedNums = NovaCrypto.decrypt(encryptedPart, newKey)
+                    finalBody = NovaCrypto.decodeNumbers(decodedNums)
+                    isEncrypted = true
+                } catch (_: Exception) {}
+            }
+        }
+
+        if (finalBody.contains(text, ignoreCase = true)) {
+            val participants = address.split(ADDRESS_SEPARATOR).map { num ->
+                val pNamePhoto = getNameAndPhotoFromPhoneNumber(num)
+                org.fossify.commons.models.SimpleContact(
+                    rawId = 0,
+                    contactId = 0,
+                    name = pNamePhoto.name,
+                    photoUri = pNamePhoto.photoUri ?: "",
+                    phoneNumbers = arrayListOf(org.fossify.commons.models.PhoneNumber(num, 0, "", num)),
+                    birthdays = ArrayList(),
+                    anniversaries = ArrayList()
+                )
+            }
+
+            results.add(Message(
+                id = id, body = finalBody, type = type, status = status,
+                participants = ArrayList(participants), date = date, read = read,
+                threadId = threadId, isMMS = false, attachment = null,
+                senderPhoneNumber = address, senderName = namePhoto.name,
+                senderPhotoUri = namePhoto.photoUri ?: "", subscriptionId = subscriptionId,
+                isEncrypted = isEncrypted
+            ))
+        }
+    }
+
+    // 2. Search MMS
+    val partUri = if (isQPlus()) Mms.Part.CONTENT_URI else "content://mms/part".toUri()
+    val mmsIds = mutableSetOf<Long>()
+    queryCursor(partUri, arrayOf(Mms.Part.MSG_ID), "${Mms.Part.TEXT} LIKE ? AND ${Mms.Part.CONTENT_TYPE} = ?", arrayOf(searchQuery, "text/plain"), null) {
+        mmsIds.add(it.getLongValue(Mms.Part.MSG_ID))
+    }
+
+    if (mmsIds.isNotEmpty()) {
+        val mmsSelection = "${Mms._ID} IN (${mmsIds.joinToString(",")})"
+        results.addAll(getMMS(selectionOverride = mmsSelection))
+    }
+
+    return ArrayList(results.sortedByDescending { it.date }.take(limit))
 }
 
 private fun Context.queryCursorUnsafe(

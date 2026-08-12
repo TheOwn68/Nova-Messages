@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/selection_bar_container"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -31,18 +32,38 @@
             android:src="@drawable/ic_cross_vector"
             app:tint="@android:color/white" />
 
-        <TextView
-            android:id="@+id/selection_count"
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_marginStart="8dp"
-            android:text="0 selected"
-            android:textColor="@android:color/white"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:maxLines="1"
-            android:ellipsize="end" />
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/selection_count"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="0 selected"
+                android:textColor="@android:color/white"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/selection_sender_info"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@android:color/white"
+                android:textSize="12sp"
+                android:alpha="0.8"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:visibility="gone"
+                tools:text="John Doe"
+                tools:visibility="visible" />
+
+        </LinearLayout>
 
         <HorizontalScrollView
             android:layout_width="wrap_content"

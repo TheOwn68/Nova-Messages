@@ -97,15 +97,20 @@ class ContactsAdapter(
     private fun setupSuggestionView(view: View, item: ConversationListItem, holder: MyRecyclerViewListAdapter<Any>.ViewHolder) {
         val conversation = item.conversation
         ItemConversationRecentBinding.bind(view).apply {
-            val mainTextColor = activity.config.mainTextColor
             recentAddress.text = conversation.title
-            recentAddress.setTextColor(mainTextColor)
+            recentAddress.setTextColor(Color.BLACK)
             recentBody.text = "Suggested"
-            recentBody.setTextColor(mainTextColor)
+            recentBody.setTextColor(Color.BLACK)
             recentBody.alpha = 0.7f
             recentDate.visibility = View.GONE
+
+            SimpleContactsHelper(activity).loadContactImage(
+                path = conversation.photoUri,
+                imageView = recentImage,
+                placeholderName = conversation.title
+            )
             
-            val baseColor = activity.config.recentColor
+            val baseColor = Color.WHITE
             val lightened = baseColor.adjustColor(1.2f)
             val darkened = baseColor.adjustColor(0.8f)
             val gd = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(lightened, baseColor, darkened))
@@ -118,29 +123,34 @@ class ContactsAdapter(
 
     private fun setupContactView(view: View, item: Any, holder: MyRecyclerViewListAdapter<Any>.ViewHolder) {
         ItemConversationBinding.bind(view).apply {
-            val mainTextColor = activity.config.mainTextColor
             if (item is SimpleContact) {
                 conversationAddress.text = item.name
                 conversationBodyShort.text = item.phoneNumbers.firstOrNull()?.normalizedNumber ?: ""
+                SimpleContactsHelper(activity).loadContactImage(
+                    path = item.photoUri,
+                    imageView = conversationImage,
+                    placeholderName = item.name
+                )
             } else if (item is ConversationListItem) {
-                conversationAddress.text = item.conversation.title
-                conversationBodyShort.text = item.conversation.phoneNumber
+                val conversation = item.conversation
+                conversationAddress.text = conversation.title
+                conversationBodyShort.text = conversation.phoneNumber
+                SimpleContactsHelper(activity).loadContactImage(
+                    path = conversation.photoUri,
+                    imageView = conversationImage,
+                    placeholderName = conversation.title
+                )
             }
             
-            conversationAddress.setTextColor(mainTextColor)
-            conversationBodyShort.setTextColor(mainTextColor)
+            conversationAddress.setTextColor(Color.BLACK)
+            conversationBodyShort.setTextColor(Color.BLACK)
             conversationBodyShort.alpha = 0.7f
             
             val density = resources.displayMetrics.density
-            val baseColor = if (activity.config.mainBackgroundColor == Color.WHITE) {
-                "#F5F5F5".toColorInt() // Light grey for white backgrounds
-            } else {
-                activity.config.mainBackgroundColor.adjustColor(1.1f)
-            }
             val gd = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
                 cornerRadius = 24f * density
-                setColor(baseColor)
+                setColor(Color.WHITE)
             }
             conversationFrame.background = gd
             conversationFrame.setOnClickListener { holder.viewClicked(item) }
@@ -149,10 +159,9 @@ class ContactsAdapter(
 
     private fun setupModernPillView(view: View, item: Any, holder: MyRecyclerViewListAdapter<Any>.ViewHolder) {
         org.nova.messages.databinding.ItemConversationPillBinding.bind(view).apply {
-            val mainTextColor = activity.config.mainTextColor
             val contact = item as SimpleContact
             pillAddress.text = contact.name
-            pillAddress.setTextColor(mainTextColor)
+            pillAddress.setTextColor(Color.BLACK)
             
             SimpleContactsHelper(activity).loadContactImage(
                 path = contact.photoUri,
@@ -161,7 +170,7 @@ class ContactsAdapter(
             )
 
             // Setup modern gradient/outline
-            val baseColor = activity.config.recentColor
+            val baseColor = Color.WHITE
             val lightened = baseColor.adjustColor(1.2f)
             val darkened = baseColor.adjustColor(0.8f)
             val gd = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(lightened, baseColor, darkened))

@@ -105,6 +105,17 @@
     <string name="mms_file_size_limit_50mb">50 MB</string>
     <string name="mms_file_size_limit_100mb">100 MB</string>
     <string name="outgoing_messages">Outgoing messages</string>
+    <string name="security">Security</string>
+    <string name="app_lock">App Lock</string>
+    <string name="lock_none">None</string>
+    <string name="lock_pin">PIN</string>
+    <string name="lock_password">Password</string>
+    <string name="lock_fingerprint">Fingerprint</string>
+    <string name="notifications">Notifications</string>
+    <string name="notification_oval_bg_color">Text Oval Color</string>
+    <string name="notification_text_color">Notification Text Color</string>
+    <string name="show_date_time">Show date and time</string>
+    <string name="mute_non_contact_messages">Mute messages from non-contacts</string>
     <string name="messaging">Messaging</string>
     <string name="group_message_mms">Send group messages as MMS</string>
     <string name="send_long_message_mms">Send long messages as MMS</string>

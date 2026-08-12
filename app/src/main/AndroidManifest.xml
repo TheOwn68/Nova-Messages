@@ -58,6 +58,12 @@
             android:exported="true" />
 
         <activity
+            android:name=".activities.AppLockActivity"
+            android:configChanges="orientation"
+            android:exported="false"
+            android:theme="@style/AppTheme" />
+
+        <activity
             android:name=".activities.ImageCropperActivity"
             android:configChanges="orientation"
             android:theme="@style/AppTheme" />

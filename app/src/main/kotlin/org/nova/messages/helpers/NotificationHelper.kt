@@ -26,6 +26,7 @@ import org.nova.messages.messaging.isShortCodeWithLetters
 import org.nova.messages.receivers.DeleteSmsReceiver
 import org.nova.messages.receivers.DirectReplyReceiver
 import org.nova.messages.receivers.MarkAsReadReceiver
+import android.widget.RemoteViews
 
 class NotificationHelper(private val context: Context) {
 
@@ -125,21 +126,26 @@ class NotificationHelper(private val context: Context) {
             null
         }
         val builder = NotificationCompat.Builder(context, notificationChannelId).apply {
-            when (context.config.lockScreenVisibilitySetting) {
-                LOCK_SCREEN_SENDER_MESSAGE -> {
-                    setLargeIcon(largeIcon)
-                    setStyle(getMessagesStyle(address, body, notificationId, sender))
+            val customView = RemoteViews(context.packageName, R.layout.notification_custom_v2).apply {
+                val contactIcon: Any = largeIcon ?: SimpleContactsHelper(context).getContactLetterIcon(sender ?: "")
+                val iconBitmap = if (contactIcon is Bitmap) {
+                    contactIcon
+                } else {
+                    (contactIcon as android.graphics.drawable.BitmapDrawable).bitmap
                 }
-
-                LOCK_SCREEN_SENDER -> {
-                    setContentTitle(sender)
-                    setLargeIcon(largeIcon)
-                    val summaryText = context.getString(R.string.new_message)
-                    setStyle(
-                        NotificationCompat.BigTextStyle().setSummaryText(summaryText).bigText(body)
-                    )
-                }
+                setImageViewBitmap(R.id.notif_icon, iconBitmap)
+                
+                setTextViewText(R.id.notif_title, sender ?: address)
+                setTextViewText(R.id.notif_text, body)
+                
+                setTextColor(R.id.notif_title, context.config.notificationTextColor)
+                setTextColor(R.id.notif_text, context.config.notificationTextColor)
+                
+                setInt(R.id.notif_oval_bg, "setColorFilter", context.config.notificationTextOvalColor)
             }
+            
+            setCustomContentView(customView)
+            setCustomBigContentView(customView)
 
             color = context.getProperPrimaryColor()
             setSmallIcon(R.drawable.ic_star_notification)
@@ -149,7 +155,13 @@ class NotificationHelper(private val context: Context) {
             setCategory(Notification.CATEGORY_MESSAGE)
             setAutoCancel(true)
             setOnlyAlertOnce(alertOnlyOnce)
-            setSound(soundUri, AudioManager.STREAM_NOTIFICATION)
+            
+            val isContact = SimpleContactsHelper(context).existsSync(address, null) != org.fossify.commons.helpers.ContactLookupResult.NotFound
+            if (context.config.muteNonContactMessages && !isContact) {
+                setSilent(true)
+            } else {
+                setSound(soundUri, AudioManager.STREAM_NOTIFICATION)
+            }
         }
 
         if (replyAction != null && context.config.lockScreenVisibilitySetting == LOCK_SCREEN_SENDER_MESSAGE) {

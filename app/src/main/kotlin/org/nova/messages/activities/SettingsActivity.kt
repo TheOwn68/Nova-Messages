@@ -19,6 +19,8 @@ import org.nova.messages.databinding.ActivitySettingsBinding
 import org.nova.messages.extensions.config
 import org.nova.messages.helpers.*
 import org.nova.messages.dialogs.RenamePresetDialog
+import org.nova.messages.dialogs.SetPasswordDialog
+import java.security.MessageDigest
 
 class SettingsActivity : SimpleActivity() {
 
@@ -46,6 +48,8 @@ class SettingsActivity : SimpleActivity() {
         setupPresets()
         setupOutlines()
         setupMessagingBehavior()
+        setupNotificationsBehavior()
+        setupSecurityBehavior()
         setupExpandableCategories()
         updateAppFonts(binding.root)
     }
@@ -55,6 +59,8 @@ class SettingsActivity : SimpleActivity() {
         applyOutlines()
         updateCustomizationUI()
         updateMessagingUI()
+        updateNotificationsUI()
+        updateSecurityUI()
         setupNovaNavBar()
         // Ensure UI is fully up to date for modern design
         updateAppFonts(binding.root)
@@ -170,14 +176,24 @@ class SettingsActivity : SimpleActivity() {
         settingsUiColorsLabel.setTextColor(mainTextColor)
         settingsThemePresetsLabel.setTextColor(mainTextColor)
         settingsMessagingLabel.setTextColor(mainTextColor)
+        settingsShowDateTimeLabel.setTextColor(mainTextColor)
         settingsGroupMmsLabel.setTextColor(mainTextColor)
         settingsLongMmsLabel.setTextColor(mainTextColor)
         settingsDeliveryReportsLabel.setTextColor(mainTextColor)
+        settingsMuteNonContactsLabel.setTextColor(mainTextColor)
+        settingsSecurityLabel.setTextColor(mainTextColor)
+        settingsAppLockLabel.setTextColor(mainTextColor)
+        settingsAppLockType.setTextColor(mainTextColor)
+        settingsNotificationsLabel.setTextColor(mainTextColor)
+        settingsNotifOvalColorLabel.setTextColor(mainTextColor)
+        settingsNotifTextColorLabel.setTextColor(mainTextColor)
         
         settingsAppearanceArrow.applyColorFilter(mainTextColor)
         settingsColorsArrow.applyColorFilter(mainTextColor)
         settingsBubblesArrow.applyColorFilter(mainTextColor)
         settingsMessagingArrow.applyColorFilter(mainTextColor)
+        settingsNotificationsArrow.applyColorFilter(mainTextColor)
+        settingsSecurityArrow.applyColorFilter(mainTextColor)
         settingsLayoutArrow.applyColorFilter(mainTextColor)
         settingsOutlinesArrow.applyColorFilter(mainTextColor)
         settingsPresetsArrow.applyColorFilter(mainTextColor)
@@ -239,6 +255,9 @@ class SettingsActivity : SimpleActivity() {
         updatePreview(settingsColorRow1Preview, config.row1Color)
         updatePreview(settingsColorRow2Preview, config.row2Color)
         updatePreview(settingsColorRow3Preview, config.row3Color)
+
+        updatePreview(settingsNotifOvalColorPreview, config.notificationTextOvalColor)
+        updatePreview(settingsNotifTextColorPreview, config.notificationTextColor)
 
         updateOutlinesUI()
     }
@@ -462,7 +481,8 @@ class SettingsActivity : SimpleActivity() {
 
             override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
                 val view = super.getDropDownView(position, convertView, parent) as TextView
-                view.setTextColor(config.mainTextColor)
+                view.setTextColor(Color.BLACK)
+                view.setBackgroundColor(Color.WHITE)
                 return view
             }
         }
@@ -686,7 +706,6 @@ class SettingsActivity : SimpleActivity() {
     private fun setupNewUi() = binding.apply {
         settingsNewUiSwitch.isChecked = config.useNewUi
         settingsOutlinesHeader.beVisibleIf(config.useNewUi)
-        settingsAlwaysExpandSearchBarHolder.beVisibleIf(config.useNewUi)
         settingsContactSortingHolder.beVisibleIf(config.useNewUi)
         
         settingsNewUiHolder.setOnClickListener {
@@ -694,14 +713,17 @@ class SettingsActivity : SimpleActivity() {
             config.useNewUi = settingsNewUiSwitch.isChecked
             settingsOutlinesHeader.beVisibleIf(config.useNewUi)
             if (!config.useNewUi) settingsOutlinesContainer.beGone()
-            settingsAlwaysExpandSearchBarHolder.beVisibleIf(config.useNewUi)
             settingsContactSortingHolder.beVisibleIf(config.useNewUi)
         }
 
-        settingsAlwaysExpandSearchBarSwitch.isChecked = config.alwaysExpandSearchBar
-        settingsAlwaysExpandSearchBarHolder.setOnClickListener {
-            settingsAlwaysExpandSearchBarSwitch.toggle()
-            config.alwaysExpandSearchBar = settingsAlwaysExpandSearchBarSwitch.isChecked
+        settingsShowDateTimeSwitch.isChecked = config.showDateTime
+        settingsShowDateTimeHolder.setOnClickListener {
+            settingsShowDateTimeSwitch.toggle()
+        }
+
+        settingsShowDateTimeSwitch.setOnCheckedChangeListener { _, isChecked ->
+            config.showDateTime = isChecked
+            refreshMessages()
         }
 
         setupContactSorting()
@@ -718,8 +740,8 @@ class SettingsActivity : SimpleActivity() {
 
             override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
                 val view = super.getDropDownView(position, convertView, parent) as TextView
-                view.setTextColor(config.mainTextColor)
-                view.setBackgroundColor(config.mainBackgroundColor)
+                view.setTextColor(Color.BLACK)
+                view.setBackgroundColor(Color.WHITE)
                 return view
             }
         }
@@ -857,6 +879,8 @@ class SettingsActivity : SimpleActivity() {
             Triple(settingsColorsHeader, settingsColorsContainer, settingsColorsArrow),
             Triple(settingsBubblesHeader, settingsBubblesContainer, settingsBubblesArrow),
             Triple(settingsMessagingHeader, settingsMessagingContainer, settingsMessagingArrow),
+            Triple(settingsNotificationsHeader, settingsNotificationsContainer, settingsNotificationsArrow),
+            Triple(settingsSecurityHeader, settingsSecurityContainer, settingsSecurityArrow),
             Triple(settingsLayoutHeader, settingsLayoutContainer, settingsLayoutArrow),
             Triple(settingsOutlinesHeader, settingsOutlinesContainer, settingsOutlinesArrow),
             Triple(settingsPresetsHeader, settingsPresetsContainer, settingsPresetsArrow)
@@ -896,12 +920,116 @@ class SettingsActivity : SimpleActivity() {
         settingsDeliveryReportsSwitch.setOnCheckedChangeListener { _, isChecked ->
             config.enableDeliveryReports = isChecked
         }
+
+        settingsMuteNonContactsHolder.setOnClickListener {
+            settingsMuteNonContactsSwitch.toggle()
+            config.muteNonContactMessages = settingsMuteNonContactsSwitch.isChecked
+        }
+
+        settingsMuteNonContactsSwitch.setOnCheckedChangeListener { _, isChecked ->
+            config.muteNonContactMessages = isChecked
+        }
     }
 
     private fun updateMessagingUI() = binding.apply {
         settingsGroupMmsSwitch.isChecked = config.sendGroupMessageMMS
         settingsLongMmsSwitch.isChecked = config.sendLongMessageMMS
         settingsDeliveryReportsSwitch.isChecked = config.enableDeliveryReports
+        settingsMuteNonContactsSwitch.isChecked = config.muteNonContactMessages
+        settingsShowDateTimeSwitch.isChecked = config.showDateTime
+    }
+
+    private fun setupNotificationsBehavior() = binding.apply {
+        val updatePreview = { view: View, color: Int ->
+            val bg = view.background as? android.graphics.drawable.LayerDrawable
+            if (bg != null) {
+                bg.findDrawableByLayerId(R.id.color_preview_main)?.mutate()?.setColorFilter(color, android.graphics.PorterDuff.Mode.SRC_IN)
+            } else {
+                view.background?.applyColorFilter(color)
+            }
+        }
+
+        settingsNotifOvalColorHolder.setOnClickListener {
+            org.fossify.commons.dialogs.ColorPickerDialog(this@SettingsActivity, config.notificationTextOvalColor) { wasPositive, color ->
+                if (wasPositive) {
+                    config.notificationTextOvalColor = color
+                    updatePreview(settingsNotifOvalColorPreview, color)
+                }
+            }
+        }
+
+        settingsNotifTextColorHolder.setOnClickListener {
+            org.fossify.commons.dialogs.ColorPickerDialog(this@SettingsActivity, config.notificationTextColor) { wasPositive, color ->
+                if (wasPositive) {
+                    config.notificationTextColor = color
+                    updatePreview(settingsNotifTextColorPreview, color)
+                }
+            }
+        }
+    }
+
+    private fun updateNotificationsUI() = binding.apply {
+        val updatePreview = { view: View, color: Int ->
+            val bg = view.background as? android.graphics.drawable.LayerDrawable
+            if (bg != null) {
+                bg.findDrawableByLayerId(R.id.color_preview_main)?.mutate()?.setColorFilter(color, android.graphics.PorterDuff.Mode.SRC_IN)
+            } else {
+                view.background?.applyColorFilter(color)
+            }
+        }
+
+        updatePreview(settingsNotifOvalColorPreview, config.notificationTextOvalColor)
+        updatePreview(settingsNotifTextColorPreview, config.notificationTextColor)
+    }
+
+    private fun setupSecurityBehavior() = binding.apply {
+        settingsAppLockHolder.setOnClickListener {
+            val items = arrayListOf(
+                org.fossify.commons.models.RadioItem(LOCK_NONE, getString(R.string.lock_none)),
+                org.fossify.commons.models.RadioItem(LOCK_PIN, getString(R.string.lock_pin)),
+                org.fossify.commons.models.RadioItem(LOCK_PASSWORD, getString(R.string.lock_password)),
+                org.fossify.commons.models.RadioItem(LOCK_FINGERPRINT, getString(R.string.lock_fingerprint))
+            )
+
+            org.fossify.commons.dialogs.RadioGroupDialog(this@SettingsActivity, items, config.appLockType) {
+                val newType = it as Int
+                if (newType == LOCK_NONE) {
+                    config.appLockType = LOCK_NONE
+                    config.appLockPassword = ""
+                    updateSecurityUI()
+                } else if (newType == LOCK_FINGERPRINT) {
+                    config.appLockType = LOCK_FINGERPRINT
+                    config.appLockPassword = ""
+                    updateSecurityUI()
+                } else {
+                    showSetPasswordDialog(newType)
+                }
+            }
+        }
+    }
+
+    private fun showSetPasswordDialog(type: Int) {
+        SetPasswordDialog(this, type) { password ->
+            if (password.isNotEmpty()) {
+                config.appLockType = type
+                config.appLockPassword = password.toSha256()
+                updateSecurityUI()
+            }
+        }
+    }
+
+    private fun String.toSha256(): String {
+        val bytes = MessageDigest.getInstance("SHA-256").digest(this.toByteArray())
+        return bytes.joinToString("") { "%02x".format(it) }
+    }
+
+    private fun updateSecurityUI() = binding.apply {
+        settingsAppLockType.text = getString(when (config.appLockType) {
+            LOCK_PIN -> R.string.lock_pin
+            LOCK_PASSWORD -> R.string.lock_password
+            LOCK_FINGERPRINT -> R.string.lock_fingerprint
+            else -> R.string.lock_none
+        })
     }
 
     private fun toggleCategory(container: View, arrow: android.widget.ImageView) {
