@@ -144,6 +144,9 @@ fun Context.getMessages(
 
     val blockStatus = HashMap<String, Boolean>()
     val blockedNumbers = getBlockedNumbers()
+    val conversation = MessagingCache.getConversation(this, threadId)
+    val sharedSecret = conversation?.novaSharedSecret
+
     var messages = ArrayList<Message>()
     queryCursor(uri, projection, selection, selectionArgs, sortOrder, showErrors = true) { cursor ->
         val senderNumber = cursor.getStringValue(Sms.ADDRESS) ?: return@queryCursor
@@ -161,10 +164,9 @@ fun Context.getMessages(
         val unwrapped = NovaCrypto.unwrapMessage(body)
         if (unwrapped != null) {
             val (token, encryptedPart) = unwrapped
-            val conversation = conversationsDB.getConversationWithThreadId(cursor.getLongValue(Sms.THREAD_ID))
-            if (conversation != null) {
+            if (sharedSecret != null) {
                 try {
-                    val newKey = NovaCrypto.evolveKey(conversation.novaSharedSecret, token)
+                    val newKey = NovaCrypto.evolveKey(sharedSecret, token)
                     val decodedNums = NovaCrypto.decrypt(encryptedPart, newKey)
                     finalBody = NovaCrypto.decodeNumbers(decodedNums)
                     isEncrypted = true
@@ -280,15 +282,24 @@ fun Context.getMMS(
 
     val messages = ArrayList<Message>()
     val contactsMap = HashMap<Int, SimpleContact>()
+    val cachedParticipants = HashMap<Long, ArrayList<SimpleContact>>()
+    val conversation = if (threadId != null) MessagingCache.getConversation(this, threadId) else null
+    val sharedSecret = conversation?.novaSharedSecret
+
     queryCursor(uri, projection, selection, selectionArgs, sortOrder, showErrors = true) { cursor ->
         val mmsId = cursor.getLongValue(Mms._ID)
         val type = cursor.getIntValue(Mms.MESSAGE_BOX)
         val date = cursor.getLongValue(Mms.DATE).toInt()
         val read = cursor.getIntValue(Mms.READ) == 1
-        val threadId = cursor.getLongValue(Mms.THREAD_ID)
+        val currentThreadId = cursor.getLongValue(Mms.THREAD_ID)
         val subscriptionId = cursor.getIntValue(Mms.SUBSCRIPTION_ID)
         val status = cursor.getIntValue(Mms.STATUS)
-        val participants = getThreadParticipants(threadId, contactsMap)
+        
+        val participants = if (threadId != null && threadId == currentThreadId) {
+            cachedParticipants.getOrPut(currentThreadId) { getThreadParticipants(currentThreadId, contactsMap) }
+        } else {
+            getThreadParticipants(currentThreadId, contactsMap)
+        }
 
         val isMMS = true
         val attachment = getMmsAttachment(mmsId)
@@ -302,10 +313,9 @@ fun Context.getMMS(
         val unwrapped = NovaCrypto.unwrapMessage(body)
         if (unwrapped != null) {
             val (token, encryptedPart) = unwrapped
-            val conversation = conversationsDB.getConversationWithThreadId(threadId)
-            if (conversation != null) {
+            if (sharedSecret != null) {
                 try {
-                    val newKey = NovaCrypto.evolveKey(conversation.novaSharedSecret, token)
+                    val newKey = NovaCrypto.evolveKey(sharedSecret, token)
                     val decodedNums = NovaCrypto.decrypt(encryptedPart, newKey)
                     finalBody = NovaCrypto.decodeNumbers(decodedNums)
                     isEncrypted = true
@@ -333,7 +343,7 @@ fun Context.getMMS(
                 participants = participants,
                 date = date,
                 read = read,
-                threadId = threadId,
+                threadId = currentThreadId,
                 isMMS = isMMS,
                 attachment = attachment,
                 senderPhoneNumber = senderNumber,
@@ -841,6 +851,7 @@ fun Context.getThreadContactNames(
 }
 
 fun Context.getPhoneNumberFromAddressId(canonicalAddressId: Int): String {
+    MessagingCache.addressIdCache.get(canonicalAddressId)?.let { return it }
     val uri = Uri.withAppendedPath(MmsSms.CONTENT_URI, "canonical-addresses")
     val projection = arrayOf(
         Mms.Addr.ADDRESS
@@ -848,17 +859,22 @@ fun Context.getPhoneNumberFromAddressId(canonicalAddressId: Int): String {
 
     val selection = "${Mms._ID} = ?"
     val selectionArgs = arrayOf(canonicalAddressId.toString())
+    var address = ""
     try {
         val cursor = contentResolver.query(uri, projection, selection, selectionArgs, null)
         cursor?.use {
             if (cursor.moveToFirst()) {
-                return cursor.getStringValue(Mms.Addr.ADDRESS)
+                address = cursor.getStringValue(Mms.Addr.ADDRESS)
             }
         }
     } catch (e: Exception) {
         showErrorToast(e)
     }
-    return ""
+
+    if (address.isNotEmpty()) {
+        MessagingCache.addressIdCache.put(canonicalAddressId, address)
+    }
+    return address
 }
 
 fun Context.getSuggestedContacts(

@@ -415,10 +415,13 @@ class ThreadActivity : SimpleActivity() {
         }
         val privateCursor = getMyContactsCursor(favoritesOnly = false, withPhoneNumbersOnly = true)
         ensureBackgroundThread {
+            if (conversation == null) {
+                conversation = conversationsDB.getConversationWithThreadId(threadId)
+            }
+            
             val privateContacts = MyContactsContentProvider.getSimpleContacts(this, privateCursor)
             privateContacts.forEach { privateContactsMap[it.contactId] = it }
 
-            val cachedMessagesCode = messages.hashCode()
             if (!isRecycleBin) {
                 val rawMessages = getMessages(threadId)
                 messages = ArrayList(processReactions(rawMessages))
@@ -429,15 +432,16 @@ class ThreadActivity : SimpleActivity() {
                 }
             }
 
-            setupParticipants()
-            setupAdapter(forceScroll = true)
+            participants = getThreadParticipants(threadId, privateContactsMap)
+            val items = getThreadItems()
 
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
-                updateMessageType()
+                showSelectedContacts()
                 setupThreadTitle()
                 setupSIMSelector()
                 updateMessageType()
+                setupAdapter(forceScroll = true, providedItems = items)
                 callback()
             }
         }
@@ -465,11 +469,11 @@ class ThreadActivity : SimpleActivity() {
         return currAdapter as ThreadAdapter
     }
 
-    private fun setupAdapter(forceScroll: Boolean = false) {
+    private fun setupAdapter(forceScroll: Boolean = false, providedItems: ArrayList<ThreadItem>? = null) {
         if (isRefreshing) return
         isRefreshing = true
-        ensureBackgroundThread {
-            val items = getThreadItems()
+
+        val applyItems = { items: ArrayList<ThreadItem> ->
             runOnUiThread {
                 if (isFinishing || isDestroyed) {
                     isRefreshing = false
@@ -486,6 +490,14 @@ class ThreadActivity : SimpleActivity() {
                         scrollToBottom(forceScroll || forceScrollOnOpen)
                     }
                 }
+            }
+        }
+
+        if (providedItems != null) {
+            applyItems(providedItems)
+        } else {
+            ensureBackgroundThread {
+                applyItems(getThreadItems())
             }
         }
 
@@ -613,18 +625,15 @@ class ThreadActivity : SimpleActivity() {
         handlePermission(PERMISSION_READ_PHONE_STATE) { granted ->
             if (granted) {
                 setupButtons()
-                ensureBackgroundThread {
-                    conversation = conversationsDB.getConversationWithThreadId(threadId)
-                    setupThread {
-                        val searchedMessageId = intent.getLongExtra(SEARCHED_MESSAGE_ID, -1L)
-                        intent.removeExtra(SEARCHED_MESSAGE_ID)
-                        if (searchedMessageId != -1L) {
-                            jumpToMessage(searchedMessageId)
-                        }
+                setupThread {
+                    val searchedMessageId = intent.getLongExtra(SEARCHED_MESSAGE_ID, -1L)
+                    intent.removeExtra(SEARCHED_MESSAGE_ID)
+                    if (searchedMessageId != -1L) {
+                        jumpToMessage(searchedMessageId)
                     }
-                    runOnUiThread {
-                        setupScrollListener()
-                    }
+                }
+                runOnUiThread {
+                    setupScrollListener()
                 }
             } else {
                 finish()
@@ -941,19 +950,6 @@ class ThreadActivity : SimpleActivity() {
         if (isScheduledMessage) {
             val format = "${config.dateFormat}, ${getTimeFormat()}"
             binding.messageHolder.scheduledMessageButton.text = scheduledDateTime.toString(format)
-        }
-    }
-
-    private fun setupParticipants() {
-        ensureBackgroundThread {
-            participants = getThreadParticipants(threadId, privateContactsMap)
-            runOnUiThread {
-                if (isFinishing || isDestroyed) return@runOnUiThread
-                showSelectedContacts()
-                setupThreadTitle()
-                checkSendMessageAvailability()
-                refreshMessages()
-            }
         }
     }
 
@@ -1460,6 +1456,7 @@ class ThreadActivity : SimpleActivity() {
             .associateBy({ it.body.take(30).trim() }, { it })
 
         val result = messages.toMutableList()
+        val reactionsToInsert = ArrayList<Reaction>()
         
         // Pass 1: Handle incoming reaction texts and UI filtering
         for (i in result.indices.reversed()) {
@@ -1483,15 +1480,23 @@ class ThreadActivity : SimpleActivity() {
                     
                     // Persist newly discovered reaction to DB
                     if (reactionMapDB[targetKey] != emoji) {
-                        ensureBackgroundThread {
-                            reactionsDB.insertOrUpdate(Reaction(target.id, target.isMMS, threadId, emoji))
-                        }
+                        reactionsToInsert.add(Reaction(target.id, target.isMMS, threadId, emoji))
                     }
                 }
             } else {
                 // Pass 2: Re-apply already known reactions from DB or Cache
                 val cacheKey = MessagingCache.getReactionKey(msg.id, msg.isMMS)
                 msg.reaction = reactionMapDB[cacheKey] ?: MessagingCache.reactionsCache[cacheKey]
+            }
+        }
+
+        if (reactionsToInsert.isNotEmpty()) {
+            ensureBackgroundThread {
+                try {
+                    reactionsToInsert.forEach { reactionsDB.insertOrUpdate(it) }
+                } catch (e: Exception) {
+                    android.util.Log.e("ReactionError", "Failed to batch save reactions", e)
+                }
             }
         }
 

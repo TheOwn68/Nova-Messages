@@ -111,6 +111,10 @@
     <string name="lock_pin">PIN</string>
     <string name="lock_password">Password</string>
     <string name="lock_fingerprint">Fingerprint</string>
+    <string name="hide_contacts">Hide Contacts</string>
+    <string name="show_all">Show all</string>
+    <string name="hide_never_messaged">Hide never messaged</string>
+    <string name="hide_not_messaged_last_year">Hide not messaged in a year</string>
     <string name="notifications">Notifications</string>
     <string name="notification_oval_bg_color">Text Oval Color</string>
     <string name="notification_text_color">Notification Text Color</string>
@@ -119,6 +123,14 @@
     <string name="messaging">Messaging</string>
     <string name="group_message_mms">Send group messages as MMS</string>
     <string name="send_long_message_mms">Send long messages as MMS</string>
+    <string name="bubble_shape">Message Bubble Shape</string>
+    <string name="bubble_shape_default">Default</string>
+    <string name="bubble_shape_rectangle">Sharp Rectangle</string>
+    <string name="bubble_shape_rounded">Rounded Rectangle</string>
+    <string name="bubble_shape_pill">Pill Shape</string>
+    <string name="bubble_shape_cut">Cut Corners</string>
+    <string name="bubble_shape_messenger">Messenger Style</string>
+    <string name="bubble_shape_teardrop">Teardrop</string>
     <!-- Export / Import -->
     <string name="messages">Messages</string>
     <string name="keywords">Keywords</string>

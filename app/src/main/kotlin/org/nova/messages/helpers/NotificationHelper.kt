@@ -12,11 +12,17 @@ import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.RingtoneManager
 import androidx.core.app.NotificationCompat
-import androidx.core.app.Person
 import androidx.core.app.RemoteInput
 import org.fossify.commons.extensions.getProperPrimaryColor
 import org.fossify.commons.extensions.notificationManager
 import org.fossify.commons.helpers.SimpleContactsHelper
+import android.graphics.drawable.GradientDrawable
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.Color
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.nova.messages.R
 import org.nova.messages.activities.ThreadActivity
@@ -32,9 +38,6 @@ class NotificationHelper(private val context: Context) {
 
     private val notificationManager = context.notificationManager
     private val soundUri get() = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-    private val user = Person.Builder()
-        .setName(context.getString(R.string.me))
-        .build()
 
     @SuppressLint("NewApi")
     fun showMessageNotification(
@@ -120,28 +123,40 @@ class NotificationHelper(private val context: Context) {
                 .build()
         }
 
-        val largeIcon = bitmap ?: if (sender != null) {
-            SimpleContactsHelper(context).getContactLetterIcon(sender)
-        } else {
-            null
-        }
         val builder = NotificationCompat.Builder(context, notificationChannelId).apply {
             val customView = RemoteViews(context.packageName, R.layout.notification_custom_v2).apply {
-                val contactIcon: Any = largeIcon ?: SimpleContactsHelper(context).getContactLetterIcon(sender ?: "")
-                val iconBitmap = if (contactIcon is Bitmap) {
-                    contactIcon
-                } else {
-                    (contactIcon as android.graphics.drawable.BitmapDrawable).bitmap
-                }
-                setImageViewBitmap(R.id.notif_icon, iconBitmap)
+                val contactIcon: Bitmap = bitmap ?: SimpleContactsHelper(context).getContactLetterIcon(sender ?: "")
+                
+                val config = context.config
+                val density = context.resources.displayMetrics.density
+                
+                // Icon with Outline
+                val finalIcon = getIconBitmap(
+                    contactIcon, 
+                    config.notificationOutlineColor, 
+                    config.notificationOutlineThickness, 
+                    config.notificationIconOutline
+                )
+                setImageViewBitmap(R.id.notif_icon, finalIcon)
                 
                 setTextViewText(R.id.notif_title, sender ?: address)
                 setTextViewText(R.id.notif_text, body)
                 
-                setTextColor(R.id.notif_title, context.config.notificationTextColor)
-                setTextColor(R.id.notif_text, context.config.notificationTextColor)
+                setTextColor(R.id.notif_title, config.notificationTextColor)
+                setTextColor(R.id.notif_text, config.notificationTextColor)
                 
-                setInt(R.id.notif_oval_bg, "setColorFilter", context.config.notificationTextOvalColor)
+                // Oval with Outline
+                val ovalWidth = (300 * density).toInt() // Standard estimate
+                val ovalHeight = (56 * density).toInt()
+                val finalOval = getOvalBitmap(
+                    ovalWidth, 
+                    ovalHeight, 
+                    config.notificationTextOvalColor,
+                    config.notificationOutlineColor,
+                    config.notificationOutlineThickness,
+                    config.notificationOvalOutline
+                )
+                setImageViewBitmap(R.id.notif_oval_bg, finalOval)
             }
             
             setCustomContentView(customView)
@@ -255,42 +270,64 @@ class NotificationHelper(private val context: Context) {
         }
     }
 
-    private fun getMessagesStyle(
-        address: String,
-        body: String,
-        notificationId: Int,
-        name: String?
-    ): NotificationCompat.MessagingStyle {
-        val sender = if (name != null) {
-            Person.Builder()
-                .setName(name)
-                .setKey(address)
-                .build()
-        } else {
-            null
-        }
+    private fun getIconBitmap(src: Bitmap, outlineColor: Int, thickness: Int, showOutline: Boolean): Bitmap {
+        val density = context.resources.displayMetrics.density
+        val size = (56 * density).toInt()
+        val output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(output)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        
+        val strokeWidth = if (showOutline) thickness * density else 0f
+        
+        // Draw icon (circular clipped)
+        val innerRect = RectF(strokeWidth, strokeWidth, size - strokeWidth, size - strokeWidth)
+        
+        canvas.save()
+        val path = android.graphics.Path()
+        path.addOval(innerRect, android.graphics.Path.Direction.CW)
+        canvas.clipPath(path)
+        // Ensure white background if icon has transparency
+        paint.color = Color.WHITE
+        paint.style = Paint.Style.FILL
+        canvas.drawOval(innerRect, paint)
+        canvas.drawBitmap(src, null, innerRect, paint)
+        canvas.restore()
 
-        return NotificationCompat.MessagingStyle(user).also { style ->
-            getOldMessages(notificationId).forEach {
-                style.addMessage(it)
-            }
-            val newMessage =
-                NotificationCompat.MessagingStyle.Message(body, System.currentTimeMillis(), sender)
-            style.addMessage(newMessage)
+        // Draw outline
+        if (showOutline && thickness > 0) {
+            paint.color = outlineColor
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = strokeWidth
+            // Draw stroke centered on the boundary
+            canvas.drawCircle(size / 2f, size / 2f, size / 2f - strokeWidth / 2f, paint)
         }
+        
+        return output
     }
 
-    private fun getOldMessages(notificationId: Int): List<NotificationCompat.MessagingStyle.Message> {
-        val currentNotification =
-            notificationManager.activeNotifications.find { it.id == notificationId }
-        return if (currentNotification != null) {
-            val activeStyle =
-                NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(
-                    currentNotification.notification
-                )
-            activeStyle?.messages.orEmpty()
-        } else {
-            emptyList()
+    private fun getOvalBitmap(width: Int, height: Int, color: Int, outlineColor: Int, thickness: Int, showOutline: Boolean): Bitmap {
+        val density = context.resources.displayMetrics.density
+        val output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(output)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        
+        val strokeWidth = if (showOutline) thickness * density else 0f
+        // Inset the rect so the stroke is fully visible
+        val rect = RectF(strokeWidth / 2f, strokeWidth / 2f, width - strokeWidth / 2f, height - strokeWidth / 2f)
+
+        // Fill
+        paint.color = color
+        paint.style = Paint.Style.FILL
+        canvas.drawRoundRect(rect, height / 2f, height / 2f, paint)
+        
+        // Outline
+        if (showOutline && thickness > 0) {
+            paint.color = outlineColor
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = strokeWidth
+            canvas.drawRoundRect(rect, height / 2f, height / 2f, paint)
         }
+        
+        return output
     }
 }

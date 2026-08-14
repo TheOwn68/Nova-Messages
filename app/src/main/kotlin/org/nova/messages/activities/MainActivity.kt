@@ -586,6 +586,7 @@ class MainActivity : SimpleActivity() {
         Intent(this, ThreadActivity::class.java).apply {
             putExtra(THREAD_ID, conv.threadId)
             putExtra(THREAD_TITLE, conv.title)
+            // No longer passing full parcelable to avoid intent size limits, but the essential title is enough
             startActivity(this)
         }
     }

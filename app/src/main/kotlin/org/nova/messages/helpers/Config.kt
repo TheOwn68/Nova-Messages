@@ -173,6 +173,10 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getString(CONVERSATION_ORDER, "")!!
         set(conversationOrder) = prefs.edit().putString(CONVERSATION_ORDER, conversationOrder).apply()
 
+    var contactFilterMode: Int
+        get() = prefs.getInt(CONTACT_FILTER_MODE, 0) // 0: Show All, 1: Messaged Only, 2: Messaged within Year
+        set(contactFilterMode) = prefs.edit().putInt(CONTACT_FILTER_MODE, contactFilterMode).apply()
+
     var appLockType: Int
         get() = prefs.getInt(APP_LOCK_TYPE, LOCK_NONE)
         set(appLockType) = prefs.edit().putInt(APP_LOCK_TYPE, appLockType).apply()
@@ -205,10 +209,15 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getFloat(UI_SCALE, 1.0f)
         set(uiScale) = prefs.edit().putFloat(UI_SCALE, uiScale).apply()
 
+    var bubbleShape: Int
+        get() = prefs.getInt(BUBBLE_SHAPE, 0) // 0: Default, 1: Rectangle, 2: Rounded, 3: Pill, 4: Cut
+        set(bubbleShape) = prefs.edit().putInt(BUBBLE_SHAPE, bubbleShape).apply()
+
     fun resetColors() {
         prefs.edit().remove(TOP_BAR_COLOR).remove(TOP_BAR_TEXT_COLOR).remove(MAIN_BACKGROUND_COLOR).remove(MAIN_TEXT_COLOR).remove(INPUT_BAR_BACKGROUND_COLOR).remove(INPUT_BAR_TEXT_COLOR).remove(SENT_BUBBLE_COLOR).remove(SENT_BUBBLE_TEXT_COLOR).remove(RECEIVED_BUBBLE_COLOR).remove(RECEIVED_BUBBLE_TEXT_COLOR).remove(RECENT_COLOR).remove(ROW1_COLOR).remove(ROW2_COLOR).remove(ROW3_COLOR)
             .remove(TOP_BAR_IMAGE).remove(MAIN_BACKGROUND_IMAGE).remove(INPUT_BAR_IMAGE)
-            .remove(TOP_BAR_BG_MODE).remove(MAIN_BG_MODE).remove(INPUT_BAR_BG_MODE).apply()
+            .remove(TOP_BAR_BG_MODE).remove(MAIN_BG_MODE).remove(INPUT_BAR_BG_MODE)
+            .remove(BUBBLE_SHAPE).apply()
     }
 
     var fontFamilyNova: Int
@@ -298,6 +307,22 @@ class Config(context: Context) : BaseConfig(context) {
     var notificationTextOvalColor: Int
         get() = prefs.getInt(NOTIFICATION_TEXT_OVAL_COLOR, Color.WHITE)
         set(notificationTextOvalColor) = prefs.edit().putInt(NOTIFICATION_TEXT_OVAL_COLOR, notificationTextOvalColor).apply()
+
+    var notificationIconOutline: Boolean
+        get() = prefs.getBoolean(NOTIFICATION_ICON_OUTLINE, false)
+        set(notificationIconOutline) = prefs.edit().putBoolean(NOTIFICATION_ICON_OUTLINE, notificationIconOutline).apply()
+
+    var notificationOvalOutline: Boolean
+        get() = prefs.getBoolean(NOTIFICATION_OVAL_OUTLINE, false)
+        set(notificationOvalOutline) = prefs.edit().putBoolean(NOTIFICATION_OVAL_OUTLINE, notificationOvalOutline).apply()
+
+    var notificationOutlineColor: Int
+        get() = prefs.getInt(NOTIFICATION_OUTLINE_COLOR, Color.BLACK)
+        set(notificationOutlineColor) = prefs.edit().putInt(NOTIFICATION_OUTLINE_COLOR, notificationOutlineColor).apply()
+
+    var notificationOutlineThickness: Int
+        get() = prefs.getInt(NOTIFICATION_OUTLINE_THICKNESS, 2)
+        set(notificationOutlineThickness) = prefs.edit().putInt(NOTIFICATION_OUTLINE_THICKNESS, notificationOutlineThickness).apply()
 
     var preset1Name: String
         get() = prefs.getString(PRESET_1_NAME, "Preset 1")!!
@@ -395,6 +420,9 @@ class Config(context: Context) : BaseConfig(context) {
             TOP_BAR_BG_MODE, MAIN_BG_MODE, INPUT_BAR_BG_MODE,
             RECENT_COLOR, ROW1_COLOR, ROW2_COLOR, ROW3_COLOR,
             FONT_FAMILY_NOVA, UI_SCALE, USE_NEW_UI,
+            NOTIFICATION_TEXT_COLOR, NOTIFICATION_TEXT_OVAL_COLOR,
+            NOTIFICATION_ICON_OUTLINE, NOTIFICATION_OVAL_OUTLINE,
+            NOTIFICATION_OUTLINE_COLOR, NOTIFICATION_OUTLINE_THICKNESS,
             TOP_BAR_OUTLINE, TOP_BAR_OUTLINE_COLOR, SEARCH_BAR_OUTLINE, SEARCH_BAR_OUTLINE_COLOR,
             BIG_CONTACTS_OUTLINE, BIG_CONTACTS_OUTLINE_COLOR, SMALL_CONTACTS_OUTLINE, SMALL_CONTACTS_OUTLINE_COLOR,
             SENT_BUBBLES_OUTLINE, SENT_BUBBLES_OUTLINE_COLOR, RECEIVED_BUBBLES_OUTLINE, RECEIVED_BUBBLES_OUTLINE_COLOR,
@@ -427,6 +455,9 @@ class Config(context: Context) : BaseConfig(context) {
             TOP_BAR_BG_MODE, MAIN_BG_MODE, INPUT_BAR_BG_MODE,
             RECENT_COLOR, ROW1_COLOR, ROW2_COLOR, ROW3_COLOR,
             FONT_FAMILY_NOVA, UI_SCALE, USE_NEW_UI,
+            NOTIFICATION_TEXT_COLOR, NOTIFICATION_TEXT_OVAL_COLOR,
+            NOTIFICATION_ICON_OUTLINE, NOTIFICATION_OVAL_OUTLINE,
+            NOTIFICATION_OUTLINE_COLOR, NOTIFICATION_OUTLINE_THICKNESS,
             TOP_BAR_OUTLINE, TOP_BAR_OUTLINE_COLOR, SEARCH_BAR_OUTLINE, SEARCH_BAR_OUTLINE_COLOR,
             BIG_CONTACTS_OUTLINE, BIG_CONTACTS_OUTLINE_COLOR, SMALL_CONTACTS_OUTLINE, SMALL_CONTACTS_OUTLINE_COLOR,
             SENT_BUBBLES_OUTLINE, SENT_BUBBLES_OUTLINE_COLOR, RECEIVED_BUBBLES_OUTLINE, RECEIVED_BUBBLES_OUTLINE_COLOR,

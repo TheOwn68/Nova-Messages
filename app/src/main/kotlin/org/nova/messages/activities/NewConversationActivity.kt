@@ -6,7 +6,9 @@ import android.animation.ValueAnimator
 import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
+import android.provider.Telephony
 import android.os.Bundle
+import androidx.core.net.toUri
 import android.view.WindowManager
 import android.view.animation.AccelerateInterpolator
 import android.view.animation.DecelerateInterpolator
@@ -39,6 +41,8 @@ import java.util.Locale
 class NewConversationActivity : SimpleActivity() {
     private var allContacts = ArrayList<SimpleContact>()
     private var privateContacts = ArrayList<SimpleContact>()
+    private var lastMessageMap = HashMap<String, Int>()
+    private var lastFilterMode = -1
     private var wasImeVisible = false
 
     private val binding by viewBinding(ActivityNewConversationBinding::inflate)
@@ -85,6 +89,11 @@ class NewConversationActivity : SimpleActivity() {
         updateActivityCustomColors()
 
         setupModernSearchBar()
+
+        if (config.contactFilterMode != lastFilterMode) {
+            lastFilterMode = config.contactFilterMode
+            fetchContacts()
+        }
     }
 
     private fun setupModernSearchBar() = binding.apply {
@@ -188,7 +197,6 @@ class NewConversationActivity : SimpleActivity() {
             return
         }
 
-        fetchContacts()
         binding.newConversationAddress.onTextChangeListener { searchString ->
             val filteredContacts = ArrayList<SimpleContact>()
             allContacts.forEach { contact ->
@@ -241,16 +249,50 @@ class NewConversationActivity : SimpleActivity() {
         handlePermission(PERMISSION_READ_CONTACTS) {
             if (it) {
                 ensureBackgroundThread {
+                    lastMessageMap.clear()
+                    val addressMap = HashMap<Int, String>()
+                    try {
+                        queryCursor(Uri.parse("content://mms-sms/canonical-addresses"), arrayOf("_id", "address")) { cursor ->
+                            val id = cursor.getIntValue("_id")
+                            val address = cursor.getStringValue("address")
+                            if (address != null) addressMap[id] = address
+                        }
+
+                        val uri = "${Telephony.Threads.CONTENT_URI}?simple=true".toUri()
+                        val projection = arrayOf<String>(Telephony.Threads._ID, Telephony.Threads.DATE, Telephony.Threads.RECIPIENT_IDS)
+                        queryCursor(uri, projection) { cursor ->
+                            var date = cursor.getLongValue(Telephony.Threads.DATE)
+                            if (date.toString().length > 10) date /= 1000
+                            
+                            val recipientIds = cursor.getStringValue(Telephony.Threads.RECIPIENT_IDS)
+                                ?.split(" ")
+                                ?.filter { it.areDigitsOnly() }
+                                ?.map { it.toInt() } ?: emptyList()
+                                
+                            recipientIds.forEach { id ->
+                                val number = addressMap[id] ?: ""
+                                val comparable = number.trimToComparableNumber()
+                                if (comparable.isNotEmpty()) {
+                                    lastMessageMap[comparable] = Math.max(lastMessageMap[comparable] ?: 0, date.toInt())
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+
                     SimpleContactsHelper(this).getAvailableContacts(false) { contacts ->
-                        allContacts = contacts as ArrayList<SimpleContact>
+                        val filteredContacts = applyFilter(contacts as ArrayList<SimpleContact>)
                         
                         val privateCursor = getMyContactsCursor(false, true)
                         privateContacts = MyContactsContentProvider.getSimpleContacts(this, privateCursor)
                         
                         if (privateContacts.isNotEmpty()) {
-                            allContacts.addAll(privateContacts)
-                            allContacts.sortBy { it.name.lowercase() }
+                            filteredContacts.addAll(applyFilter(privateContacts))
                         }
+
+                        allContacts = filteredContacts
+                        allContacts.sortBy { it.name.lowercase() }
 
                         runOnUiThread {
                             if (isFinishing || isDestroyed) return@runOnUiThread
@@ -266,6 +308,24 @@ class NewConversationActivity : SimpleActivity() {
                 }
             }
         }
+    }
+
+    private fun applyFilter(contacts: ArrayList<SimpleContact>): ArrayList<SimpleContact> {
+        val filterMode = config.contactFilterMode
+        if (filterMode == 0) return contacts
+
+        val oneYearAgo = (System.currentTimeMillis() / 1000 - 365 * 24 * 60 * 60).toInt()
+        return contacts.filter { contact ->
+            contact.phoneNumbers.any { pn ->
+                val comparable = pn.normalizedNumber.trimToComparableNumber()
+                val lastDate = lastMessageMap[comparable] ?: 0
+                if (filterMode == 1) {
+                    lastDate > 0
+                } else {
+                    lastDate >= oneYearAgo
+                }
+            }
+        } as ArrayList<SimpleContact>
     }
 
     private fun setupSearchEdgeToEdge() {
@@ -318,7 +378,7 @@ class NewConversationActivity : SimpleActivity() {
             val privateCursor = getMyContactsCursor(false, true)
             val privateContacts = MyContactsContentProvider.getSimpleContacts(this, privateCursor)
             
-            val suggestions = getSuggestedContacts(privateContacts)
+            val suggestions = applyFilter(getSuggestedContacts(privateContacts))
             
             // Add suggested contacts to the list if they're not already there
             suggestions.forEach { contact ->
@@ -326,6 +386,7 @@ class NewConversationActivity : SimpleActivity() {
                     allContacts.add(contact)
                 }
             }
+            
             
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread

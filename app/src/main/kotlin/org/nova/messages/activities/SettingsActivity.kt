@@ -2,6 +2,8 @@ package org.nova.messages.activities
 
 import android.app.Activity
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
@@ -47,6 +49,7 @@ class SettingsActivity : SimpleActivity() {
         setupBgModes()
         setupPresets()
         setupOutlines()
+        setupBubbleShapes()
         setupMessagingBehavior()
         setupNotificationsBehavior()
         setupSecurityBehavior()
@@ -60,6 +63,7 @@ class SettingsActivity : SimpleActivity() {
         updateCustomizationUI()
         updateMessagingUI()
         updateNotificationsUI()
+        updateBubblePreview()
         updateSecurityUI()
         setupNovaNavBar()
         // Ensure UI is fully up to date for modern design
@@ -177,6 +181,7 @@ class SettingsActivity : SimpleActivity() {
         settingsThemePresetsLabel.setTextColor(mainTextColor)
         settingsMessagingLabel.setTextColor(mainTextColor)
         settingsShowDateTimeLabel.setTextColor(mainTextColor)
+        settingsContactFilterLabel.setTextColor(mainTextColor)
         settingsGroupMmsLabel.setTextColor(mainTextColor)
         settingsLongMmsLabel.setTextColor(mainTextColor)
         settingsDeliveryReportsLabel.setTextColor(mainTextColor)
@@ -205,6 +210,7 @@ class SettingsActivity : SimpleActivity() {
         settingsSentBubbleTextColorLabel.setTextColor(mainTextColor)
         settingsReceivedBubbleColorLabel.setTextColor(mainTextColor)
         settingsReceivedBubbleTextColorLabel.setTextColor(mainTextColor)
+        settingsBubbleShapeLabel.setTextColor(mainTextColor)
         
         settingsPreset1Label.setTextColor(mainTextColor)
         settingsPreset1Label.text = config.preset1Name
@@ -258,6 +264,7 @@ class SettingsActivity : SimpleActivity() {
 
         updatePreview(settingsNotifOvalColorPreview, config.notificationTextOvalColor)
         updatePreview(settingsNotifTextColorPreview, config.notificationTextColor)
+        updatePreview(settingsNotifOutlineColorPreview, config.notificationOutlineColor)
 
         updateOutlinesUI()
     }
@@ -511,6 +518,46 @@ class SettingsActivity : SimpleActivity() {
         setupSpinner(settingsInputBarBgModeSpinner, config.inputBarBgMode) { config.inputBarBgMode = it }
     }
 
+    private fun setupBubbleShapes() = binding.apply {
+        val shapes = arrayOf(
+            getString(R.string.bubble_shape_default),
+            getString(R.string.bubble_shape_rectangle),
+            getString(R.string.bubble_shape_rounded),
+            getString(R.string.bubble_shape_pill),
+            getString(R.string.bubble_shape_cut),
+            getString(R.string.bubble_shape_messenger),
+            getString(R.string.bubble_shape_teardrop)
+        )
+        val adapter = object : ArrayAdapter<String>(this@SettingsActivity, android.R.layout.simple_spinner_item, shapes) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = super.getView(position, convertView, parent) as TextView
+                view.setTextColor(config.mainTextColor)
+                return view
+            }
+
+            override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = super.getDropDownView(position, convertView, parent) as TextView
+                view.setTextColor(Color.BLACK)
+                view.setBackgroundColor(Color.WHITE)
+                return view
+            }
+        }
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        settingsBubbleShapeSpinner.adapter = adapter
+        settingsBubbleShapeSpinner.setSelection(config.bubbleShape)
+
+        settingsBubbleShapeSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                config.bubbleShape = position
+                updateBubblePreview()
+                // Force a refresh of the ThreadActivity adapter if it's currently visible
+                refreshMessages()
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+    }
+
     private fun setupCustomization() = binding.apply {
         val mainTextColor = config.mainTextColor
         settingsCustomizationLabel.setTextColor(mainTextColor)
@@ -581,6 +628,7 @@ class SettingsActivity : SimpleActivity() {
                 if (wasPositive) {
                     config.sentBubbleColor = color
                     updatePreview(settingsSentBubbleColorPreview, color)
+                    updateBubblePreview()
                 }
             }
         }
@@ -590,6 +638,7 @@ class SettingsActivity : SimpleActivity() {
                 if (wasPositive) {
                     config.sentBubbleTextColor = color
                     updatePreview(settingsSentBubbleTextColorPreview, color)
+                    updateBubblePreview()
                 }
             }
         }
@@ -599,6 +648,7 @@ class SettingsActivity : SimpleActivity() {
                 if (wasPositive) {
                     config.receivedBubbleColor = color
                     updatePreview(settingsReceivedBubbleColorPreview, color)
+                    updateBubblePreview()
                 }
             }
         }
@@ -608,6 +658,7 @@ class SettingsActivity : SimpleActivity() {
                 if (wasPositive) {
                     config.receivedBubbleTextColor = color
                     updatePreview(settingsReceivedBubbleTextColorPreview, color)
+                    updateBubblePreview()
                 }
             }
         }
@@ -727,6 +778,7 @@ class SettingsActivity : SimpleActivity() {
         }
 
         setupContactSorting()
+        setupContactFilter()
     }
 
     private fun setupContactSorting() = binding.apply {
@@ -752,6 +804,39 @@ class SettingsActivity : SimpleActivity() {
         settingsContactSortingSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 config.contactSortingMode = position
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+    }
+
+    private fun setupContactFilter() = binding.apply {
+        val modes = arrayOf(
+            getString(R.string.show_all),
+            getString(R.string.hide_never_messaged),
+            getString(R.string.hide_not_messaged_last_year)
+        )
+        val adapter = object : ArrayAdapter<String>(this@SettingsActivity, android.R.layout.simple_spinner_item, modes) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = super.getView(position, convertView, parent) as TextView
+                view.setTextColor(config.mainTextColor)
+                return view
+            }
+
+            override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = super.getDropDownView(position, convertView, parent) as TextView
+                view.setTextColor(Color.BLACK)
+                view.setBackgroundColor(Color.WHITE)
+                return view
+            }
+        }
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        settingsContactFilterSpinner.adapter = adapter
+        settingsContactFilterSpinner.setSelection(config.contactFilterMode)
+
+        settingsContactFilterSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                config.contactFilterMode = position
             }
 
             override fun onNothingSelected(parent: AdapterView<*>?) {}
@@ -867,6 +952,8 @@ class SettingsActivity : SimpleActivity() {
         setupUIScale()
         setupFontSize()
         setupFontFamily()
+        updateBubblePreview()
+        updateNotificationsUI()
         applyCustomColors()
         updateAppFonts(binding.root)
         
@@ -954,6 +1041,7 @@ class SettingsActivity : SimpleActivity() {
                 if (wasPositive) {
                     config.notificationTextOvalColor = color
                     updatePreview(settingsNotifOvalColorPreview, color)
+                    updateNotifPreview()
                 }
             }
         }
@@ -963,8 +1051,35 @@ class SettingsActivity : SimpleActivity() {
                 if (wasPositive) {
                     config.notificationTextColor = color
                     updatePreview(settingsNotifTextColorPreview, color)
+                    updateNotifPreview()
                 }
             }
+        }
+
+        settingsNotifOutlineColorHolder.setOnClickListener {
+            org.fossify.commons.dialogs.ColorPickerDialog(this@SettingsActivity, config.notificationOutlineColor) { wasPositive, color ->
+                if (wasPositive) {
+                    config.notificationOutlineColor = color
+                    updatePreview(settingsNotifOutlineColorPreview, color)
+                    updateNotifPreview()
+                }
+            }
+        }
+
+        settingsNotifOutlineThicknessSlider.value = config.notificationOutlineThickness.toFloat()
+        settingsNotifOutlineThicknessSlider.addOnChangeListener { _, value, _ ->
+            config.notificationOutlineThickness = value.toInt()
+            updateNotifPreview()
+        }
+
+        settingsNotifIconOutlineSwitch.setOnCheckedChangeListener { _, isChecked ->
+            config.notificationIconOutline = isChecked
+            updateNotifPreview()
+        }
+
+        settingsNotifOvalOutlineSwitch.setOnCheckedChangeListener { _, isChecked ->
+            config.notificationOvalOutline = isChecked
+            updateNotifPreview()
         }
     }
 
@@ -980,6 +1095,108 @@ class SettingsActivity : SimpleActivity() {
 
         updatePreview(settingsNotifOvalColorPreview, config.notificationTextOvalColor)
         updatePreview(settingsNotifTextColorPreview, config.notificationTextColor)
+        updatePreview(settingsNotifOutlineColorPreview, config.notificationOutlineColor)
+
+        settingsNotifIconOutlineSwitch.isChecked = config.notificationIconOutline
+        settingsNotifOvalOutlineSwitch.isChecked = config.notificationOvalOutline
+        settingsNotifOutlineThicknessSlider.value = config.notificationOutlineThickness.toFloat()
+
+        updateNotifPreview()
+    }
+
+    private fun updateBubblePreview() = binding.apply {
+        val density = resources.displayMetrics.density
+        val r18 = 18f * density
+        val r12 = 12f * density
+        val r6 = 6f * density
+        val rMax = 1000f * density
+        
+        val sentColor = config.sentBubbleColor
+        val receivedColor = config.receivedBubbleColor
+        val sentTextColor = config.sentBubbleTextColor
+        val receivedTextColor = config.receivedBubbleTextColor
+
+        val getRadii = { isReceived: Boolean ->
+            when (config.bubbleShape) {
+                1 -> floatArrayOf(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f)
+                2 -> floatArrayOf(r12, r12, r12, r12, r12, r12, r12, r12)
+                3 -> floatArrayOf(rMax, rMax, rMax, rMax, rMax, rMax, rMax, rMax)
+                4 -> floatArrayOf(r6, r6, r6, r6, r6, r6, r6, r6)
+                5 -> {
+                    val r32 = 32f * density
+                    val r14 = 14f * density
+                    if (isReceived) floatArrayOf(r32, r32, r32, r32, r32, r32, r14, r14)
+                    else floatArrayOf(r32, r32, r32, r32, r14, r14, r32, r32)
+                }
+                6 -> {
+                    val r32 = 32f * density
+                    if (isReceived) floatArrayOf(r32, r32, r32, r32, r32, r32, 0f, 0f)
+                    else floatArrayOf(r32, r32, r32, r32, 0f, 0f, r32, r32)
+                }
+                else -> {
+                    val r4 = 4f * density
+                    if (isReceived) floatArrayOf(r18, r18, r18, r18, r18, r18, r4, r4)
+                    else floatArrayOf(r18, r18, r18, r18, r4, r4, r18, r18)
+                }
+            }
+        }
+
+        val setupBubble = { view: TextView, isReceived: Boolean, color: Int, textColor: Int ->
+            view.setTextColor(textColor)
+            val lightened = adjustColor(color, 1.2f)
+            val darkened = adjustColor(color, 0.8f)
+            val gd = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(lightened, color, darkened))
+            gd.cornerRadii = getRadii(isReceived)
+            view.background = gd
+            view.elevation = 4f * density
+        }
+
+        setupBubble(settingsBubblePreviewSent, false, sentColor, sentTextColor)
+        setupBubble(settingsBubblePreviewReceived, true, receivedColor, receivedTextColor)
+    }
+
+    private fun updateNotifPreview() = binding.apply {
+        val ovalColor = config.notificationTextOvalColor
+        val textColor = config.notificationTextColor
+        val outlineColor = config.notificationOutlineColor
+        val thickness = (config.notificationOutlineThickness * resources.displayMetrics.density).toInt()
+
+        val preview = settingsNotifPreviewContainer
+        val icon = preview.findViewById<android.widget.ImageView>(R.id.notif_icon)
+        val ovalBg = preview.findViewById<android.widget.ImageView>(R.id.notif_oval_bg)
+        val title = preview.findViewById<android.widget.TextView>(R.id.notif_title)
+        val text = preview.findViewById<android.widget.TextView>(R.id.notif_text)
+
+        icon.setImageResource(R.mipmap.ic_launcher)
+        title.text = "Nova Messages"
+        text.text = "This is a notification preview"
+
+        title.setTextColor(textColor)
+        text.setTextColor(textColor)
+
+        // Tint icon
+        val iconGd = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(Color.WHITE)
+            if (config.notificationIconOutline) {
+                setStroke(thickness, outlineColor)
+            }
+        }
+        icon.background = iconGd
+        // Inset the icon image to fit inside the outline
+        val p = if (config.notificationIconOutline) thickness else 0
+        icon.setPadding(p, p, p, p)
+
+        // Tint oval
+        val ovalGd = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = 1000f
+            setColor(ovalColor)
+            if (config.notificationOvalOutline) {
+                setStroke(thickness, outlineColor)
+            }
+        }
+        ovalBg.setImageDrawable(ovalGd)
     }
 
     private fun setupSecurityBehavior() = binding.apply {
@@ -1034,7 +1251,26 @@ class SettingsActivity : SimpleActivity() {
 
     private fun toggleCategory(container: View, arrow: android.widget.ImageView) {
         val isExpanding = container.visibility == View.GONE
-        container.beVisibleIf(isExpanding)
+        
+        // Find parent section layout (RelativeLayout)
+        val header = (container.parent as? ViewGroup)?.let { parent ->
+            for (i in 0 until parent.childCount) {
+                val child = parent.getChildAt(i)
+                if (child is android.widget.RelativeLayout && child.getChildAt(1) == arrow) {
+                    return@let child
+                }
+            }
+            null
+        }
+
+        if (isExpanding) {
+            header?.setBackgroundResource(R.drawable.settings_section_header_bg)
+            container.beVisible()
+        } else {
+            header?.setBackgroundResource(R.drawable.settings_section_full_bg)
+            container.beGone()
+        }
+        
         arrow.animate().rotation(if (isExpanding) 180f else 0f).setDuration(200).start()
     }
 }

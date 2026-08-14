@@ -449,6 +449,7 @@ open class SimpleActivity : BaseSimpleActivity() {
 
         onBackPressedDispatcher.addCallback(this, selectionBackCallback)
         requestHighRefreshRate()
+        applyCustomColors()
     }
 
     override fun onResume() {

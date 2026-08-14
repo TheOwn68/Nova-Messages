@@ -12,6 +12,9 @@ interface ConversationsDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertOrUpdate(conversation: Conversation): Long
 
+    @Query("SELECT * FROM conversations")
+    fun getAll(): List<Conversation>
+
     @Query("SELECT (SELECT body FROM messages LEFT OUTER JOIN recycle_bin_messages ON messages.id = recycle_bin_messages.id WHERE recycle_bin_messages.id IS NULL AND messages.thread_id = conversations.thread_id ORDER BY messages.date DESC LIMIT 1) as new_snippet, * FROM conversations WHERE archived = 0 ORDER BY date DESC")
     fun getNonArchivedWithLatestSnippet(): List<ConversationWithSnippetOverride>
 

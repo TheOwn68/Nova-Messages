@@ -435,12 +435,40 @@ class ThreadAdapter(
                 
                 val density = resources.displayMetrics.density
                 val r18 = 18f * density
-                val r4 = 4f * density
+                val r12 = 12f * density
+                val r6 = 6f * density
+                val rMax = 1000f * density
                 
-                val baseRadii = if (isReceived) {
-                    floatArrayOf(r18, r18, r18, r18, r18, r18, r4, r4)
-                } else {
-                    floatArrayOf(r18, r18, r18, r18, r4, r4, r18, r18)
+                val baseRadii = when (config.bubbleShape) {
+                    1 -> floatArrayOf(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f) // Rectangle
+                    2 -> floatArrayOf(r12, r12, r12, r12, r12, r12, r12, r12) // Rounded Rectangle (Reduced to differentiate from Pill)
+                    3 -> floatArrayOf(rMax, rMax, rMax, rMax, rMax, rMax, rMax, rMax) // Pill
+                    4 -> floatArrayOf(r6, r6, r6, r6, r6, r6, r6, r6) // Soft Rectangle
+                    5 -> { // Messenger Style (Bubbly, soft tail)
+                        val r32 = 32f * density
+                        val r14 = 14f * density
+                        if (isReceived) {
+                            floatArrayOf(r32, r32, r32, r32, r32, r32, r14, r14)
+                        } else {
+                            floatArrayOf(r32, r32, r32, r32, r14, r14, r32, r32)
+                        }
+                    }
+                    6 -> { // Teardrop (One sharp corner)
+                        val r32 = 32f * density
+                        if (isReceived) {
+                            floatArrayOf(r32, r32, r32, r32, r32, r32, 0f, 0f)
+                        } else {
+                            floatArrayOf(r32, r32, r32, r32, 0f, 0f, r32, r32)
+                        }
+                    }
+                    else -> { // Default Modern
+                        val r4 = 4f * density
+                        if (isReceived) {
+                            floatArrayOf(r18, r18, r18, r18, r18, r18, r4, r4)
+                        } else {
+                            floatArrayOf(r18, r18, r18, r18, r4, r4, r18, r18)
+                        }
+                    }
                 }
                 
                 // Bubble Outlines
