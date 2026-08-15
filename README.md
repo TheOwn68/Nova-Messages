@@ -45,7 +45,7 @@ If the app doesn’t work immediately after installation:
 This resolves the issue on most devices.
 
 <div align="center">
-<img alt="App image" src="/images/img1.png" width="30%">
-<img alt="App image" src="/images/img2.png" width="30%">
-<img alt="App image" src="/images/img4.png" width="30%">
+<img alt="App image" src="/images/Image1.png" width="40%">
+<img alt="App image" src="/images/Image2.png" width="40%">
+<img alt="App image" src="/images/Image3.png" width="40%">
 </div>
