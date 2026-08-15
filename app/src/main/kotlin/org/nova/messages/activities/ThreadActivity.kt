@@ -868,14 +868,10 @@ class ThreadActivity : SimpleActivity() {
 
         if (conversation != null && !isRecycleBin) {
             items.add(R.id.conversation_details to getString(R.string.conversation_details))
-            items.add(R.id.rename_conversation to getString(R.string.rename_conversation))
         }
 
         if (!isRecycleBin) {
             items.add(R.id.block_number to getString(org.fossify.commons.R.string.block_number))
-            if (!isSpecialNumber()) {
-                items.add(R.id.manage_people to getString(R.string.add_person))
-            }
         }
 
         if (isRecycleBin && threadItems.isNotEmpty()) {
@@ -896,10 +892,8 @@ class ThreadActivity : SimpleActivity() {
                 R.id.dial_number -> dialNumber()
                 R.id.archive -> archiveThread()
                 R.id.unarchive -> unarchiveThread()
-                R.id.manage_people -> managePeople()
                 R.id.add_number_to_contact -> addNumberToContact()
                 R.id.copy_number -> copyNumberToClipboard()
-                R.id.rename_conversation -> renameConversation()
                 R.id.conversation_details -> launchConversationDetails(threadId)
                 R.id.mark_as_unread -> markAsUnread()
                 R.id.block_number -> tryBlocking()
@@ -924,7 +918,6 @@ class ThreadActivity : SimpleActivity() {
             findItem(R.id.block_number)?.isVisible = !isRecycleBin
             findItem(R.id.dial_number)?.isVisible =
                 participants.size == 1 && !isSpecialNumber() && !isRecycleBin
-            findItem(R.id.manage_people)?.isVisible = !isSpecialNumber() && !isRecycleBin
             findItem(R.id.mark_as_unread)?.isVisible = threadItems.isNotEmpty() && !isRecycleBin
 
             findItem(R.id.add_number_to_contact)?.isVisible =
@@ -1211,15 +1204,6 @@ class ThreadActivity : SimpleActivity() {
         refreshMenuItems()
     }
 
-    private fun managePeople() {
-        val numbers = participants.flatMap { it.phoneNumbers.map { pn -> pn.normalizedNumber } }.distinct()
-        Intent(Intent.ACTION_INSERT_OR_EDIT).apply {
-            type = ContactsContract.Contacts.CONTENT_ITEM_TYPE
-            putExtra(ContactsContract.Intents.Insert.PHONE, numbers.joinToString(";"))
-            startActivity(this)
-        }
-    }
-
     private fun addNumberToContact() {
         val number = participants.firstOrNull()?.phoneNumbers?.firstOrNull()?.value ?: return
         Intent(Intent.ACTION_INSERT_OR_EDIT).apply {
@@ -1232,20 +1216,6 @@ class ThreadActivity : SimpleActivity() {
     private fun copyNumberToClipboard() {
         val number = participants.firstOrNull()?.phoneNumbers?.firstOrNull()?.value ?: return
         copyToClipboard(number)
-    }
-    private fun renameConversation() {
-        if (conversation != null) {
-            RenameConversationDialog(this, conversation!!) {
-                ensureBackgroundThread {
-                    val updatedConv = renameConversation(conversation!!, it)
-                    conversation = updatedConv
-                    runOnUiThread {
-                        if (isFinishing || isDestroyed) return@runOnUiThread
-                        setupThreadTitle()
-                    }
-                }
-            }
-        }
     }
     private fun markAsUnread() {
         markThreadMessagesUnread(threadId)

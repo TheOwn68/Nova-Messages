@@ -1,15 +1,10 @@
 package org.nova.messages.activities
 
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.content.Intent
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
-import android.media.AudioAttributes
-import android.media.AudioManager
-import android.media.RingtoneManager
 import android.os.Bundle
-import android.provider.Settings
+import android.provider.ContactsContract
 import org.fossify.commons.extensions.*
 import org.fossify.commons.helpers.NavigationIcon
 import org.fossify.commons.helpers.SimpleContactsHelper
@@ -49,8 +44,9 @@ class ConversationDetailsActivity : SimpleActivity() {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 setupHeroSection()
                 setupRenaming()
+                setupMuting()
+                setupAddPerson()
                 setupParticipants()
-                setupCustomNotifications()
             }
         }
     }
@@ -62,14 +58,29 @@ class ConversationDetailsActivity : SimpleActivity() {
         
         // Final force-binding for modernization
         val mainTextColor = config.mainTextColor
+        val topTextColor = config.topBarTextColor
+        val customTypeface = getCustomTypeface()
+        
+        binding.conversationDetailsToolbarTitle.apply {
+            setTextColor(topTextColor)
+            setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, getScaledTextSize(1.75f))
+            typeface = android.graphics.Typeface.create(customTypeface, android.graphics.Typeface.BOLD)
+        }
+
+        binding.conversationNameLabel.apply {
+            setTextColor(mainTextColor)
+            typeface = android.graphics.Typeface.create(customTypeface, android.graphics.Typeface.BOLD)
+        }
+
         binding.membersHeadingLabel.setTextColor(mainTextColor)
+        binding.detailsHeroName.typeface = android.graphics.Typeface.create(customTypeface, android.graphics.Typeface.BOLD)
         
         // Setup Hero Gradient
         val baseColor = config.recentColor
         val lightened = baseColor.adjustColor(1.2f)
         val darkened = baseColor.adjustColor(0.8f)
         val gd = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(lightened, baseColor, darkened))
-        gd.cornerRadius = 24.getScaledPx(this).toFloat()
+        gd.cornerRadius = 24.getScaledPx().toFloat()
         binding.detailsHeroGradient.background = gd
         
         // Hero Shadows
@@ -80,7 +91,7 @@ class ConversationDetailsActivity : SimpleActivity() {
         if (config.topBarOutline && config.useNewUi) {
             val thickness = config.topBarOutlineThickness
             val thickStroke = (thickness * resources.displayMetrics.density).toInt()
-            val r_base = 24.getScaledPx(this).toFloat()
+            val r_base = 24.getScaledPx().toFloat()
             val outline = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
                 setStroke(thickStroke, config.topBarOutlineColor)
@@ -93,6 +104,12 @@ class ConversationDetailsActivity : SimpleActivity() {
         } else {
             binding.detailsHeroSection.foreground = null
         }
+
+        // Apply theme to settings pod
+        binding.muteLabel.setTextColor(mainTextColor)
+        binding.addPersonLabel.setTextColor(mainTextColor)
+        binding.detailsRenameIcon.applyColorFilter(mainTextColor)
+        binding.detailsAddPersonIcon.applyColorFilter(mainTextColor)
     }
 
     private fun setupHeroSection() {
@@ -117,56 +134,29 @@ class ConversationDetailsActivity : SimpleActivity() {
         }
     }
 
-    private fun setupCustomNotifications() {
+    private fun setupMuting() {
         binding.apply {
-            customNotificationsSwitch.isChecked = config.customNotifications.contains(threadId.toString())
-            detailsCustomizePill.beVisibleIf(customNotificationsSwitch.isChecked)
-
-            detailsNotificationsPill.setOnClickListener {
-                customNotificationsSwitch.toggle()
-                if (customNotificationsSwitch.isChecked) {
-                    detailsCustomizePill.beVisible()
-                    config.addCustomNotificationsByThreadId(threadId)
-                    createNotificationChannel()
+            muteSwitch.isChecked = config.mutedThreads.contains(threadId.toString())
+            detailsMutePill.setOnClickListener {
+                muteSwitch.toggle()
+                if (muteSwitch.isChecked) {
+                    config.addMutedThread(threadId)
                 } else {
-                    detailsCustomizePill.beGone()
-                    config.removeCustomNotificationsByThreadId(threadId)
-                    removeNotificationChannel()
-                }
-            }
-
-            detailsCustomizePill.setOnClickListener {
-                Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
-                    putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
-                    putExtra(Settings.EXTRA_CHANNEL_ID, threadId.toString())
-                    startActivity(this)
+                    config.removeMutedThread(threadId)
                 }
             }
         }
     }
 
-    private fun createNotificationChannel() {
-        val name = conversation?.title
-        val audioAttributes = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_NOTIFICATION)
-            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-            .setLegacyStreamType(AudioManager.STREAM_NOTIFICATION)
-            .build()
-
-        NotificationChannel(threadId.toString(), name, NotificationManager.IMPORTANCE_HIGH).apply {
-            setBypassDnd(false)
-            enableLights(true)
-            setSound(
-                RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
-                audioAttributes
-            )
-            enableVibration(true)
-            notificationManager.createNotificationChannel(this)
+    private fun setupAddPerson() {
+        binding.detailsAddPersonPill.setOnClickListener {
+            val numbers = participants.flatMap { it.phoneNumbers.map { pn -> pn.normalizedNumber } }.distinct()
+            Intent(Intent.ACTION_INSERT_OR_EDIT).apply {
+                type = ContactsContract.Contacts.CONTENT_ITEM_TYPE
+                putExtra(ContactsContract.Intents.Insert.PHONE, numbers.joinToString(";"))
+                startActivity(this)
+            }
         }
-    }
-
-    private fun removeNotificationChannel() {
-        notificationManager.deleteNotificationChannel(threadId.toString())
     }
 
     private fun setupParticipants() {

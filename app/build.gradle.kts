@@ -150,6 +150,7 @@ dependencies {
     implementation(libs.androidx.swiperefreshlayout)
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.documentfile)
+    implementation(libs.androidx.palette)
     implementation(libs.androidx.lifecycle.process)
     implementation(libs.androidx.biometric)
     implementation(libs.ez.vcard)

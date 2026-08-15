@@ -494,28 +494,31 @@ class MainActivity : SimpleActivity() {
                 val top2 = allSortedByDate.take(2)
                 val remaining = allSortedByDate.filter { conv -> !top2.any { it.threadId == conv.threadId } }
                 
+                val prioritize = config.prioritizeContacts
                 val sortedPills = when (config.contactSortingMode) {
-                    1 -> remaining.sortedBy { it.title.lowercase() }
-                    2 -> remaining.sortedByDescending { it.date }
+                    1 -> remaining.sortedWith(compareByDescending<Conversation> { prioritize && it.title.any { c -> c.isLetter() } }.thenBy { it.title.lowercase() })
+                    2 -> remaining.sortedWith(compareByDescending<Conversation> { prioritize && it.title.any { c -> c.isLetter() } }.thenByDescending { it.date })
                     else -> {
                         val manualOrder = config.conversationOrder.split(",").filter { it.isNotEmpty() }.map { it.toLong() }
                         val manuallySorted = ArrayList<Conversation>()
                         manualOrder.forEach { id ->
                             remaining.find { it.threadId == id }?.let { manuallySorted.add(it) }
                         }
-                        remaining.forEach { conv ->
-                            if (!manuallySorted.any { it.threadId == conv.threadId }) {
-                                manuallySorted.add(conv)
-                            }
-                        }
+                        
+                        val notInManualOrder = remaining.filter { conv -> !manuallySorted.any { it.threadId == conv.threadId } }
+                            .sortedWith(compareByDescending<Conversation> { prioritize && it.title.any { c -> c.isLetter() } }.thenByDescending { it.date })
+                            
+                        manuallySorted.addAll(notInManualOrder)
                         manuallySorted
                     }
                 }
                 top2 + sortedPills
             }
         } else {
+            val prioritize = config.prioritizeContacts
             conversations.sortedWith(
                 compareByDescending<Conversation> { config.pinnedConversations.contains(it.threadId.toString()) }
+                    .thenByDescending { prioritize && it.title.any { c -> c.isLetter() } }
                     .thenByDescending { it.date }
             )
         }.toMutableList() as ArrayList<Conversation>

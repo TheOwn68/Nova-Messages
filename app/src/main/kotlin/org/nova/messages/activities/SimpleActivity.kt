@@ -30,6 +30,7 @@ import java.security.MessageDigest
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import androidx.appcompat.widget.ListPopupWindow
 import androidx.appcompat.widget.Toolbar
+import androidx.palette.graphics.Palette
 import androidx.core.view.get
 import androidx.core.view.size
 import androidx.core.graphics.toColorInt
@@ -107,6 +108,7 @@ open class SimpleActivity : BaseSimpleActivity() {
                 R.id.nova_title,
                 R.id.settings_toolbar_title,
                 R.id.new_conversation_toolbar_title,
+                R.id.conversation_details_toolbar_title,
                 R.id.thread_message_body,
                 R.id.nova_search_input,
                 R.id.new_conversation_address,
@@ -151,12 +153,18 @@ open class SimpleActivity : BaseSimpleActivity() {
         val appBar = findViewById<AppBarLayout>(R.id.settings_appbar) ?: 
                      findViewById<AppBarLayout>(R.id.thread_appbar) ?: 
                      findViewById<AppBarLayout>(R.id.main_appbar) ?:
-                     findViewById<AppBarLayout>(R.id.new_conversation_appbar)
+                     findViewById<AppBarLayout>(R.id.new_conversation_appbar) ?:
+                     findViewById<AppBarLayout>(R.id.conversation_details_appbar) ?:
+                     findViewById<AppBarLayout>(R.id.archive_appbar) ?:
+                     findViewById<AppBarLayout>(R.id.recycle_bin_appbar) ?:
+                     findViewById<AppBarLayout>(R.id.block_keywords_appbar) ?:
+                     findViewById<AppBarLayout>(R.id.vcard_appbar)
                      
         val toolbar = findViewById<Toolbar>(R.id.settings_toolbar) ?: 
                       findViewById<Toolbar>(R.id.thread_toolbar) ?: 
                       findViewById<Toolbar>(R.id.main_toolbar) ?:
-                      findViewById<Toolbar>(R.id.new_conversation_toolbar)
+                      findViewById<Toolbar>(R.id.new_conversation_toolbar) ?:
+                      findViewById<Toolbar>(R.id.conversation_details_toolbar)
         
         if (appBar != null) {
             val barColor = if (config.topBarColor != 0) config.topBarColor else Color.BLACK
@@ -264,8 +272,9 @@ open class SimpleActivity : BaseSimpleActivity() {
         val titleText = findViewById<TextView>(R.id.thread_toolbar_title) ?: 
                          findViewById<TextView>(R.id.nova_title) ?: 
                          findViewById<TextView>(R.id.settings_toolbar_title) ?:
-                         findViewById<TextView>(R.id.new_conversation_toolbar_title)
+                         findViewById<TextView>(R.id.conversation_details_toolbar_title)
         titleText?.setTextColor(config.topBarTextColor)
+        titleText?.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, getScaledTextSize(1.75f))
         
         // 4. Apply input bar colors (Maintaining Rounded Shape)
         val inputBar = findViewById<View>(R.id.nova_nav_container) ?: 
@@ -591,7 +600,7 @@ open class SimpleActivity : BaseSimpleActivity() {
             }
             
             // Sync Bar Gradient
-            val baseColor = if (config.topBarColor != 0) config.topBarColor else Color.BLACK
+            val baseColor = if (config.dominantColor != 0) config.dominantColor else (if (config.topBarColor != 0) config.topBarColor else Color.BLACK)
             val lightened = adjustColor(baseColor, 1.2f)
             val darkened = adjustColor(baseColor, 0.8f)
             val gd = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(lightened, baseColor, darkened))
@@ -660,7 +669,8 @@ open class SimpleActivity : BaseSimpleActivity() {
     fun showModernMenu(anchor: View, items: List<Pair<Int, String>>, callback: (Int) -> Unit) {
         val popup = ListPopupWindow(this)
         
-        val barColor = if (config.topBarColor == 0) Color.BLACK else config.topBarColor
+        val baseBarColor = if (config.topBarColor == 0) Color.BLACK else config.topBarColor
+        val barColor = if (config.dominantColor != 0) config.dominantColor else baseBarColor
         val barTextColor = config.topBarTextColor
         
         // Safety: Ensure text is visible against the background
@@ -675,7 +685,7 @@ open class SimpleActivity : BaseSimpleActivity() {
                 val view = super.getView(position, convertView, parent) as TextView
                 view.text = items[position].second
                 view.setTextColor(finalTextColor)
-                view.setPadding(24.getScaledPx(), 16.getScaledPx(), 24.getScaledPx(), 16.getScaledPx())
+                view.setPadding(24.getScaledPx(), 10.getScaledPx(), 24.getScaledPx(), 10.getScaledPx())
                 view.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, getScaledTextSize(0.85f))
                 view.typeface = android.graphics.Typeface.create(getCustomTypeface(), android.graphics.Typeface.BOLD)
                 return view
@@ -749,6 +759,19 @@ open class SimpleActivity : BaseSimpleActivity() {
         val target = object : CustomTarget<Drawable>() {
             override fun onResourceReady(resource: Drawable, transition: Transition<in Drawable>?) {
                 targetView.background = resource
+                
+                // Extract dominant color if it's an AppBarLayout (Top Bar)
+                if (targetView is AppBarLayout || targetView.id == R.id.settings_appbar || targetView.id == R.id.main_appbar || targetView.id == R.id.thread_appbar || targetView.id == R.id.new_conversation_appbar) {
+                    if (resource is android.graphics.drawable.BitmapDrawable) {
+                        Palette.from(resource.bitmap).generate { palette ->
+                            val color = palette?.getDominantColor(config.topBarColor) ?: 0
+                            if (color != 0) {
+                                config.dominantColor = color
+                            }
+                        }
+                    }
+                }
+                
                 onLoaded?.invoke()
             }
             override fun onLoadFailed(errorDrawable: Drawable?) {}

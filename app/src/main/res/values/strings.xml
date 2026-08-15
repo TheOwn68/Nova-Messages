@@ -111,6 +111,7 @@
     <string name="lock_pin">PIN</string>
     <string name="lock_password">Password</string>
     <string name="lock_fingerprint">Fingerprint</string>
+    <string name="mute_conversation">Mute Conversation</string>
     <string name="hide_contacts">Hide Contacts</string>
     <string name="show_all">Show all</string>
     <string name="hide_never_messaged">Hide never messaged</string>

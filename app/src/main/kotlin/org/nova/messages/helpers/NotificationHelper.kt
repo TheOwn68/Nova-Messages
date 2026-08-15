@@ -49,6 +49,10 @@ class NotificationHelper(private val context: Context) {
         sender: String?,
         alertOnlyOnce: Boolean = false
     ) {
+        if (context.config.mutedThreads.contains(threadId.toString())) {
+            return
+        }
+
         val hasCustomNotifications =
             context.config.customNotifications.contains(threadId.toString())
         val notificationChannelId =

@@ -42,6 +42,7 @@ class SettingsActivity : SimpleActivity() {
         }
 
         setupCustomization()
+        setupRandomColors()
         setupUIScale()
         setupNewUi()
         setupFontSize()
@@ -66,6 +67,8 @@ class SettingsActivity : SimpleActivity() {
         updateBubblePreview()
         updateSecurityUI()
         setupNovaNavBar()
+        binding.settingsContactSortingHolder.beVisibleIf(config.useNewUi)
+        binding.settingsPrioritizeContactsHolder.beVisibleIf(config.useNewUi)
         // Ensure UI is fully up to date for modern design
         updateAppFonts(binding.root)
         applyCustomColors()
@@ -172,12 +175,13 @@ class SettingsActivity : SimpleActivity() {
         settingsInputBarLabel.setTextColor(mainTextColor)
         settingsBubbleCustomizationLabel.setTextColor(mainTextColor)
         settingsGeneralLabel.setTextColor(mainTextColor)
+        settingsRandomColorsLabel.setTextColor(mainTextColor)
+        settingsRandomColorsIcon.applyColorFilter(mainTextColor)
         settingsUiScaleLabel.setTextColor(mainTextColor)
         settingsFontSizeLabel.setTextColor(mainTextColor)
         settingsFontLabel.setTextColor(mainTextColor)
         settingsResetDefaults.setTextColor(mainTextColor)
         settingsNewUiColorsLabelHeader.setTextColor(mainTextColor)
-        settingsUiColorsLabel.setTextColor(mainTextColor)
         settingsThemePresetsLabel.setTextColor(mainTextColor)
         settingsMessagingLabel.setTextColor(mainTextColor)
         settingsShowDateTimeLabel.setTextColor(mainTextColor)
@@ -193,7 +197,6 @@ class SettingsActivity : SimpleActivity() {
         settingsNotifTextColorLabel.setTextColor(mainTextColor)
         
         settingsAppearanceArrow.applyColorFilter(mainTextColor)
-        settingsColorsArrow.applyColorFilter(mainTextColor)
         settingsBubblesArrow.applyColorFilter(mainTextColor)
         settingsMessagingArrow.applyColorFilter(mainTextColor)
         settingsNotificationsArrow.applyColorFilter(mainTextColor)
@@ -472,6 +475,63 @@ class SettingsActivity : SimpleActivity() {
             putExtra(CROP_TARGET, target)
         }
         startActivityForResult(intent, CROP_RESULT_INTENT)
+    }
+
+    private fun setupRandomColors() = binding.apply {
+        settingsRandomColorsHolder.setOnClickListener {
+            val hue = kotlin.random.Random.nextFloat() * 360f
+            
+            // 1. Primary/Top Bar
+            val primary = Color.HSVToColor(floatArrayOf(hue, 0.7f, 0.6f))
+            config.topBarColor = primary
+            config.topBarTextColor = Color.WHITE
+            config.topBarBgMode = BG_MODE_COLOR
+            
+            // 2. Background (Randomize between Light and Dark themes)
+            val isDark = kotlin.random.Random.nextBoolean()
+            val bgSaturation = if (isDark) 0.2f else 0.1f
+            val bgValue = if (isDark) 0.15f else 0.95f
+            
+            val background = Color.HSVToColor(floatArrayOf(hue, bgSaturation, bgValue))
+            config.mainBackgroundColor = background
+            config.mainTextColor = if (isDark) Color.WHITE else Color.BLACK
+            config.mainBgMode = BG_MODE_COLOR
+            
+            // 3. Input Bar
+            val inputBarValue = if (isDark) 0.25f else 0.3f
+            val inputBar = Color.HSVToColor(floatArrayOf(hue, 0.15f, inputBarValue))
+            config.inputBarBackgroundColor = inputBar
+            config.inputBarTextColor = Color.WHITE
+            config.inputBarBgMode = BG_MODE_COLOR
+            
+            // 4. Bubbles
+            val sent = Color.HSVToColor(floatArrayOf(hue, 0.5f, if (isDark) 0.4f else 0.75f))
+            val received = Color.HSVToColor(floatArrayOf(hue, 0.15f, if (isDark) 0.25f else 0.9f))
+            
+            config.sentBubbleColor = sent
+            config.sentBubbleTextColor = if (isDark) Color.WHITE else Color.BLACK
+            config.receivedBubbleColor = received
+            config.receivedBubbleTextColor = if (isDark) Color.WHITE else Color.BLACK
+            
+            // 5. Notifications
+            config.notificationTextOvalColor = if (isDark) Color.DKGRAY else Color.WHITE
+            config.notificationTextColor = if (isDark) Color.WHITE else Color.BLACK
+            
+            // 6. Modern Grid Colors
+            config.recentColor = Color.HSVToColor(floatArrayOf(hue, 0.2f, 0.95f))
+            config.row1Color = Color.HSVToColor(floatArrayOf((hue + 30) % 360, 0.4f, 0.9f))
+            config.row2Color = Color.HSVToColor(floatArrayOf((hue + 60) % 360, 0.4f, 0.9f))
+            config.row3Color = Color.HSVToColor(floatArrayOf((hue + 90) % 360, 0.4f, 0.9f))
+            
+            // Apply immediately
+            applyCustomColors()
+            updateCustomizationUI()
+            updateBubblePreview()
+            updateNotificationsUI()
+            updateAppFonts(binding.root)
+            
+            toast("Random Theme Applied!")
+        }
     }
 
     private fun setupBgModes() = binding.apply {
@@ -764,6 +824,7 @@ class SettingsActivity : SimpleActivity() {
             settingsOutlinesHeader.beVisibleIf(config.useNewUi)
             if (!config.useNewUi) settingsOutlinesContainer.beGone()
             settingsContactSortingHolder.beVisibleIf(config.useNewUi)
+            settingsPrioritizeContactsHolder.beVisibleIf(config.useNewUi)
         }
 
         settingsShowDateTimeSwitch.isChecked = config.showDateTime
@@ -777,6 +838,21 @@ class SettingsActivity : SimpleActivity() {
         }
 
         setupContactSorting()
+        setupPrioritizeContacts()
+    }
+
+    private fun setupPrioritizeContacts() = binding.apply {
+        settingsPrioritizeContactsSwitch.isChecked = config.prioritizeContacts
+        settingsPrioritizeContactsHolder.setOnClickListener {
+            settingsPrioritizeContactsSwitch.toggle()
+            config.prioritizeContacts = settingsPrioritizeContactsSwitch.isChecked
+            refreshConversations()
+        }
+        
+        settingsPrioritizeContactsSwitch.setOnCheckedChangeListener { _, isChecked ->
+            config.prioritizeContacts = isChecked
+            refreshConversations()
+        }
     }
 
     private fun setupContactSorting() = binding.apply {
@@ -927,7 +1003,6 @@ class SettingsActivity : SimpleActivity() {
     private fun setupExpandableCategories() = binding.apply {
         val categories = listOf(
             Triple(settingsAppearanceHeader, settingsAppearanceContainer, settingsAppearanceArrow),
-            Triple(settingsColorsHeader, settingsColorsContainer, settingsColorsArrow),
             Triple(settingsBubblesHeader, settingsBubblesContainer, settingsBubblesArrow),
             Triple(settingsMessagingHeader, settingsMessagingContainer, settingsMessagingArrow),
             Triple(settingsNotificationsHeader, settingsNotificationsContainer, settingsNotificationsArrow),

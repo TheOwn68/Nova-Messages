@@ -16,6 +16,10 @@ class Config(context: Context) : BaseConfig(context) {
         val DEFAULT_SENT_GREY = Color.parseColor("#D8D8D8") // Even lighter grey, very close to receiver bubble
     }
 
+    var dominantColor: Int
+        get() = prefs.getInt(DOMINANT_COLOR, 0)
+        set(dominantColor) = prefs.edit().putInt(DOMINANT_COLOR, dominantColor).apply()
+
     fun saveUseSIMIdAtNumber(number: String, SIMId: Int) {
         prefs.edit().putInt(USE_SIM_ID_PREFIX + number, SIMId).apply()
     }
@@ -90,6 +94,18 @@ class Config(context: Context) : BaseConfig(context) {
     fun removePinnedConversations(conversations: List<Conversation>) {
         pinnedConversations =
             pinnedConversations.minus(conversations.map { it.threadId.toString() })
+    }
+
+    var mutedThreads: Set<String>
+        get() = prefs.getStringSet(MUTED_THREADS, HashSet<String>())!!
+        set(mutedThreads) = prefs.edit().putStringSet(MUTED_THREADS, mutedThreads).apply()
+
+    fun addMutedThread(threadId: Long) {
+        mutedThreads = mutedThreads.plus(threadId.toString())
+    }
+
+    fun removeMutedThread(threadId: Long) {
+        mutedThreads = mutedThreads.minus(threadId.toString())
     }
 
     var blockedKeywords: Set<String>
@@ -188,6 +204,10 @@ class Config(context: Context) : BaseConfig(context) {
     var contactSortingMode: Int
         get() = prefs.getInt(CONTACT_SORTING_MODE, 0) // 0: Manual, 1: Alphabetical, 2: Recent
         set(contactSortingMode) = prefs.edit().putInt(CONTACT_SORTING_MODE, contactSortingMode).apply()
+
+    var prioritizeContacts: Boolean
+        get() = prefs.getBoolean(PRIORITIZE_CONTACTS, false)
+        set(prioritizeContacts) = prefs.edit().putBoolean(PRIORITIZE_CONTACTS, prioritizeContacts).apply()
 
     var recentColor: Int
         get() = prefs.getInt(RECENT_COLOR, Color.parseColor("#FFE4E1"))
@@ -420,6 +440,7 @@ class Config(context: Context) : BaseConfig(context) {
             TOP_BAR_BG_MODE, MAIN_BG_MODE, INPUT_BAR_BG_MODE,
             RECENT_COLOR, ROW1_COLOR, ROW2_COLOR, ROW3_COLOR,
             FONT_FAMILY_NOVA, UI_SCALE, USE_NEW_UI,
+            DOMINANT_COLOR,
             NOTIFICATION_TEXT_COLOR, NOTIFICATION_TEXT_OVAL_COLOR,
             NOTIFICATION_ICON_OUTLINE, NOTIFICATION_OVAL_OUTLINE,
             NOTIFICATION_OUTLINE_COLOR, NOTIFICATION_OUTLINE_THICKNESS,
