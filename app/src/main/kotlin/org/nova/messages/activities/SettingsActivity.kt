@@ -118,9 +118,9 @@ class SettingsActivity : SimpleActivity() {
         
         // Top Bar Outline (Settings)
         if (config.topBarOutline && isNewUi) {
-            val r26 = 26f * density
+            val r26 = 26f * density * uiScale
             val thickness = config.topBarOutlineThickness
-            val thickStroke = (thickness * density).toInt()
+            val thickStroke = (thickness * density * uiScale).toInt()
             val outline = android.graphics.drawable.GradientDrawable().apply {
                 shape = android.graphics.drawable.GradientDrawable.RECTANGLE
                 setStroke(thickStroke, config.topBarOutlineColor)
@@ -137,8 +137,8 @@ class SettingsActivity : SimpleActivity() {
         // Nav Bar Outline (Settings)
         if (config.searchBarOutline && isNewUi) {
             val thickness = config.searchBarOutlineThickness
-            val thickStroke = (thickness * density).toInt()
-            val r_base = 100f * density
+            val thickStroke = (thickness * density * uiScale).toInt()
+            val r_base = 100f * density * uiScale
             val drawable = android.graphics.drawable.GradientDrawable().apply {
                 shape = android.graphics.drawable.GradientDrawable.RECTANGLE
                 setStroke(thickStroke, config.searchBarOutlineColor)
@@ -181,7 +181,6 @@ class SettingsActivity : SimpleActivity() {
         settingsThemePresetsLabel.setTextColor(mainTextColor)
         settingsMessagingLabel.setTextColor(mainTextColor)
         settingsShowDateTimeLabel.setTextColor(mainTextColor)
-        settingsContactFilterLabel.setTextColor(mainTextColor)
         settingsGroupMmsLabel.setTextColor(mainTextColor)
         settingsLongMmsLabel.setTextColor(mainTextColor)
         settingsDeliveryReportsLabel.setTextColor(mainTextColor)
@@ -778,7 +777,6 @@ class SettingsActivity : SimpleActivity() {
         }
 
         setupContactSorting()
-        setupContactFilter()
     }
 
     private fun setupContactSorting() = binding.apply {
@@ -810,44 +808,14 @@ class SettingsActivity : SimpleActivity() {
         }
     }
 
-    private fun setupContactFilter() = binding.apply {
-        val modes = arrayOf(
-            getString(R.string.show_all),
-            getString(R.string.hide_never_messaged),
-            getString(R.string.hide_not_messaged_last_year)
-        )
-        val adapter = object : ArrayAdapter<String>(this@SettingsActivity, android.R.layout.simple_spinner_item, modes) {
-            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-                val view = super.getView(position, convertView, parent) as TextView
-                view.setTextColor(config.mainTextColor)
-                return view
-            }
-
-            override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
-                val view = super.getDropDownView(position, convertView, parent) as TextView
-                view.setTextColor(Color.BLACK)
-                view.setBackgroundColor(Color.WHITE)
-                return view
-            }
-        }
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        settingsContactFilterSpinner.adapter = adapter
-        settingsContactFilterSpinner.setSelection(config.contactFilterMode)
-
-        settingsContactFilterSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                config.contactFilterMode = position
-            }
-
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-        }
-    }
-
     private fun setupUIScale() = binding.apply {
         settingsUiScaleSlider.value = config.uiScale
         settingsUiScaleSlider.addOnChangeListener { _, value, fromUser ->
             if (fromUser) {
                 config.uiScale = value
+                applyOutlines()
+                setupNovaNavBar()
+                updateAppFonts(binding.root)
             }
         }
     }
@@ -886,9 +854,7 @@ class SettingsActivity : SimpleActivity() {
                 org.fossify.commons.models.RadioItem(0, "System Default"),
                 org.fossify.commons.models.RadioItem(1, "Monospace"),
                 org.fossify.commons.models.RadioItem(2, "Serif"),
-                org.fossify.commons.models.RadioItem(3, "Sans Serif"),
-                org.fossify.commons.models.RadioItem(4, "Product Sans"),
-                org.fossify.commons.models.RadioItem(5, "Lexend Deca")
+                org.fossify.commons.models.RadioItem(3, "Sans Serif")
             )
 
             org.fossify.commons.dialogs.RadioGroupDialog(this@SettingsActivity, items, config.fontFamilyNova) {
@@ -905,9 +871,7 @@ class SettingsActivity : SimpleActivity() {
             0 -> "System Default"
             1 -> "Monospace"
             2 -> "Serif"
-            3 -> "Sans Serif"
-            4 -> "Product Sans"
-            else -> "Lexend Deca"
+            else -> "Sans Serif"
         }
     }
 

@@ -684,9 +684,9 @@ class MainActivity : SimpleActivity() {
         val isNewUi = config.useNewUi
         
         if (config.topBarOutline && isNewUi) {
-            val r26 = 26f * density
+            val r26 = 26f * density * uiScale
             val thickness = config.topBarOutlineThickness
-            val thickStroke = (thickness * density).toInt()
+            val thickStroke = (thickness * density * uiScale).toInt()
             val outline = android.graphics.drawable.GradientDrawable().apply {
                 shape = android.graphics.drawable.GradientDrawable.RECTANGLE
                 setStroke(thickStroke, config.topBarOutlineColor)
@@ -703,8 +703,8 @@ class MainActivity : SimpleActivity() {
 
         if (config.searchBarOutline && isNewUi) {
             val thickness = config.searchBarOutlineThickness
-            val thickStroke = (thickness * density).toInt()
-            val r_base = 100f * density
+            val thickStroke = (thickness * density * uiScale).toInt()
+            val r_base = 100f * density * uiScale
             val drawable = android.graphics.drawable.GradientDrawable().apply {
                 shape = android.graphics.drawable.GradientDrawable.RECTANGLE
                 setStroke(thickStroke, config.searchBarOutlineColor)

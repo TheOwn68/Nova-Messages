@@ -311,21 +311,7 @@ class NewConversationActivity : SimpleActivity() {
     }
 
     private fun applyFilter(contacts: ArrayList<SimpleContact>): ArrayList<SimpleContact> {
-        val filterMode = config.contactFilterMode
-        if (filterMode == 0) return contacts
-
-        val oneYearAgo = (System.currentTimeMillis() / 1000 - 365 * 24 * 60 * 60).toInt()
-        return contacts.filter { contact ->
-            contact.phoneNumbers.any { pn ->
-                val comparable = pn.normalizedNumber.trimToComparableNumber()
-                val lastDate = lastMessageMap[comparable] ?: 0
-                if (filterMode == 1) {
-                    lastDate > 0
-                } else {
-                    lastDate >= oneYearAgo
-                }
-            }
-        } as ArrayList<SimpleContact>
+        return contacts
     }
 
     private fun setupSearchEdgeToEdge() {
@@ -443,9 +429,9 @@ class NewConversationActivity : SimpleActivity() {
         
         // Top Bar Outline (New Conversation)
         if (config.topBarOutline && isNewUi) {
-            val r26 = 26f * density
+            val r26 = 26f * density * uiScale
             val thickness = config.topBarOutlineThickness
-            val thickStroke = (thickness * density).toInt()
+            val thickStroke = (thickness * density * uiScale).toInt()
             val outline = android.graphics.drawable.GradientDrawable().apply {
                 shape = android.graphics.drawable.GradientDrawable.RECTANGLE
                 setStroke(thickStroke, config.topBarOutlineColor)
@@ -462,8 +448,8 @@ class NewConversationActivity : SimpleActivity() {
         // Search Bar Outline
         if (config.searchBarOutline && isNewUi) {
             val thickness = config.searchBarOutlineThickness
-            val thickStroke = (thickness * density).toInt()
-            val r_base = 100f * density
+            val thickStroke = (thickness * density * uiScale).toInt()
+            val r_base = 100f * density * uiScale
             val drawable = android.graphics.drawable.GradientDrawable().apply {
                 shape = android.graphics.drawable.GradientDrawable.RECTANGLE
                 setStroke(thickStroke, config.searchBarOutlineColor)

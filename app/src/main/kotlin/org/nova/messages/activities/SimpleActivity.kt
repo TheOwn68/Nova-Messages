@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
@@ -62,7 +63,7 @@ open class SimpleActivity : BaseSimpleActivity() {
     }
 
     fun getScaledTextSize(multiplier: Float = 1.0f): Float {
-        return getTextSize() * multiplier
+        return getTextSize() * multiplier * uiScale
     }
 
     fun getScaledDimen(dimenId: Int): Int {
@@ -83,7 +84,14 @@ open class SimpleActivity : BaseSimpleActivity() {
         }
     }
 
-    fun getCustomTypeface() = org.fossify.commons.helpers.FontHelper.getTypeface(this, config.fontFamilyNova, "")
+    fun getCustomTypeface(): Typeface {
+        return when (config.fontFamilyNova) {
+            1 -> Typeface.MONOSPACE
+            2 -> Typeface.SERIF
+            3 -> Typeface.SANS_SERIF
+            else -> org.fossify.commons.helpers.FontHelper.getTypeface(this, config.fontFamilyNova, "")
+        }
+    }
 
     fun updateAppFonts(view: View?) {
         if (view == null) return
@@ -116,6 +124,9 @@ open class SimpleActivity : BaseSimpleActivity() {
                 if (color != 0 && color != Color.TRANSPARENT) {
                     view.setTextColor(color)
                 }
+                
+                // Apply scaled font size
+                view.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, getScaledTextSize())
             }
         }
         (view as? ViewGroup)?.let {
@@ -149,7 +160,7 @@ open class SimpleActivity : BaseSimpleActivity() {
         
         if (appBar != null) {
             val barColor = if (config.topBarColor != 0) config.topBarColor else Color.BLACK
-            val barRadius = 26 * density
+            val barRadius = 26 * density * uiScale
             val useNewUi = config.useNewUi
             
             val topBarImage = config.topBarImage
@@ -262,7 +273,7 @@ open class SimpleActivity : BaseSimpleActivity() {
                        findViewById<View>(R.id.new_conversation_search_container)
         if (inputBar != null) {
             val inputBgColor = config.inputBarBackgroundColor
-            val inputRadius = 28 * density 
+            val inputRadius = 28 * density * uiScale
             val inputBarImage = config.inputBarImage
             
             if (config.inputBarBgMode == BG_MODE_IMAGE && inputBarImage.isNotEmpty()) {
@@ -332,7 +343,7 @@ open class SimpleActivity : BaseSimpleActivity() {
             it.setTextColor(topTextColor)
             it.alpha = 0.3f // 70% transparent = 0.3 opacity
             if (config.useNewUi) {
-                it.elevation = 12 * density
+                it.elevation = 12 * density * uiScale
                 it.bringToFront()
             }
         }
