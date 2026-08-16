@@ -7,7 +7,7 @@ import org.nova.messages.models.NamePhoto
 import org.nova.messages.models.Conversation
 import org.nova.messages.extensions.conversationsDB
 
-private const val CACHE_SIZE = 512
+private const val CACHE_SIZE = 128
 
 object MessagingCache {
     val namePhoto = LruCache<String, NamePhoto>(CACHE_SIZE)

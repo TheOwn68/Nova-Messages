@@ -58,7 +58,7 @@ class ArchivedConversationsAdapter(
             return
         }
 
-        val conversationsToRemove = currentList.filter { selectedKeys.contains(it.hashCode()) } as ArrayList<Conversation>
+        val conversationsToRemove = currentList.filter { selectedKeys.contains(it.getSelectionKey()) } as ArrayList<Conversation>
         conversationsToRemove.forEach {
             activity.deleteConversation(it.threadId)
             activity.notificationManager.cancel(it.threadId.hashCode())
@@ -73,7 +73,7 @@ class ArchivedConversationsAdapter(
         }
 
         ensureBackgroundThread {
-            val conversationsToUnarchive = currentList.filter { selectedKeys.contains(it.hashCode()) } as ArrayList<Conversation>
+            val conversationsToUnarchive = currentList.filter { selectedKeys.contains(it.getSelectionKey()) } as ArrayList<Conversation>
             conversationsToUnarchive.forEach {
                 activity.updateConversationArchivedStatus(it.threadId, false)
             }
@@ -90,7 +90,7 @@ class ArchivedConversationsAdapter(
         }
 
         activity.runOnUiThread {
-            if (newList.none { selectedKeys.contains(it.hashCode()) }) {
+            if (newList.none { selectedKeys.contains(it.getSelectionKey()) }) {
                 refreshConversations()
                 finishActMode()
             } else {

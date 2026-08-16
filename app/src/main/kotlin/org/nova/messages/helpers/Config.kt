@@ -189,10 +189,6 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getString(CONVERSATION_ORDER, "")!!
         set(conversationOrder) = prefs.edit().putString(CONVERSATION_ORDER, conversationOrder).apply()
 
-    var contactFilterMode: Int
-        get() = prefs.getInt(CONTACT_FILTER_MODE, 0) // 0: Show All, 1: Messaged Only, 2: Messaged within Year
-        set(contactFilterMode) = prefs.edit().putInt(CONTACT_FILTER_MODE, contactFilterMode).apply()
-
     var appLockType: Int
         get() = prefs.getInt(APP_LOCK_TYPE, LOCK_NONE)
         set(appLockType) = prefs.edit().putInt(APP_LOCK_TYPE, appLockType).apply()
@@ -208,6 +204,10 @@ class Config(context: Context) : BaseConfig(context) {
     var prioritizeContacts: Boolean
         get() = prefs.getBoolean(PRIORITIZE_CONTACTS, false)
         set(prioritizeContacts) = prefs.edit().putBoolean(PRIORITIZE_CONTACTS, prioritizeContacts).apply()
+
+    var recentConversationsCount: Int
+        get() = prefs.getInt(RECENT_CONVERSATIONS_COUNT, 2)
+        set(recentConversationsCount) = prefs.edit().putInt(RECENT_CONVERSATIONS_COUNT, recentConversationsCount).apply()
 
     var recentColor: Int
         get() = prefs.getInt(RECENT_COLOR, Color.parseColor("#FFE4E1"))
@@ -343,6 +343,18 @@ class Config(context: Context) : BaseConfig(context) {
     var notificationOutlineThickness: Int
         get() = prefs.getInt(NOTIFICATION_OUTLINE_THICKNESS, 2)
         set(notificationOutlineThickness) = prefs.edit().putInt(NOTIFICATION_OUTLINE_THICKNESS, notificationOutlineThickness).apply()
+
+    var notificationSound: String
+        get() = prefs.getString(NOTIFICATION_SOUND, "")!!
+        set(notificationSound) = prefs.edit().putString(NOTIFICATION_SOUND, notificationSound).apply()
+
+    fun getThreadNotificationSound(threadId: Long): String {
+        return prefs.getString(THREAD_NOTIFICATION_SOUND_PREFIX + threadId, "")!!
+    }
+
+    fun setThreadNotificationSound(threadId: Long, sound: String) {
+        prefs.edit().putString(THREAD_NOTIFICATION_SOUND_PREFIX + threadId, sound).apply()
+    }
 
     var preset1Name: String
         get() = prefs.getString(PRESET_1_NAME, "Preset 1")!!

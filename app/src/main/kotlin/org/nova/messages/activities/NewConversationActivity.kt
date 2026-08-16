@@ -42,7 +42,6 @@ class NewConversationActivity : SimpleActivity() {
     private var allContacts = ArrayList<SimpleContact>()
     private var privateContacts = ArrayList<SimpleContact>()
     private var lastMessageMap = HashMap<String, Int>()
-    private var lastFilterMode = -1
     private var wasImeVisible = false
 
     private val binding by viewBinding(ActivityNewConversationBinding::inflate)
@@ -90,10 +89,7 @@ class NewConversationActivity : SimpleActivity() {
 
         setupModernSearchBar()
 
-        if (config.contactFilterMode != lastFilterMode) {
-            lastFilterMode = config.contactFilterMode
-            fetchContacts()
-        }
+        fetchContacts()
     }
 
     private fun setupModernSearchBar() = binding.apply {

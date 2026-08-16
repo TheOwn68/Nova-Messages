@@ -8,6 +8,8 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
+import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -85,6 +87,18 @@ open class SimpleActivity : BaseSimpleActivity() {
         }
     }
 
+    fun getRingtoneTitle(uriString: String): String {
+        return if (uriString.isEmpty()) {
+            "Default"
+        } else {
+            try {
+                RingtoneManager.getRingtone(this, Uri.parse(uriString))?.getTitle(this) ?: "Unknown"
+            } catch (_: Exception) {
+                "Unknown"
+            }
+        }
+    }
+
     fun getCustomTypeface(): Typeface {
         return when (config.fontFamilyNova) {
             1 -> Typeface.MONOSPACE
@@ -123,7 +137,7 @@ open class SimpleActivity : BaseSimpleActivity() {
                              
             if (!excludedIds.contains(id)) {
                 val color = config.mainTextColor
-                if (color != 0 && color != Color.TRANSPARENT) {
+                if (color != 0) {
                     view.setTextColor(color)
                 }
                 
@@ -279,7 +293,8 @@ open class SimpleActivity : BaseSimpleActivity() {
         // 4. Apply input bar colors (Maintaining Rounded Shape)
         val inputBar = findViewById<View>(R.id.nova_nav_container) ?: 
                        findViewById<View>(R.id.nova_message_input_bar) ?:
-                       findViewById<View>(R.id.new_conversation_search_container)
+                       findViewById<View>(R.id.new_conversation_search_container) ?:
+                       findViewById<View>(R.id.classic_search_container)
         if (inputBar != null) {
             val inputBgColor = config.inputBarBackgroundColor
             val inputRadius = 28 * density * uiScale
@@ -311,12 +326,14 @@ open class SimpleActivity : BaseSimpleActivity() {
             findViewById<EditText>(R.id.nova_search_input),
             findViewById<EditText>(R.id.new_conversation_address),
             findViewById<EditText>(R.id.thread_type_message),
+            findViewById<EditText>(R.id.classic_search_input),
         )
         
         val textColorCSL = ColorStateList.valueOf(config.inputBarTextColor)
         val searchIcons = listOfNotNull(
             findViewById<ImageView>(R.id.nova_search_icon),
-            findViewById<ImageView>(R.id.new_conversation_search_icon)
+            findViewById<ImageView>(R.id.new_conversation_search_icon),
+            findViewById<ImageView>(R.id.classic_settings_icon)
         )
         
         for (icon in searchIcons) {

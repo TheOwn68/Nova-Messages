@@ -192,6 +192,38 @@
                         android:src="@drawable/ic_add_person_vector"
                         app:tint="@android:color/white" />
                 </RelativeLayout>
+
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#0AFFFFFF" android:layout_marginHorizontal="16dp" />
+
+                <!-- Sound Row -->
+                <RelativeLayout
+                    android:id="@+id/details_sound_pill"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:paddingHorizontal="16dp"
+                    android:background="?selectableItemBackground"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:id="@+id/sound_label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_centerVertical="true"
+                        android:text="Notification Sound"
+                        android:textColor="@android:color/white"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/details_sound_value"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:textColor="@android:color/white"
+                        android:textSize="14sp"
+                        android:alpha="0.8" />
+                </RelativeLayout>
             </LinearLayout>
 
             <TextView

@@ -22,6 +22,7 @@ data class Conversation(
     @ColumnInfo(name = "is_nova_user") var isNovaUser: Boolean = false,
     @ColumnInfo(name = "nova_shared_secret") var novaSharedSecret: String? = null,
 ) {
+    fun getSelectionKey() = (threadId xor (threadId ushr 32)).toInt()
 
     companion object {
         fun areItemsTheSame(old: Conversation, new: Conversation): Boolean {

@@ -22,6 +22,9 @@ import org.nova.messages.extensions.config
 import org.nova.messages.helpers.*
 import org.nova.messages.dialogs.RenamePresetDialog
 import org.nova.messages.dialogs.SetPasswordDialog
+import android.media.RingtoneManager
+import android.net.Uri
+import androidx.core.net.toUri
 import java.security.MessageDigest
 
 class SettingsActivity : SimpleActivity() {
@@ -42,7 +45,7 @@ class SettingsActivity : SimpleActivity() {
         }
 
         setupCustomization()
-        setupRandomColors()
+        setupRandomAppearance()
         setupUIScale()
         setupNewUi()
         setupFontSize()
@@ -53,6 +56,7 @@ class SettingsActivity : SimpleActivity() {
         setupBubbleShapes()
         setupMessagingBehavior()
         setupNotificationsBehavior()
+        setupRecentCountSpinner()
         setupSecurityBehavior()
         setupExpandableCategories()
         updateAppFonts(binding.root)
@@ -69,6 +73,7 @@ class SettingsActivity : SimpleActivity() {
         setupNovaNavBar()
         binding.settingsContactSortingHolder.beVisibleIf(config.useNewUi)
         binding.settingsPrioritizeContactsHolder.beVisibleIf(config.useNewUi)
+        binding.settingsRecentCountHolder.beVisibleIf(config.useNewUi)
         // Ensure UI is fully up to date for modern design
         updateAppFonts(binding.root)
         applyCustomColors()
@@ -195,6 +200,8 @@ class SettingsActivity : SimpleActivity() {
         settingsNotificationsLabel.setTextColor(mainTextColor)
         settingsNotifOvalColorLabel.setTextColor(mainTextColor)
         settingsNotifTextColorLabel.setTextColor(mainTextColor)
+        settingsNotifSoundLabel.setTextColor(mainTextColor)
+        settingsNotifSoundValue.setTextColor(mainTextColor)
         
         settingsAppearanceArrow.applyColorFilter(mainTextColor)
         settingsBubblesArrow.applyColorFilter(mainTextColor)
@@ -467,6 +474,12 @@ class SettingsActivity : SimpleActivity() {
             PICK_MAIN_BG_IMAGE_INTENT -> startCropper(uriString, CROP_TARGET_BACKGROUND)
             PICK_INPUT_BAR_IMAGE_INTENT -> startCropper(uriString, CROP_TARGET_SEARCH_BAR)
         }
+
+        if (requestCode == PICK_NOTIFICATION_SOUND_INTENT) {
+            val soundUri = resultData.getParcelableExtra<Uri>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+            config.notificationSound = soundUri?.toString() ?: ""
+            updateNotificationsUI()
+        }
     }
 
     private fun startCropper(uri: String, target: Int) {
@@ -477,9 +490,10 @@ class SettingsActivity : SimpleActivity() {
         startActivityForResult(intent, CROP_RESULT_INTENT)
     }
 
-    private fun setupRandomColors() = binding.apply {
+    private fun setupRandomAppearance() = binding.apply {
         settingsRandomColorsHolder.setOnClickListener {
             val hue = kotlin.random.Random.nextFloat() * 360f
+            val isDark = kotlin.random.Random.nextBoolean()
             
             // 1. Primary/Top Bar
             val primary = Color.HSVToColor(floatArrayOf(hue, 0.7f, 0.6f))
@@ -487,11 +501,9 @@ class SettingsActivity : SimpleActivity() {
             config.topBarTextColor = Color.WHITE
             config.topBarBgMode = BG_MODE_COLOR
             
-            // 2. Background (Randomize between Light and Dark themes)
-            val isDark = kotlin.random.Random.nextBoolean()
+            // 2. Background
             val bgSaturation = if (isDark) 0.2f else 0.1f
             val bgValue = if (isDark) 0.15f else 0.95f
-            
             val background = Color.HSVToColor(floatArrayOf(hue, bgSaturation, bgValue))
             config.mainBackgroundColor = background
             config.mainTextColor = if (isDark) Color.WHITE else Color.BLACK
@@ -507,30 +519,67 @@ class SettingsActivity : SimpleActivity() {
             // 4. Bubbles
             val sent = Color.HSVToColor(floatArrayOf(hue, 0.5f, if (isDark) 0.4f else 0.75f))
             val received = Color.HSVToColor(floatArrayOf(hue, 0.15f, if (isDark) 0.25f else 0.9f))
-            
             config.sentBubbleColor = sent
             config.sentBubbleTextColor = if (isDark) Color.WHITE else Color.BLACK
             config.receivedBubbleColor = received
             config.receivedBubbleTextColor = if (isDark) Color.WHITE else Color.BLACK
             
-            // 5. Notifications
+            // 5. Grid Colors (Coordinated)
+            config.recentColor = Color.HSVToColor(floatArrayOf(hue, 0.25f, if (isDark) 0.3f else 0.95f))
+            config.row1Color = Color.HSVToColor(floatArrayOf((hue + 20) % 360, 0.4f, if (isDark) 0.4f else 0.9f))
+            config.row2Color = Color.HSVToColor(floatArrayOf((hue + 40) % 360, 0.4f, if (isDark) 0.4f else 0.9f))
+            config.row3Color = Color.HSVToColor(floatArrayOf((hue + 60) % 360, 0.4f, if (isDark) 0.4f else 0.9f))
+
+            // 6. Outlines (Randomized & Harmonized)
+            val useOutlines = kotlin.random.Random.nextBoolean()
+            val outlineColor = if (isDark) {
+                Color.HSVToColor(floatArrayOf(hue, 0.6f, 0.8f)) // Brighter for dark themes
+            } else {
+                Color.HSVToColor(floatArrayOf(hue, 0.8f, 0.3f)) // Darker for light themes
+            }
+            val thickness = kotlin.random.Random.nextInt(2, 5) // 2-4dp
+
+            config.topBarOutline = useOutlines && kotlin.random.Random.nextBoolean()
+            config.topBarOutlineColor = outlineColor
+            config.topBarOutlineThickness = thickness
+
+            config.searchBarOutline = useOutlines && kotlin.random.Random.nextBoolean()
+            config.searchBarOutlineColor = outlineColor
+            config.searchBarOutlineThickness = thickness
+
+            config.bigContactsOutline = useOutlines && kotlin.random.Random.nextBoolean()
+            config.bigContactsOutlineColor = outlineColor
+            config.bigContactsOutlineThickness = thickness
+
+            config.smallContactsOutline = useOutlines && kotlin.random.Random.nextBoolean()
+            config.smallContactsOutlineColor = outlineColor
+            config.smallContactsOutlineThickness = thickness
+
+            config.sentBubblesOutline = useOutlines && kotlin.random.Random.nextBoolean()
+            config.sentBubblesOutlineColor = outlineColor
+            config.sentBubblesOutlineThickness = thickness
+
+            config.receivedBubblesOutline = useOutlines && kotlin.random.Random.nextBoolean()
+            config.receivedBubblesOutlineColor = outlineColor
+            config.receivedBubblesOutlineThickness = thickness
+
+            // 7. Notifications
             config.notificationTextOvalColor = if (isDark) Color.DKGRAY else Color.WHITE
             config.notificationTextColor = if (isDark) Color.WHITE else Color.BLACK
-            
-            // 6. Modern Grid Colors
-            config.recentColor = Color.HSVToColor(floatArrayOf(hue, 0.2f, 0.95f))
-            config.row1Color = Color.HSVToColor(floatArrayOf((hue + 30) % 360, 0.4f, 0.9f))
-            config.row2Color = Color.HSVToColor(floatArrayOf((hue + 60) % 360, 0.4f, 0.9f))
-            config.row3Color = Color.HSVToColor(floatArrayOf((hue + 90) % 360, 0.4f, 0.9f))
-            
-            // Apply immediately
+            config.notificationIconOutline = useOutlines && kotlin.random.Random.nextBoolean()
+            config.notificationOvalOutline = useOutlines && kotlin.random.Random.nextBoolean()
+            config.notificationOutlineColor = outlineColor
+            config.notificationOutlineThickness = thickness
+
+            // 8. Visual Updates
             applyCustomColors()
+            applyOutlines()
             updateCustomizationUI()
             updateBubblePreview()
             updateNotificationsUI()
             updateAppFonts(binding.root)
             
-            toast("Random Theme Applied!")
+            toast("Random Appearance Applied!")
         }
     }
 
@@ -814,17 +863,35 @@ class SettingsActivity : SimpleActivity() {
     }
 
     private fun setupNewUi() = binding.apply {
+        // Initial state
+        settingsNewUiSwitch.setOnCheckedChangeListener(null)
         settingsNewUiSwitch.isChecked = config.useNewUi
         settingsOutlinesHeader.beVisibleIf(config.useNewUi)
         settingsContactSortingHolder.beVisibleIf(config.useNewUi)
+        settingsPrioritizeContactsHolder.beVisibleIf(config.useNewUi)
         
         settingsNewUiHolder.setOnClickListener {
             settingsNewUiSwitch.toggle()
-            config.useNewUi = settingsNewUiSwitch.isChecked
-            settingsOutlinesHeader.beVisibleIf(config.useNewUi)
-            if (!config.useNewUi) settingsOutlinesContainer.beGone()
-            settingsContactSortingHolder.beVisibleIf(config.useNewUi)
-            settingsPrioritizeContactsHolder.beVisibleIf(config.useNewUi)
+        }
+
+        settingsNewUiSwitch.setOnCheckedChangeListener { _, isChecked ->
+            config.useNewUi = isChecked
+            
+            // Visual state updates
+            settingsOutlinesHeader.beVisibleIf(isChecked)
+            if (!isChecked) settingsOutlinesContainer.beGone()
+            settingsContactSortingHolder.beVisibleIf(isChecked)
+            settingsPrioritizeContactsHolder.beVisibleIf(isChecked)
+            settingsRecentCountHolder.beVisibleIf(isChecked)
+            
+            // Re-apply theme and outlines to this screen
+            applyCustomColors()
+            applyOutlines()
+            setupNovaNavBar()
+            updateAppFonts(binding.root)
+            
+            // Critical: Refresh MainActivity when we return
+            refreshConversations()
         }
 
         settingsShowDateTimeSwitch.isChecked = config.showDateTime
@@ -845,8 +912,6 @@ class SettingsActivity : SimpleActivity() {
         settingsPrioritizeContactsSwitch.isChecked = config.prioritizeContacts
         settingsPrioritizeContactsHolder.setOnClickListener {
             settingsPrioritizeContactsSwitch.toggle()
-            config.prioritizeContacts = settingsPrioritizeContactsSwitch.isChecked
-            refreshConversations()
         }
         
         settingsPrioritizeContactsSwitch.setOnCheckedChangeListener { _, isChecked ->
@@ -878,6 +943,35 @@ class SettingsActivity : SimpleActivity() {
         settingsContactSortingSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 config.contactSortingMode = position
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+    }
+
+    private fun setupRecentCountSpinner() = binding.apply {
+        val counts = arrayOf("1", "2", "3", "4", "5")
+        val adapter = object : ArrayAdapter<String>(this@SettingsActivity, android.R.layout.simple_spinner_item, counts) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = super.getView(position, convertView, parent) as TextView
+                view.setTextColor(config.mainTextColor)
+                return view
+            }
+
+            override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = super.getDropDownView(position, convertView, parent) as TextView
+                view.setTextColor(Color.BLACK)
+                view.setBackgroundColor(Color.WHITE)
+                return view
+            }
+        }
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        settingsRecentCountSpinner.adapter = adapter
+        settingsRecentCountSpinner.setSelection(config.recentConversationsCount - 1)
+
+        settingsRecentCountSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                config.recentConversationsCount = position + 1
             }
 
             override fun onNothingSelected(parent: AdapterView<*>?) {}
@@ -1014,6 +1108,15 @@ class SettingsActivity : SimpleActivity() {
 
         categories.forEach { (header, container, arrow) ->
             header.setOnClickListener {
+                val isExpanding = container.visibility == View.GONE
+                if (isExpanding) {
+                    // Close all other categories
+                    categories.forEach { (otherHeader, otherContainer, otherArrow) ->
+                        if (otherContainer != container && otherContainer.isVisible()) {
+                            toggleCategory(otherContainer, otherArrow, forceClose = true)
+                        }
+                    }
+                }
                 toggleCategory(container, arrow)
             }
         }
@@ -1058,6 +1161,7 @@ class SettingsActivity : SimpleActivity() {
     }
 
     private fun updateMessagingUI() = binding.apply {
+        settingsNewUiSwitch.isChecked = config.useNewUi
         settingsGroupMmsSwitch.isChecked = config.sendGroupMessageMMS
         settingsLongMmsSwitch.isChecked = config.sendLongMessageMMS
         settingsDeliveryReportsSwitch.isChecked = config.enableDeliveryReports
@@ -1120,6 +1224,18 @@ class SettingsActivity : SimpleActivity() {
             config.notificationOvalOutline = isChecked
             updateNotifPreview()
         }
+
+        settingsNotifSoundHolder.setOnClickListener {
+            val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_NOTIFICATION)
+                putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Select Notification Sound")
+                putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, 
+                    (if (config.notificationSound.isEmpty()) null else config.notificationSound.toUri()) as android.os.Parcelable?)
+                putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, true)
+            }
+            startActivityForResult(intent, PICK_NOTIFICATION_SOUND_INTENT)
+        }
     }
 
     private fun updateNotificationsUI() = binding.apply {
@@ -1139,6 +1255,8 @@ class SettingsActivity : SimpleActivity() {
         settingsNotifIconOutlineSwitch.isChecked = config.notificationIconOutline
         settingsNotifOvalOutlineSwitch.isChecked = config.notificationOvalOutline
         settingsNotifOutlineThicknessSlider.value = config.notificationOutlineThickness.toFloat()
+
+        settingsNotifSoundValue.text = getRingtoneTitle(config.notificationSound)
 
         updateNotifPreview()
     }
@@ -1288,8 +1406,8 @@ class SettingsActivity : SimpleActivity() {
         })
     }
 
-    private fun toggleCategory(container: View, arrow: android.widget.ImageView) {
-        val isExpanding = container.visibility == View.GONE
+    private fun toggleCategory(container: View, arrow: android.widget.ImageView, forceClose: Boolean = false) {
+        val isExpanding = if (forceClose) false else container.visibility == View.GONE
         
         // Find parent section layout (RelativeLayout)
         val header = (container.parent as? ViewGroup)?.let { parent ->

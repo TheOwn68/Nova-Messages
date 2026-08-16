@@ -168,6 +168,39 @@
         </RelativeLayout>
     </RelativeLayout>
 
+    <!-- CLASSIC UI SEARCH BAR -->
+    <LinearLayout
+        android:id="@+id/classic_search_container"
+        android:layout_width="match_parent"
+        android:layout_height="55dp"
+        android:layout_gravity="bottom"
+        android:layout_margin="16dp"
+        android:background="@drawable/nova_searchbar_bg"
+        android:orientation="horizontal"
+        android:paddingHorizontal="12dp"
+        android:gravity="center_vertical"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/ic_search_vector"
+            app:tint="@android:color/white" />
+
+        <EditText
+            android:id="@+id/classic_search_input"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:hint="Search messages..."
+            android:textColor="@android:color/white"
+            android:textColorHint="#888888"
+            android:background="@android:color/transparent"
+            android:imeOptions="actionSearch"
+            android:inputType="text" />
+    </LinearLayout>
+
     <!-- NAVIGATION / SEARCH BAR -->
     <LinearLayout
         android:id="@+id/nova_nav_container"
@@ -276,5 +309,19 @@
         android:clickable="true"
         android:focusable="true"
         android:includeFontPadding="false" />
+
+    <!-- CLASSIC UI SETTINGS ICON -->
+    <ImageView
+        android:id="@+id/classic_settings_icon"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="55dp"
+        android:layout_marginEnd="16dp"
+        android:padding="8dp"
+        android:src="@drawable/ic_settings_cog_vector"
+        android:background="?selectableItemBackgroundBorderless"
+        android:visibility="gone"
+        app:tint="@android:color/white" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

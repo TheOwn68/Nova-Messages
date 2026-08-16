@@ -60,6 +60,21 @@ class App : FossifyApp() {
         })
     }
 
+    override fun onLowMemory() {
+        super.onLowMemory()
+        MessagingCache.namePhoto.evictAll()
+        MessagingCache.participantsCache.evictAll()
+        MessagingCache.conversationCache.evictAll()
+        MessagingCache.addressIdCache.evictAll()
+        MessagingCache.reactionsCache.clear()
+        com.bumptech.glide.Glide.get(this).onLowMemory()
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        com.bumptech.glide.Glide.get(this).onTrimMemory(level)
+    }
+
     private val contactsObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
         override fun onChange(selfChange: Boolean, uri: Uri?) {
             MessagingCache.namePhoto.evictAll()

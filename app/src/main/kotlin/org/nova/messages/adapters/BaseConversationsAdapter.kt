@@ -133,14 +133,14 @@ abstract class BaseConversationsAdapter(
     override fun getSelectableItemCount() = itemCount
 
     protected fun getSelectedItems() = currentList.filter {
-        selectedKeys.contains(it.hashCode())
+        selectedKeys.contains(it.getSelectionKey())
     } as ArrayList<Conversation>
 
     override fun getIsItemSelectable(position: Int) = true
 
-    override fun getItemSelectionKey(position: Int) = currentList.getOrNull(position)?.hashCode()
+    override fun getItemSelectionKey(position: Int) = currentList.getOrNull(position)?.getSelectionKey()
 
-    override fun getItemKeyPosition(key: Int) = currentList.indexOfFirst { it.hashCode() == key }
+    override fun getItemKeyPosition(key: Int) = currentList.indexOfFirst { it.getSelectionKey() == key }
 
     override fun onActionModeCreated() {
         updateCustomSelectionBar()
@@ -181,7 +181,8 @@ abstract class BaseConversationsAdapter(
 
     override fun getItemViewType(position: Int): Int {
         return if (activity.config.useNewUi) {
-            if (position < 2) VIEW_TYPE_RECENT else VIEW_TYPE_PILL
+            val recentCount = activity.config.recentConversationsCount
+            if (position < recentCount) VIEW_TYPE_RECENT else VIEW_TYPE_PILL
         } else {
             VIEW_TYPE_DEFAULT
         }
@@ -198,7 +199,8 @@ abstract class BaseConversationsAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int, payloads: MutableList<Any>) {
         if (payloads.contains(HOVER_PAYLOAD)) {
-            if (activity.config.useNewUi && position >= 2) {
+            val recentCount = activity.config.recentConversationsCount
+            if (activity.config.useNewUi && position >= recentCount) {
                 updatePillHoverState(holder, position)
             }
             return
@@ -209,7 +211,7 @@ abstract class BaseConversationsAdapter(
     private fun updatePillHoverState(holder: ViewHolder, position: Int) {
         val conversation = getItem(position)
         org.nova.messages.databinding.ItemConversationPillBinding.bind(holder.itemView).apply {
-            val isSelected = selectedKeys.contains(conversation.hashCode())
+            val isSelected = selectedKeys.contains(conversation.getSelectionKey())
             val isHoverTarget = hoveredPosition == position
             pillSelectionGlow.beVisibleIf(isSelected || isHoverTarget)
             if (isHoverTarget) {
@@ -230,7 +232,8 @@ abstract class BaseConversationsAdapter(
             allowLongClick = false    // Keep false to manage custom drag/select split
         ) { itemView, _ ->
             if (activity.config.useNewUi) {
-                if (position < 2) setupRecentView(itemView, conversation, position, holder) else setupPillView(itemView, conversation, position, holder)
+                val recentCount = activity.config.recentConversationsCount
+                if (position < recentCount) setupRecentView(itemView, conversation, position, holder) else setupPillView(itemView, conversation, position, holder)
             } else {
                 setupView(itemView, conversation, holder)
             }
@@ -239,7 +242,8 @@ abstract class BaseConversationsAdapter(
     }
 
     fun onDragStarted(position: Int) {
-        if (!activity.config.useNewUi || position < 2) return
+        val recentCount = activity.config.recentConversationsCount
+        if (!activity.config.useNewUi || position < recentCount) return
         android.util.Log.d("DRAG_DEBUG", "Drag STARTED at position: $position")
         isDragging = true
         pendingNotify = false
@@ -260,8 +264,9 @@ abstract class BaseConversationsAdapter(
     fun updateHoverTarget(toPosition: Int) {
         if (!isDragging || toPosition == hoveredPosition) return
         
-        // Block target detection for the top "Recent" cards (0 and 1)
-        val validTarget = if (toPosition >= 2 && toPosition != initialDragPosition) toPosition else -1
+        // Block target detection for the top "Recent" cards
+        val recentCount = activity.config.recentConversationsCount
+        val validTarget = if (toPosition >= recentCount && toPosition != initialDragPosition) toPosition else -1
         
         val oldHover = hoveredPosition
         hoveredPosition = validTarget
@@ -327,14 +332,15 @@ abstract class BaseConversationsAdapter(
                 recyclerView.getChildAt(i)?.let { cleanupView(it) }
             }
 
-            if (start >= 2 && end >= 2 && start != end) {
+            val recentCount = activity.config.recentConversationsCount
+            if (start >= recentCount && end >= recentCount && start != end) {
                 // Atomic One-to-One Swap: Direct and Stable
                 val list = currentList.toArrayList()
                 if (start < list.size && end < list.size) {
                     java.util.Collections.swap(list, start, end)
                     
                     // Save the final order
-                    val others = list.drop(2)
+                    val others = list.drop(recentCount)
                     activity.config.conversationOrder = others.joinToString(",") { it.threadId.toString() }
                     
                     // Finalize the list state with a fresh copy to ensure clean animations
@@ -425,7 +431,7 @@ abstract class BaseConversationsAdapter(
             recentFrame.clipToOutline = false
 
             // Selection Glow
-            val isSelected = selectedKeys.contains(conversation.hashCode())
+            val isSelected = selectedKeys.contains(conversation.getSelectionKey())
             recentSelectionGlow.beVisibleIf(isSelected)
 
             // Interaction Separation: Body is only for opening (fixed cards)
@@ -471,8 +477,9 @@ abstract class BaseConversationsAdapter(
             pillAddress.setTextColor(mainTextColor) 
             pillFrame.setupViewBackground(activity)
             
-            // Sync color by row: position 2-3 are row 0, 4-5 are row 1, etc.
-            val rowIndex = (position - 2) / 2
+            // Sync color by row
+            val recentCount = activity.config.recentConversationsCount
+            val rowIndex = (position - recentCount) / 2
             val baseColor = when (rowIndex % 3) {
                 0 -> activity.config.row1Color
                 1 -> activity.config.row2Color
@@ -506,7 +513,7 @@ abstract class BaseConversationsAdapter(
             pillFrame.clipToOutline = false
 
             // Selection Glow
-            val isSelected = selectedKeys.contains(conversation.hashCode())
+            val isSelected = selectedKeys.contains(conversation.getSelectionKey())
             val isHoverTarget = hoveredPosition == position
             pillSelectionGlow.beVisibleIf(isSelected || isHoverTarget)
             if (isHoverTarget) {
@@ -632,7 +639,7 @@ abstract class BaseConversationsAdapter(
             )
             pinIndicator.applyColorFilter(currentMainTextColor)
 
-            conversationFrame.isSelected = selectedKeys.contains(conversation.hashCode())
+            conversationFrame.isSelected = selectedKeys.contains(conversation.getSelectionKey())
 
             conversationAddress.apply {
                 text = conversation.title

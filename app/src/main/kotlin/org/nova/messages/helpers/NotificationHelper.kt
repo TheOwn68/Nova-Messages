@@ -8,6 +8,8 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.net.Uri
+import androidx.core.net.toUri
 import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.RingtoneManager
@@ -37,7 +39,24 @@ import android.widget.RemoteViews
 class NotificationHelper(private val context: Context) {
 
     private val notificationManager = context.notificationManager
-    private val soundUri get() = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+
+    private fun getSoundUri(threadId: Long? = null): Uri {
+        val config = context.config
+        val threadSound = if (threadId != null) config.getThreadNotificationSound(threadId) else ""
+        val soundUriString = if (threadSound.isNotEmpty()) {
+            threadSound
+        } else if (config.notificationSound.isNotEmpty()) {
+            config.notificationSound
+        } else {
+            ""
+        }
+
+        return if (soundUriString.isEmpty()) {
+            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        } else {
+            soundUriString.toUri()
+        }
+    }
 
     @SuppressLint("NewApi")
     fun showMessageNotification(
@@ -55,10 +74,22 @@ class NotificationHelper(private val context: Context) {
 
         val hasCustomNotifications =
             context.config.customNotifications.contains(threadId.toString())
-        val notificationChannelId =
-            if (hasCustomNotifications) threadId.toString() else NOTIFICATION_CHANNEL_ID
-        if (!hasCustomNotifications) {
-            createChannel(notificationChannelId, context.getString(R.string.channel_received_sms))
+        val hasThreadSound = context.config.getThreadNotificationSound(threadId).isNotEmpty()
+        
+        val notificationChannelId = if (hasCustomNotifications || hasThreadSound) {
+            val threadSound = context.config.getThreadNotificationSound(threadId)
+            val soundHash = threadSound.hashCode()
+            if (soundHash != 0) "${threadId}_$soundHash" else threadId.toString()
+        } else {
+            val soundHash = context.config.notificationSound.hashCode()
+            if (soundHash != 0) "${NOTIFICATION_CHANNEL_ID}_$soundHash" else NOTIFICATION_CHANNEL_ID
+        }
+            
+        if (hasCustomNotifications || hasThreadSound) {
+             // Ensure thread-specific channel is created/updated with correct sound
+             createChannel(notificationChannelId, sender ?: address, threadId)
+        } else {
+            createChannel(notificationChannelId, context.getString(R.string.channel_received_sms), null)
         }
 
         val notificationId = threadId.hashCode()
@@ -179,7 +210,7 @@ class NotificationHelper(private val context: Context) {
             if (context.config.muteNonContactMessages && !isContact) {
                 setSilent(true)
             } else {
-                setSound(soundUri, AudioManager.STREAM_NOTIFICATION)
+                setSound(getSoundUri(threadId), AudioManager.STREAM_NOTIFICATION)
             }
         }
 
@@ -220,10 +251,21 @@ class NotificationHelper(private val context: Context) {
     fun showSendingFailedNotification(recipientName: String, threadId: Long) {
         val hasCustomNotifications =
             context.config.customNotifications.contains(threadId.toString())
-        val notificationChannelId =
-            if (hasCustomNotifications) threadId.toString() else NOTIFICATION_CHANNEL_ID
-        if (!hasCustomNotifications) {
-            createChannel(notificationChannelId, context.getString(R.string.message_not_sent_short))
+        val hasThreadSound = context.config.getThreadNotificationSound(threadId).isNotEmpty()
+        
+        val notificationChannelId = if (hasCustomNotifications || hasThreadSound) {
+            val threadSound = context.config.getThreadNotificationSound(threadId)
+            val soundHash = threadSound.hashCode()
+            if (soundHash != 0) "${threadId}_$soundHash" else threadId.toString()
+        } else {
+            val soundHash = context.config.notificationSound.hashCode()
+            if (soundHash != 0) "${NOTIFICATION_CHANNEL_ID}_$soundHash" else NOTIFICATION_CHANNEL_ID
+        }
+            
+        if (hasCustomNotifications || hasThreadSound) {
+            createChannel(notificationChannelId, recipientName, threadId)
+        } else {
+            createChannel(notificationChannelId, context.getString(R.string.message_not_sent_short), null)
         }
 
         val notificationId = generateRandomId().hashCode()
@@ -257,7 +299,7 @@ class NotificationHelper(private val context: Context) {
         notificationManager.notify(notificationId, builder.build())
     }
 
-    private fun createChannel(id: String, name: String) {
+    private fun createChannel(id: String, name: String, threadId: Long? = null) {
         val audioAttributes = AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_NOTIFICATION)
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
@@ -268,7 +310,7 @@ class NotificationHelper(private val context: Context) {
         NotificationChannel(id, name, importance).apply {
             setBypassDnd(false)
             enableLights(true)
-            setSound(soundUri, audioAttributes)
+            setSound(getSoundUri(threadId), audioAttributes)
             enableVibration(true)
             notificationManager.createNotificationChannel(this)
         }

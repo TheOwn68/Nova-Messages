@@ -8,13 +8,17 @@ import org.nova.messages.adapters.BaseConversationsAdapter
 class ModernDragCallback(private val adapter: BaseConversationsAdapter) : ItemTouchHelper.Callback() {
 
     private var recyclerView: RecyclerView? = null
+    private var config: Config? = null
 
     override fun getMovementFlags(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder): Int {
         this.recyclerView = recyclerView
+        if (config == null) {
+            config = Config.newInstance(recyclerView.context)
+        }
         val position = viewHolder.bindingAdapterPosition
-        val config = Config.newInstance(recyclerView.context)
+        val recentCount = config!!.recentConversationsCount
         
-        return if (position >= 2 && config.contactSortingMode == 0) {
+        return if (position >= recentCount && config!!.contactSortingMode == 0) {
             val dragFlags = ItemTouchHelper.UP or ItemTouchHelper.DOWN or ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT
             makeMovementFlags(dragFlags, 0)
         } else {
@@ -86,7 +90,8 @@ class ModernDragCallback(private val adapter: BaseConversationsAdapter) : ItemTo
                 }
             }
             
-            if (bestTarget >= 2 && bestTarget != adapter.getInitialDragPosition()) {
+            val recentCount = Config.newInstance(recyclerView.context).recentConversationsCount
+            if (bestTarget >= recentCount && bestTarget != adapter.getInitialDragPosition()) {
                 adapter.updateHoverTarget(bestTarget)
             } else {
                 // If not hovering over a valid target (or hovering over self), clear hover

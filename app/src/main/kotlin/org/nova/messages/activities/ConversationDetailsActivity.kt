@@ -3,6 +3,9 @@ package org.nova.messages.activities
 import android.content.Intent
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
+import android.media.RingtoneManager
+import android.net.Uri
+import androidx.core.net.toUri
 import android.os.Bundle
 import android.provider.ContactsContract
 import org.fossify.commons.extensions.*
@@ -14,6 +17,7 @@ import org.nova.messages.adapters.ContactsAdapter
 import org.nova.messages.databinding.ActivityConversationDetailsBinding
 import org.nova.messages.dialogs.RenameConversationDialog
 import org.nova.messages.extensions.*
+import org.nova.messages.helpers.PICK_THREAD_NOTIFICATION_SOUND_INTENT
 import org.nova.messages.helpers.THREAD_ID
 import org.nova.messages.models.Conversation
 
@@ -46,6 +50,7 @@ class ConversationDetailsActivity : SimpleActivity() {
                 setupRenaming()
                 setupMuting()
                 setupAddPerson()
+                setupThreadNotificationSound()
                 setupParticipants()
             }
         }
@@ -108,6 +113,8 @@ class ConversationDetailsActivity : SimpleActivity() {
         // Apply theme to settings pod
         binding.muteLabel.setTextColor(mainTextColor)
         binding.addPersonLabel.setTextColor(mainTextColor)
+        binding.soundLabel.setTextColor(mainTextColor)
+        binding.detailsSoundValue.setTextColor(mainTextColor)
         binding.detailsRenameIcon.applyColorFilter(mainTextColor)
         binding.detailsAddPersonIcon.applyColorFilter(mainTextColor)
     }
@@ -156,6 +163,34 @@ class ConversationDetailsActivity : SimpleActivity() {
                 putExtra(ContactsContract.Intents.Insert.PHONE, numbers.joinToString(";"))
                 startActivity(this)
             }
+        }
+    }
+
+    private fun setupThreadNotificationSound() {
+        binding.apply {
+            detailsSoundValue.text = getRingtoneTitle(config.getThreadNotificationSound(threadId))
+            detailsSoundPill.setOnClickListener {
+                val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                    putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_NOTIFICATION)
+                    putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Select Notification Sound")
+                    putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, 
+                        (if (config.getThreadNotificationSound(threadId).isEmpty()) null else config.getThreadNotificationSound(threadId).toUri()) as android.os.Parcelable?)
+                    putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                    putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, true)
+                }
+                startActivityForResult(intent, PICK_THREAD_NOTIFICATION_SOUND_INTENT)
+            }
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, resultData: Intent?) {
+        super.onActivityResult(requestCode, resultCode, resultData)
+        if (resultCode != RESULT_OK || resultData == null) return
+
+        if (requestCode == PICK_THREAD_NOTIFICATION_SOUND_INTENT) {
+            val soundUri = resultData.getParcelableExtra<Uri>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+            config.setThreadNotificationSound(threadId, soundUri?.toString() ?: "")
+            binding.detailsSoundValue.text = getRingtoneTitle(config.getThreadNotificationSound(threadId))
         }
     }
 

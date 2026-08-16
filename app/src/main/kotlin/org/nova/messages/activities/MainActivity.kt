@@ -123,6 +123,7 @@ class MainActivity : SimpleActivity() {
         getOrCreateConversationsAdapter().updateScaling()
         applyCustomColors()
         setupNovaNavBar()
+        setupClassicUi()
 
         binding.conversationsFab.setTextColor(config.topBarTextColor)
         binding.novaSearchInput.setTextColor(config.inputBarTextColor)
@@ -205,6 +206,28 @@ class MainActivity : SimpleActivity() {
             }
         } else {
             novaNavContainer.beGone()
+        }
+    }
+
+    private fun setupClassicUi() = binding.apply {
+        val useNewUi = config.useNewUi
+        classicSettingsIcon.beVisibleIf(!useNewUi)
+        classicSearchContainer.beVisibleIf(!useNewUi)
+
+        if (!useNewUi) {
+            classicSettingsIcon.setOnClickListener {
+                startActivity(Intent(this@MainActivity, SettingsActivity::class.java))
+            }
+            
+            if (classicSearchInput.tag != "text_watcher_attached") {
+                classicSearchInput.addTextChangedListener { text ->
+                    searchTextChanged(text?.toString() ?: "")
+                }
+                classicSearchInput.tag = "text_watcher_attached"
+            }
+            
+            classicSearchInput.setTextColor(config.inputBarTextColor)
+            classicSearchInput.setHintTextColor(config.inputBarTextColor.withAlpha(0.5f))
         }
     }
 
@@ -420,6 +443,7 @@ class MainActivity : SimpleActivity() {
         binding.novaNavContainer.startAnimation(searchAnim)
 
         binding.novaSearchInput.setTextSize(TypedValue.COMPLEX_UNIT_PX, getScaledTextSize())
+        binding.classicSearchInput.setTextSize(TypedValue.COMPLEX_UNIT_PX, getScaledTextSize())
     }
 
     private fun getCachedConversations(isManualReorder: Boolean = false) {
@@ -476,7 +500,7 @@ class MainActivity : SimpleActivity() {
     private fun setupConversations(conversations: ArrayList<Conversation>, cached: Boolean = false, isManualReorder: Boolean = false) {
         val useNewUi = config.useNewUi
         val currentAdapter = binding.conversationsList.adapter as? ConversationsAdapter
-        if (currentAdapter != null && currentAdapter.itemCount > 0) {
+        if (currentAdapter != null) {
              val isCurrentlyNewUi = binding.conversationsList.layoutManager is androidx.recyclerview.widget.GridLayoutManager
              if (isCurrentlyNewUi != useNewUi) {
                  binding.conversationsList.adapter = null
@@ -491,8 +515,9 @@ class MainActivity : SimpleActivity() {
             if (allSortedByDate.isEmpty()) {
                 allSortedByDate
             } else {
-                val top2 = allSortedByDate.take(2)
-                val remaining = allSortedByDate.filter { conv -> !top2.any { it.threadId == conv.threadId } }
+                val recentCount = config.recentConversationsCount
+                val topRecent = allSortedByDate.take(recentCount)
+                val remaining = allSortedByDate.filter { conv -> !topRecent.any { it.threadId == conv.threadId } }
                 
                 val prioritize = config.prioritizeContacts
                 val sortedPills = when (config.contactSortingMode) {
@@ -512,7 +537,7 @@ class MainActivity : SimpleActivity() {
                         manuallySorted
                     }
                 }
-                top2 + sortedPills
+                topRecent + sortedPills
             }
         } else {
             val prioritize = config.prioritizeContacts
@@ -534,13 +559,17 @@ class MainActivity : SimpleActivity() {
             if (binding.conversationsList.layoutManager !is androidx.recyclerview.widget.GridLayoutManager) {
                 val gm = androidx.recyclerview.widget.GridLayoutManager(this, 2)
                 gm.spanSizeLookup = object : androidx.recyclerview.widget.GridLayoutManager.SpanSizeLookup() {
-                    override fun getSpanSize(position: Int): Int = if (position < 2) 2 else 1
+                    override fun getSpanSize(position: Int): Int {
+                        val recentCount = config.recentConversationsCount
+                        return if (position < recentCount) 2 else 1
+                    }
                 }
                 binding.conversationsList.layoutManager = gm
                 binding.conversationsList.addItemDecoration(object : androidx.recyclerview.widget.RecyclerView.ItemDecoration() {
                     override fun getItemOffsets(outRect: android.graphics.Rect, view: View, parent: androidx.recyclerview.widget.RecyclerView, state: androidx.recyclerview.widget.RecyclerView.State) {
                         val position = parent.getChildAdapterPosition(view)
-                        if (position == 2 || position == 3) outRect.top = 32.getScaledPx()
+                        val recentCount = config.recentConversationsCount
+                        if (position == recentCount || position == recentCount + 1) outRect.top = 32.getScaledPx()
                     }
                 })
                 val callback = org.nova.messages.helpers.ModernDragCallback(getOrCreateConversationsAdapter())
@@ -627,13 +656,21 @@ class MainActivity : SimpleActivity() {
     }
 
     private fun setupSearchEdgeToEdge() {
-        ViewCompat.setOnApplyWindowInsetsListener(binding.novaSearchInput) { _, insets ->
+        val onInsetsListener = { view: View, insets: WindowInsetsCompat ->
             val imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime())
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            binding.novaNavContainer.updateLayoutParams<androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams> {
+            view.updateLayoutParams<androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams> {
                 bottomMargin = (if (imeInsets.bottom > 0) imeInsets.bottom else systemBars.bottom) + 16.getScaledPx()
             }
             insets
+        }
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.novaSearchInput) { _, insets ->
+            onInsetsListener(binding.novaNavContainer, insets)
+        }
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.classicSearchInput) { _, insets ->
+            onInsetsListener(binding.classicSearchContainer, insets)
         }
     }
 
