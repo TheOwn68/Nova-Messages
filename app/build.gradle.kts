@@ -156,7 +156,7 @@ dependencies {
     implementation(libs.ez.vcard)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.bundles.room)
-    ksp("com.github.bumptech.glide:ksp:5.0.7")
+    ksp("com.github.bumptech.glide:ksp:5.0.9")
     ksp(libs.androidx.room.compiler)
     detektPlugins(libs.compose.detekt)
 
