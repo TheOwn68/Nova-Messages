@@ -29,6 +29,7 @@ A clean, intuitive interface built for simplicity and ease of use.
 - No ads  
 - No unnecessary permissions  
 - Fully open-source for transparency and security
+- App lock to keep your app secure
 
 ---
 
