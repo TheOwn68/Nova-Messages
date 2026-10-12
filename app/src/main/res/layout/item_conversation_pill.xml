@@ -23,6 +23,7 @@
         android:layout_margin="6dp"
         android:paddingStart="6dp"
         android:paddingEnd="16dp"
+        android:splitMotionEvents="false"
         android:background="@drawable/pill_background_small">
 
     <ImageView

@@ -510,8 +510,9 @@ class MainActivity : SimpleActivity() {
              }
         }
 
+        val uniqueConversations = conversations.distinctBy { it.threadId }.toMutableList() as ArrayList<Conversation>
         val sorted = if (useNewUi) {
-            val allSortedByDate = conversations.sortedByDescending { it.date }
+            val allSortedByDate = uniqueConversations.sortedByDescending { it.date }
             if (allSortedByDate.isEmpty()) {
                 allSortedByDate
             } else {
@@ -521,8 +522,8 @@ class MainActivity : SimpleActivity() {
                 
                 val prioritize = config.prioritizeContacts
                 val sortedPills = when (config.contactSortingMode) {
-                    1 -> remaining.sortedWith(compareByDescending<Conversation> { prioritize && it.title.any { c -> c.isLetter() } }.thenBy { it.title.lowercase() })
-                    2 -> remaining.sortedWith(compareByDescending<Conversation> { prioritize && it.title.any { c -> c.isLetter() } }.thenByDescending { it.date })
+                    1 -> remaining.sortedWith(compareByDescending<Conversation> { prioritize && it.isProbablyContact() }.thenBy { it.title.lowercase() })
+                    2 -> remaining.sortedWith(compareByDescending<Conversation> { prioritize && it.isProbablyContact() }.thenByDescending { it.date })
                     else -> {
                         val manualOrder = config.conversationOrder.split(",").filter { it.isNotEmpty() }.map { it.toLong() }
                         val manuallySorted = ArrayList<Conversation>()
@@ -531,7 +532,7 @@ class MainActivity : SimpleActivity() {
                         }
                         
                         val notInManualOrder = remaining.filter { conv -> !manuallySorted.any { it.threadId == conv.threadId } }
-                            .sortedWith(compareByDescending<Conversation> { prioritize && it.title.any { c -> c.isLetter() } }.thenByDescending { it.date })
+                            .sortedWith(compareByDescending<Conversation> { prioritize && it.isProbablyContact() }.thenByDescending { it.date })
                             
                         manuallySorted.addAll(notInManualOrder)
                         manuallySorted
@@ -543,7 +544,7 @@ class MainActivity : SimpleActivity() {
             val prioritize = config.prioritizeContacts
             conversations.sortedWith(
                 compareByDescending<Conversation> { config.pinnedConversations.contains(it.threadId.toString()) }
-                    .thenByDescending { prioritize && it.title.any { c -> c.isLetter() } }
+                    .thenByDescending { prioritize && it.isProbablyContact() }
                     .thenByDescending { it.date }
             )
         }.toMutableList() as ArrayList<Conversation>
@@ -615,6 +616,7 @@ class MainActivity : SimpleActivity() {
 
     private fun handleConversationClick(any: Any) {
         val conv = any as Conversation
+        android.util.Log.d("ThreadLaunchDebug", "MainActivity.handleConversationClick thread=${conv.threadId} title=${conv.title}", Exception("trace"))
         Intent(this, ThreadActivity::class.java).apply {
             putExtra(THREAD_ID, conv.threadId)
             putExtra(THREAD_TITLE, conv.title)
@@ -695,6 +697,7 @@ class MainActivity : SimpleActivity() {
             val curr = binding.searchResultsList.adapter
             if (curr == null) {
                 SearchResultsAdapter(this, results, binding.searchResultsList, searchedText) {
+                    android.util.Log.d("ThreadLaunchDebug", "MainActivity.searchResultClick $it", Exception("trace"))
                     hideKeyboard()
                     Intent(this, ThreadActivity::class.java).apply {
                         putExtra(THREAD_ID, (it as SearchResult).threadId)

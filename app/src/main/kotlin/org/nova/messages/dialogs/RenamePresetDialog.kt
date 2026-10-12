@@ -13,6 +13,7 @@ import org.nova.messages.databinding.DialogRenameConversationBinding
 class RenamePresetDialog(
     private val activity: Activity,
     private val currentName: String,
+    private val deleteCallback: (() -> Unit)? = null,
     private val callback: (name: String) -> Unit,
 ) {
     private var dialog: AlertDialog? = null
@@ -23,14 +24,30 @@ class RenamePresetDialog(
             renameConvEditText.setSelection(currentName.length)
         }
 
-        activity.getAlertDialogBuilder()
+        val builder = activity.getAlertDialogBuilder()
             .setPositiveButton(org.fossify.commons.R.string.ok, null)
             .setNegativeButton(org.fossify.commons.R.string.cancel, null)
-            .apply {
-                activity.setupDialogStuff(binding.root, this, R.string.rename_conversation) { alertDialog ->
-                    dialog = alertDialog
-                    alertDialog.showKeyboard(binding.renameConvEditText)
-                    alertDialog.getButton(BUTTON_POSITIVE).apply {
+            
+        if (deleteCallback != null) {
+            builder.setNeutralButton(org.fossify.commons.R.string.delete, null)
+        }
+
+        builder.apply {
+            activity.setupDialogStuff(binding.root, this, R.string.rename_conversation) { alertDialog ->
+                dialog = alertDialog
+                alertDialog.showKeyboard(binding.renameConvEditText)
+                
+                if (deleteCallback != null) {
+                    alertDialog.getButton(AlertDialog.BUTTON_NEUTRAL).apply {
+                        setTextColor(android.graphics.Color.RED)
+                        setOnClickListener {
+                            deleteCallback.invoke()
+                            alertDialog.dismiss()
+                        }
+                    }
+                }
+
+                alertDialog.getButton(BUTTON_POSITIVE).apply {
                         setOnClickListener {
                             val newName = binding.renameConvEditText.text.toString()
                             if (newName.isEmpty()) {

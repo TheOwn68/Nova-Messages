@@ -47,3 +47,24 @@ fun String.isZipMimeType(): Boolean {
 fun String.isPlainTextMimeType(): Boolean {
     return lowercase() == "text/plain"
 }
+
+fun String.stripCountryCodePrefix(): String {
+    if (this.isEmpty()) return this
+    if (this.length < 5) return this // Short codes or very short numbers
+    
+    // If it's a name, don't touch it.
+    if (!this.any { it.isDigit() }) return this
+    
+    // Strip leading + and following country code (1-3 digits)
+    // Most users wanting this just want the local part.
+    // We'll strip +1 specifically if it exists, or + and up to 3 digits.
+    return if (this.startsWith("+1")) {
+        this.substring(2).trim()
+    } else if (this.startsWith("+")) {
+        // Generic: strip + and up to 3 digits if there's enough left
+        val stripped = this.replaceFirst("^\\+\\d{1,3}".toRegex(), "").trim()
+        if (stripped.length >= 7) stripped else this.substring(1).trim()
+    } else {
+        this
+    }
+}

@@ -81,6 +81,7 @@
             android:paddingBottom="100dp"
             android:paddingHorizontal="4dp"
             android:clipChildren="false"
+            android:splitMotionEvents="false"
             app:layoutManager="org.fossify.commons.views.MyLinearLayoutManager" />
 
         <com.reddit.indicatorfastscroll.FastScrollerView

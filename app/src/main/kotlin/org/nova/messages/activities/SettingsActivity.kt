@@ -57,6 +57,7 @@ class SettingsActivity : SimpleActivity() {
         setupMessagingBehavior()
         setupNotificationsBehavior()
         setupRecentCountSpinner()
+        setupRecentSeparatorSwitch()
         setupSecurityBehavior()
         setupExpandableCategories()
         updateAppFonts(binding.root)
@@ -74,6 +75,7 @@ class SettingsActivity : SimpleActivity() {
         binding.settingsContactSortingHolder.beVisibleIf(config.useNewUi)
         binding.settingsPrioritizeContactsHolder.beVisibleIf(config.useNewUi)
         binding.settingsRecentCountHolder.beVisibleIf(config.useNewUi)
+        binding.settingsShowRecentSeparatorHolder.beVisibleIf(config.useNewUi)
         // Ensure UI is fully up to date for modern design
         updateAppFonts(binding.root)
         applyCustomColors()
@@ -221,12 +223,7 @@ class SettingsActivity : SimpleActivity() {
         settingsReceivedBubbleTextColorLabel.setTextColor(mainTextColor)
         settingsBubbleShapeLabel.setTextColor(mainTextColor)
         
-        settingsPreset1Label.setTextColor(mainTextColor)
-        settingsPreset1Label.text = config.preset1Name
-        settingsPreset2Label.setTextColor(mainTextColor)
-        settingsPreset2Label.text = config.preset2Name
-        settingsPreset3Label.setTextColor(mainTextColor)
-        settingsPreset3Label.text = config.preset3Name
+        setupPresets()
         
         // Mode Visibility
         val updateModeUI = { mode: Int, colorPreview: View, imageIcon: View ->
@@ -480,6 +477,44 @@ class SettingsActivity : SimpleActivity() {
             config.notificationSound = soundUri?.toString() ?: ""
             updateNotificationsUI()
         }
+
+        if (requestCode == PICK_FONT_FILE_INTENT) {
+            val fontUri = resultData.data
+            if (fontUri != null) {
+                saveCustomFont(fontUri)
+            }
+        }
+    }
+
+    private fun saveCustomFont(uri: Uri) {
+        try {
+            val inputStream = contentResolver.openInputStream(uri)
+            if (inputStream != null) {
+                // Get original filename
+                var fileName = "custom_font.ttf"
+                contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                    val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                    if (nameIndex != -1 && cursor.moveToFirst()) {
+                        fileName = cursor.getString(nameIndex).substringAfterLast("/")
+                    }
+                }
+
+                val file = java.io.File(filesDir, fileName)
+                val outputStream = java.io.FileOutputStream(file)
+                inputStream.copyTo(outputStream)
+                inputStream.close()
+                outputStream.close()
+
+                config.customFontPath = file.absolutePath
+                config.fontFamilyNova = 4
+                binding.settingsFont.text = getFontText()
+                updateAppFonts(binding.root)
+                applyCustomColors()
+                toast("Font applied successfully")
+            }
+        } catch (_: Exception) {
+            toast("Failed to load font")
+        }
     }
 
     private fun startCropper(uri: String, target: Int) {
@@ -634,7 +669,9 @@ class SettingsActivity : SimpleActivity() {
             getString(R.string.bubble_shape_pill),
             getString(R.string.bubble_shape_cut),
             getString(R.string.bubble_shape_messenger),
-            getString(R.string.bubble_shape_teardrop)
+            getString(R.string.bubble_shape_teardrop),
+            "Underlined",
+            "Side Pill"
         )
         val adapter = object : ArrayAdapter<String>(this@SettingsActivity, android.R.layout.simple_spinner_item, shapes) {
             override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
@@ -869,6 +906,8 @@ class SettingsActivity : SimpleActivity() {
         settingsOutlinesHeader.beVisibleIf(config.useNewUi)
         settingsContactSortingHolder.beVisibleIf(config.useNewUi)
         settingsPrioritizeContactsHolder.beVisibleIf(config.useNewUi)
+        settingsRecentCountHolder.beVisibleIf(config.useNewUi)
+        settingsShowRecentSeparatorHolder.beVisibleIf(config.useNewUi)
         
         settingsNewUiHolder.setOnClickListener {
             settingsNewUiSwitch.toggle()
@@ -883,6 +922,7 @@ class SettingsActivity : SimpleActivity() {
             settingsContactSortingHolder.beVisibleIf(isChecked)
             settingsPrioritizeContactsHolder.beVisibleIf(isChecked)
             settingsRecentCountHolder.beVisibleIf(isChecked)
+            settingsShowRecentSeparatorHolder.beVisibleIf(isChecked)
             
             // Re-apply theme and outlines to this screen
             applyCustomColors()
@@ -978,6 +1018,18 @@ class SettingsActivity : SimpleActivity() {
         }
     }
 
+    private fun setupRecentSeparatorSwitch() = binding.apply {
+        settingsShowRecentSeparatorSwitch.isChecked = config.showRecentSeparator
+        settingsShowRecentSeparatorHolder.setOnClickListener {
+            settingsShowRecentSeparatorSwitch.toggle()
+        }
+
+        settingsShowRecentSeparatorSwitch.setOnCheckedChangeListener { _, isChecked ->
+            config.showRecentSeparator = isChecked
+            refreshConversations()
+        }
+    }
+
     private fun setupUIScale() = binding.apply {
         settingsUiScaleSlider.value = config.uiScale
         settingsUiScaleSlider.addOnChangeListener { _, value, fromUser ->
@@ -1024,16 +1076,31 @@ class SettingsActivity : SimpleActivity() {
                 org.fossify.commons.models.RadioItem(0, "System Default"),
                 org.fossify.commons.models.RadioItem(1, "Monospace"),
                 org.fossify.commons.models.RadioItem(2, "Serif"),
-                org.fossify.commons.models.RadioItem(3, "Sans Serif")
+                org.fossify.commons.models.RadioItem(3, "Sans Serif"),
+                org.fossify.commons.models.RadioItem(4, "Custom (Import file)")
             )
 
             org.fossify.commons.dialogs.RadioGroupDialog(this@SettingsActivity, items, config.fontFamilyNova) {
-                config.fontFamilyNova = it as Int
-                settingsFont.text = getFontText()
-                updateAppFonts(binding.root)
-                applyCustomColors()
+                val selectedId = it as Int
+                if (selectedId == 4) {
+                    pickFontFile()
+                } else {
+                    config.fontFamilyNova = selectedId
+                    settingsFont.text = getFontText()
+                    updateAppFonts(binding.root)
+                    applyCustomColors()
+                }
             }
         }
+    }
+
+    private fun pickFontFile() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "*/*"
+            // Filter by common font extensions if possible, or just check on result
+        }
+        startActivityForResult(intent, PICK_FONT_FILE_INTENT)
     }
 
     private fun getFontText(): String {
@@ -1041,38 +1108,68 @@ class SettingsActivity : SimpleActivity() {
             0 -> "System Default"
             1 -> "Monospace"
             2 -> "Serif"
-            else -> "Sans Serif"
+            3 -> "Sans Serif"
+            else -> if (config.customFontPath.isNotEmpty()) {
+                java.io.File(config.customFontPath).name
+            } else {
+                "Custom"
+            }
         }
     }
 
     private fun setupPresets() = binding.apply {
-        settingsPreset1Label.setOnClickListener { renamePreset(1) }
-        settingsSavePreset1.setOnClickListener { config.savePreset(1); toast("Preset 1 Saved") }
-        settingsLoadPreset1.setOnClickListener { loadAndRefresh(1) }
+        settingsPresetsList.removeAllViews()
+        val ids = config.themePresetIds.split(",").filter { it.isNotEmpty() }.map { it.toInt() }
         
-        settingsPreset2Label.setOnClickListener { renamePreset(2) }
-        settingsSavePreset2.setOnClickListener { config.savePreset(2); toast("Preset 2 Saved") }
-        settingsLoadPreset2.setOnClickListener { loadAndRefresh(2) }
+        ids.forEach { id ->
+            val presetName = config.getPresetName(id)
+            val row = layoutInflater.inflate(R.layout.item_preset_row, settingsPresetsList, false)
+            val label = row.findViewById<TextView>(R.id.preset_label)
+            val saveBtn = row.findViewById<TextView>(R.id.preset_save)
+            val loadBtn = row.findViewById<TextView>(R.id.preset_load)
+            
+            label.text = presetName
+            label.setTextColor(config.mainTextColor)
+            saveBtn.setTextColor(getProperPrimaryColor())
+            loadBtn.setTextColor(getProperPrimaryColor())
+            
+            label.setOnClickListener { renamePreset(id) }
+            saveBtn.setOnClickListener { config.savePreset(id); toast("$presetName Saved") }
+            loadBtn.setOnClickListener { loadAndRefresh(id) }
+            
+            settingsPresetsList.addView(row)
+        }
         
-        settingsPreset3Label.setOnClickListener { renamePreset(3) }
-        settingsSavePreset3.setOnClickListener { config.savePreset(3); toast("Preset 3 Saved") }
-        settingsLoadPreset3.setOnClickListener { loadAndRefresh(3) }
+        settingsAddPresetHolder.setOnClickListener {
+            addPreset()
+        }
+    }
+
+    private fun addPreset() {
+        val ids = config.themePresetIds.split(",").filter { it.isNotEmpty() }.map { it.toInt() }.toMutableList()
+        if (ids.size >= 15) {
+            toast("Limit of 15 presets reached")
+            return
+        }
+        
+        val nextId = if (ids.isEmpty()) 1 else ids.max() + 1
+        ids.add(nextId)
+        config.themePresetIds = ids.joinToString(",")
+        config.savePreset(nextId) // Save current as initial for new preset
+        setupPresets()
+        toast("New Preset Added")
     }
 
     private fun renamePreset(id: Int) {
-        val currentName = when (id) {
-            1 -> config.preset1Name
-            2 -> config.preset2Name
-            else -> config.preset3Name
-        }
+        val currentName = config.getPresetName(id)
         
-        RenamePresetDialog(this, currentName) { newName ->
-            when (id) {
-                1 -> config.preset1Name = newName
-                2 -> config.preset2Name = newName
-                else -> config.preset3Name = newName
-            }
-            updateCustomizationUI()
+        org.nova.messages.dialogs.RenamePresetDialog(this, currentName, deleteCallback = {
+            config.deletePreset(id)
+            setupPresets()
+            toast("Preset Deleted")
+        }) { newName ->
+            config.setPresetName(id, newName)
+            setupPresets()
         }
     }
 
@@ -1290,6 +1387,10 @@ class SettingsActivity : SimpleActivity() {
                     if (isReceived) floatArrayOf(r32, r32, r32, r32, r32, r32, 0f, 0f)
                     else floatArrayOf(r32, r32, r32, r32, 0f, 0f, r32, r32)
                 }
+                8 -> {
+                    if (isReceived) floatArrayOf(0f, 0f, rMax, rMax, rMax, rMax, 0f, 0f)
+                    else floatArrayOf(rMax, rMax, 0f, 0f, 0f, 0f, rMax, rMax)
+                }
                 else -> {
                     val r4 = 4f * density
                     if (isReceived) floatArrayOf(r18, r18, r18, r18, r18, r18, r4, r4)
@@ -1298,18 +1399,32 @@ class SettingsActivity : SimpleActivity() {
             }
         }
 
-        val setupBubble = { view: TextView, isReceived: Boolean, color: Int, textColor: Int ->
+        val setupBubble = { view: TextView, line: View, isReceived: Boolean, color: Int, textColor: Int ->
             view.setTextColor(textColor)
-            val lightened = adjustColor(color, 1.2f)
-            val darkened = adjustColor(color, 0.8f)
-            val gd = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(lightened, color, darkened))
-            gd.cornerRadii = getRadii(isReceived)
-            view.background = gd
-            view.elevation = 4f * density
+            if (config.bubbleShape == 7) {
+                view.background = null
+                view.elevation = 0f
+                line.beVisible()
+                
+                val lineColors = intArrayOf(
+                    android.graphics.Color.TRANSPARENT,
+                    color.withAlpha(0.6f),
+                    android.graphics.Color.TRANSPARENT
+                )
+                line.background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, lineColors)
+            } else {
+                line.beGone()
+                val lightened = adjustColor(color, 1.2f)
+                val darkened = adjustColor(color, 0.8f)
+                val gd = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(lightened, color, darkened))
+                gd.cornerRadii = getRadii(isReceived)
+                view.background = gd
+                view.elevation = 4f * density
+            }
         }
 
-        setupBubble(settingsBubblePreviewSent, false, sentColor, sentTextColor)
-        setupBubble(settingsBubblePreviewReceived, true, receivedColor, receivedTextColor)
+        setupBubble(settingsBubblePreviewSent, settingsBubblePreviewSentLine, false, sentColor, sentTextColor)
+        setupBubble(settingsBubblePreviewReceived, settingsBubblePreviewReceivedLine, true, receivedColor, receivedTextColor)
     }
 
     private fun updateNotifPreview() = binding.apply {

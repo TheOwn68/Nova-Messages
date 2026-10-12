@@ -111,4 +111,14 @@
             tools:text="👍"
             tools:visibility="visible" />
     </RelativeLayout>
+
+    <View
+        android:id="@+id/thread_message_bottom_line"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="8dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/thread_message_wrapper"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 </androidx.constraintlayout.widget.ConstraintLayout>

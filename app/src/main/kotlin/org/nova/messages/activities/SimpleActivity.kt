@@ -45,6 +45,7 @@ import org.fossify.commons.extensions.applyColorFilter
 import org.fossify.commons.extensions.beVisibleIf
 import org.nova.messages.R
 import org.nova.messages.extensions.config
+import org.nova.messages.extensions.getCustomTypeface
 import org.nova.messages.helpers.*
 import java.io.File
 import kotlin.math.max
@@ -99,14 +100,7 @@ open class SimpleActivity : BaseSimpleActivity() {
         }
     }
 
-    fun getCustomTypeface(): Typeface {
-        return when (config.fontFamilyNova) {
-            1 -> Typeface.MONOSPACE
-            2 -> Typeface.SERIF
-            3 -> Typeface.SANS_SERIF
-            else -> org.fossify.commons.helpers.FontHelper.getTypeface(this, config.fontFamilyNova, "")
-        }
-    }
+
 
     fun updateAppFonts(view: View?) {
         if (view == null) return
@@ -205,6 +199,7 @@ open class SimpleActivity : BaseSimpleActivity() {
             if (config.topBarBgMode == BG_MODE_IMAGE && topBarImage.isNotEmpty()) {
                 loadBackgroundImage(topBarImage, appBar, config.topBarCropRect)
             } else {
+                config.dominantColor = 0
                 clearGlideTarget(appBar)
                 appBar.background = barShape
             }
@@ -310,6 +305,7 @@ open class SimpleActivity : BaseSimpleActivity() {
                     inputBar.clipToOutline = true
                 }
             } else {
+                config.inputBarDominantColor = 0
                 clearGlideTarget(inputBar)
                 inputBar.clipToOutline = false
                 val inputShape = GradientDrawable().apply {
@@ -761,7 +757,7 @@ open class SimpleActivity : BaseSimpleActivity() {
         }
     }
 
-    private fun loadBackgroundImage(source: String, targetView: View, cropRect: String = "", onLoaded: (() -> Unit)? = null) {
+    fun loadBackgroundImage(source: String, targetView: View, cropRect: String = "", onLoaded: (() -> Unit)? = null) {
         if (source.isBlank()) return
         
         clearGlideTarget(targetView)
@@ -777,13 +773,21 @@ open class SimpleActivity : BaseSimpleActivity() {
             override fun onResourceReady(resource: Drawable, transition: Transition<in Drawable>?) {
                 targetView.background = resource
                 
-                // Extract dominant color if it's an AppBarLayout (Top Bar)
-                if (targetView is AppBarLayout || targetView.id == R.id.settings_appbar || targetView.id == R.id.main_appbar || targetView.id == R.id.thread_appbar || targetView.id == R.id.new_conversation_appbar) {
+                // Extract dominant color if it's an AppBarLayout (Top Bar) or Input Bar
+                val isAppBar = targetView is AppBarLayout || targetView.id == R.id.settings_appbar || targetView.id == R.id.main_appbar || targetView.id == R.id.thread_appbar || targetView.id == R.id.new_conversation_appbar
+                val isInputBar = targetView.id == R.id.nova_nav_container || targetView.id == R.id.nova_message_input_bar || targetView.id == R.id.new_conversation_search_container || targetView.id == R.id.classic_search_container
+                
+                if (isAppBar || isInputBar) {
                     if (resource is android.graphics.drawable.BitmapDrawable) {
                         Palette.from(resource.bitmap).generate { palette ->
-                            val color = palette?.getDominantColor(config.topBarColor) ?: 0
+                            val defaultColor = if (isAppBar) config.topBarColor else config.inputBarBackgroundColor
+                            val color = palette?.getDominantColor(defaultColor) ?: 0
                             if (color != 0) {
-                                config.dominantColor = color
+                                if (isAppBar) {
+                                    config.dominantColor = color
+                                } else {
+                                    config.inputBarDominantColor = color
+                                }
                             }
                         }
                     }

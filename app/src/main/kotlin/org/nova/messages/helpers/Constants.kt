@@ -57,6 +57,7 @@ const val CONVERSATION_ORDER = "conversation_order"
 const val CONTACT_SORTING_MODE = "contact_sorting_mode"
 const val PRIORITIZE_CONTACTS = "prioritize_contacts"
 const val RECENT_CONVERSATIONS_COUNT = "recent_conversations_count"
+const val SHOW_RECENT_SEPARATOR = "show_recent_separator"
 const val RECENT_COLOR = "recent_color"
 const val ROW1_COLOR = "row1_color"
 const val ROW2_COLOR = "row2_color"
@@ -66,6 +67,7 @@ const val BUBBLE_SHAPE = "bubble_shape"
 const val FONT_FAMILY = "font_family_nova"
 const val FONT_TYPE = "font_type"
 const val FONT_FAMILY_NOVA = "font_family_nova"
+const val CUSTOM_FONT_PATH = "custom_font_path"
 const val APP_LOCK_TYPE = "app_lock_type"
 const val APP_LOCK_PASSWORD = "app_lock_password"
 
@@ -112,10 +114,12 @@ const val NOTIFICATION_OUTLINE_THICKNESS = "notification_outline_thickness"
 const val NOTIFICATION_SOUND = "notification_sound"
 const val THREAD_NOTIFICATION_SOUND_PREFIX = "thread_notification_sound_"
 const val DOMINANT_COLOR = "dominant_color"
+const val INPUT_BAR_DOMINANT_COLOR = "input_bar_dominant_color"
 
 const val PRESET_1_NAME = "preset_1_name"
 const val PRESET_2_NAME = "preset_2_name"
 const val PRESET_3_NAME = "preset_3_name"
+const val THEME_PRESETS = "theme_presets"
 
 const val TOP_BAR_OUTLINE = "top_bar_outline"
 const val TOP_BAR_OUTLINE_COLOR = "top_bar_outline_color"
@@ -197,6 +201,7 @@ const val PICK_INPUT_BAR_IMAGE_INTENT = 2003
 const val CROP_RESULT_INTENT = 2004
 const val PICK_NOTIFICATION_SOUND_INTENT = 2005
 const val PICK_THREAD_NOTIFICATION_SOUND_INTENT = 2006
+const val PICK_FONT_FILE_INTENT = 2007
 
 const val BLOCKED_KEYWORDS_EXPORT_DELIMITER = ","
 const val BLOCKED_KEYWORDS_EXPORT_EXTENSION = ".txt"

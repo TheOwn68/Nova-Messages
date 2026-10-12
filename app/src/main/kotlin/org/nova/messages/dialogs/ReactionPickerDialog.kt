@@ -29,9 +29,10 @@ class ReactionPickerDialog(
         val config = context.config
         val isNewUi = config.useNewUi
         
-        val barColor = if (config.topBarColor != 0) config.topBarColor else Color.BLACK
+        val baseBarColor = if (config.inputBarBackgroundColor != 0) config.inputBarBackgroundColor else Color.BLACK
+        val barColor = if (config.inputBarDominantColor != 0) config.inputBarDominantColor else baseBarColor
         val barRadius = 26 * density
-        // Use Top Bar outline thickness for the picker as well
+        // Use Input Bar style: if there's an image, we use the dominant color or a default alpha
         val thickStroke = (config.topBarOutlineThickness * density).toInt()
         
         val root = FrameLayout(context).apply {
@@ -70,9 +71,25 @@ class ReactionPickerDialog(
                 this.background = background
             }
             
+            // APPLE DESIGN: Match Text Bar (Input Bar) Image if present
+            if (isNewUi && config.inputBarBgMode == org.nova.messages.helpers.BG_MODE_IMAGE && config.inputBarImage.isNotEmpty()) {
+                val simpleActivity = context as? org.nova.messages.activities.SimpleActivity
+                simpleActivity?.loadBackgroundImage(config.inputBarImage, this, config.inputBarCropRect) {
+                    this.outlineProvider = object : android.view.ViewOutlineProvider() {
+                        override fun getOutline(view: View, outline: android.graphics.Outline) {
+                            outline.setRoundRect(0, 0, view.width, view.height, barRadius)
+                        }
+                    }
+                    this.clipToOutline = true
+                }
+            }
+            
             elevation = 14 * density
             
-            val pillWidth = (440 * density * config.uiScale).toInt()
+            val displayMetrics = context.resources.displayMetrics
+            val maxPillWidth = displayMetrics.widthPixels - (32 * density).toInt()
+            val pillWidth = (440 * density * config.uiScale).toInt().coerceAtMost(maxPillWidth)
+
             layoutParams = FrameLayout.LayoutParams(pillWidth, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
                 gravity = Gravity.CENTER_HORIZONTAL
             }

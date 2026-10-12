@@ -8,6 +8,7 @@
     android:layout_marginBottom="@dimen/tiny_margin"
     android:clickable="true"
     android:focusable="true"
+    android:splitMotionEvents="false"
     android:minHeight="@dimen/two_line_list_item_min_height"
     android:paddingStart="@dimen/activity_margin"
     android:paddingTop="@dimen/medium_margin"

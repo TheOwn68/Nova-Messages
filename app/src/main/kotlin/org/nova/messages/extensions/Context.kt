@@ -8,6 +8,7 @@ import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteException
 import android.graphics.Bitmap
+import android.graphics.Typeface
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
@@ -83,6 +84,26 @@ import org.nova.messages.models.RecycleBinMessage
 import org.xmlpull.v1.XmlPullParserException
 import java.io.FileNotFoundException
 import kotlin.time.Duration.Companion.minutes
+
+fun Context.getCustomTypeface(): Typeface {
+    return when (config.fontFamilyNova) {
+        1 -> Typeface.MONOSPACE
+        2 -> Typeface.SERIF
+        3 -> Typeface.SANS_SERIF
+        4 -> {
+            if (config.customFontPath.isNotEmpty()) {
+                try {
+                    Typeface.createFromFile(config.customFontPath)
+                } catch (_: Exception) {
+                    Typeface.DEFAULT
+                }
+            } else {
+                Typeface.DEFAULT
+            }
+        }
+        else -> org.fossify.commons.helpers.FontHelper.getTypeface(this, config.fontFamilyNova, "")
+    }
+}
 
 val Context.config: Config
     get() = Config.newInstance(applicationContext)
@@ -914,8 +935,8 @@ fun Context.getSuggestedContacts(
 
         val phoneNumber = PhoneNumber(senderNumber, 0, "", senderNumber)
         val contact = SimpleContact(
-            rawId = 0,
-            contactId = 0,
+            rawId = senderNumber.hashCode(),
+            contactId = senderNumber.hashCode(),
             name = senderName,
             photoUri = photoUri,
             phoneNumbers = arrayListOf(phoneNumber),

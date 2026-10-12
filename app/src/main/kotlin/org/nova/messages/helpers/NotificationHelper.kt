@@ -27,6 +27,7 @@ import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.nova.messages.R
+import org.nova.messages.activities.MainActivity
 import org.nova.messages.activities.ThreadActivity
 import org.nova.messages.extensions.config
 import org.nova.messages.extensions.shortcutHelper
@@ -93,17 +94,17 @@ class NotificationHelper(private val context: Context) {
         }
 
         val notificationId = threadId.hashCode()
-        val contentIntent = Intent(context, ThreadActivity::class.java).apply {
-            putExtra(THREAD_ID, threadId)
-            putExtra(IS_FROM_NOTIFICATION, true)
-        }
-        val contentPendingIntent =
-            PendingIntent.getActivity(
-                context,
-                notificationId,
-                contentIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-            )
+        val contentPendingIntent = androidx.core.app.TaskStackBuilder.create(context).apply {
+            addNextIntent(Intent(context, MainActivity::class.java))
+            addNextIntent(Intent(context, ThreadActivity::class.java).apply {
+                putExtra(THREAD_ID, threadId)
+                putExtra(IS_FROM_NOTIFICATION, true)
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            })
+        }.getPendingIntent(
+            notificationId,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+        )
 
         val markAsReadIntent = Intent(context, MarkAsReadReceiver::class.java).apply {
             action = MARK_AS_READ

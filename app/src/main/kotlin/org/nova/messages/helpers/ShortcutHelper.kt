@@ -13,6 +13,7 @@ import org.fossify.commons.helpers.MyContactsContentProvider
 import org.fossify.commons.helpers.SimpleContactsHelper
 import org.fossify.commons.helpers.isOnMainThread
 import org.fossify.commons.models.SimpleContact
+import org.nova.messages.activities.MainActivity
 import org.nova.messages.activities.ThreadActivity
 import org.nova.messages.extensions.conversationsDB
 import org.nova.messages.extensions.getThreadParticipants
@@ -46,7 +47,7 @@ class ShortcutHelper(private val context: Context) {
 
         val participants = context.getThreadParticipants(conv.threadId, contactsMap)
         val persons: Array<Person> = participants.map { it.toPerson(context) }.toTypedArray()
-        val intent = Intent(context, ThreadActivity::class.java).apply {
+        val targetIntent = Intent(context, ThreadActivity::class.java).apply {
             action = Intent.ACTION_VIEW
             putExtra(THREAD_ID, conv.threadId)
             putExtra(THREAD_TITLE, conv.title)
@@ -55,7 +56,12 @@ class ShortcutHelper(private val context: Context) {
             putExtra(THREAD_NUMBER, conv.phoneNumber.ifEmpty { "unknown_phone_number" })
             addCategory(Intent.CATEGORY_DEFAULT)
             addCategory(Intent.CATEGORY_BROWSABLE)
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         }
+        val intents = androidx.core.app.TaskStackBuilder.create(context).apply {
+            addNextIntent(Intent(context, MainActivity::class.java))
+            addNextIntent(targetIntent)
+        }.intents
 
         val shortcut = ShortcutInfoCompat.Builder(context, conv.threadId.toString()).apply {
             setShortLabel(conv.title)
@@ -63,7 +69,7 @@ class ShortcutHelper(private val context: Context) {
             setIsConversation()
             setLongLived(true)
             setPersons(persons)
-            setIntent(intent)
+            setIntents(intents)
             setRank(1)
             if (!conv.isGroupConversation && !conv.usesCustomTitle && persons.isNotEmpty()) {
                 setIcon(persons[0].icon)

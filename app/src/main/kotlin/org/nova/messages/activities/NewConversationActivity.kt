@@ -28,6 +28,7 @@ import org.nova.messages.R
 import org.nova.messages.adapters.ContactsAdapter
 import org.nova.messages.databinding.ActivityNewConversationBinding
 import org.nova.messages.extensions.*
+import org.nova.messages.models.ConversationListItem
 import org.nova.messages.helpers.SmsIntentParser
 import org.nova.messages.helpers.THREAD_ATTACHMENT_URI
 import org.nova.messages.helpers.THREAD_ATTACHMENT_URIS
@@ -194,44 +195,52 @@ class NewConversationActivity : SimpleActivity() {
         }
 
         binding.newConversationAddress.onTextChangeListener { searchString ->
-            val filteredContacts = ArrayList<SimpleContact>()
-            allContacts.forEach { contact ->
-                if (contact.phoneNumbers.any { it.normalizedNumber.contains(searchString, true) } ||
-                    contact.name.contains(searchString, true) ||
-                    contact.name.contains(searchString.normalizeString(), true) ||
-                    contact.name.normalizeString().contains(searchString, true)) {
-                    filteredContacts.add(contact)
-                }
+            updateDisplayedContacts(searchString, includeSuggestions = true)
+        }
+    }
+
+    private fun updateDisplayedContacts(searchString: String, includeSuggestions: Boolean = true) {
+        val filteredContacts = ArrayList<SimpleContact>()
+        val contactsToFilter = ArrayList(allContacts)
+        
+        contactsToFilter.forEach { contact ->
+            if (contact.phoneNumbers.any { it.normalizedNumber.contains(searchString, true) } ||
+                contact.name.contains(searchString, true) ||
+                contact.name.contains(searchString.normalizeString(), true) ||
+                contact.name.normalizeString().contains(searchString, true)) {
+                filteredContacts.add(contact)
             }
+        }
 
-            filteredContacts.sortWith(compareBy { !it.name.startsWith(searchString, true) })
+        filteredContacts.sortWith(compareBy { !it.name.startsWith(searchString, true) })
 
-            if (config.useNewUi && searchString.isEmpty()) {
-                fillSuggestedContacts {
-                    setupAdapter(filteredContacts)
-                }
+        if (config.useNewUi && searchString.isEmpty() && includeSuggestions) {
+            fillSuggestedContacts {
+                // After suggestions are added to allContacts, we refresh with the updated master list
+                updateDisplayedContacts("", includeSuggestions = false) 
+            }
+        } else {
+            setupAdapter(filteredContacts)
+        }
+
+        val shortCodeWithLetters = isShortCodeWithLetters(searchString)
+        binding.newConversationConfirm.beVisibleIf(searchString.isNotEmpty() && !shortCodeWithLetters)
+        binding.newConversationConfirm.applyColorFilter(getProperTextColor())
+        binding.newConversationConfirm.setOnClickListener {
+            if (System.currentTimeMillis() - lastSelectionTime.get() < 1000) return@setOnClickListener
+            if (searchString.isPhoneNumber()) {
+                launchThreadActivity(searchString, searchString)
+            } else if (shortCodeWithLetters) {
+                toast(R.string.invalid_short_code, length = Toast.LENGTH_LONG)
             } else {
-                setupAdapter(filteredContacts)
-            }
-
-            val shortCodeWithLetters = isShortCodeWithLetters(searchString)
-            binding.newConversationConfirm.beVisibleIf(searchString.isNotEmpty() && !shortCodeWithLetters)
-            binding.newConversationConfirm.applyColorFilter(getProperTextColor())
-            binding.newConversationConfirm.setOnClickListener {
-                if (searchString.isPhoneNumber()) {
-                    launchThreadActivity(searchString, searchString)
-                } else if (shortCodeWithLetters) {
-                    toast(R.string.invalid_short_code, length = Toast.LENGTH_LONG)
-                } else {
-                    launchThreadActivity(searchString, searchString)
-                }
+                launchThreadActivity(searchString, searchString)
             }
         }
     }
 
     private fun isThirdPartyIntent(): Boolean {
         val result = SmsIntentParser.parse(intent)
-        if (result != null && (result.first.isNotEmpty() || result.second.isNotEmpty())) {
+        if (result != null && result.first.isNotEmpty()) {
             val phoneNumber = result.first
             val body = result.second
             launchThreadActivity(phoneNumber, phoneNumber, body)
@@ -287,18 +296,16 @@ class NewConversationActivity : SimpleActivity() {
                             filteredContacts.addAll(applyFilter(privateContacts))
                         }
 
-                        allContacts = filteredContacts
+                        // Deduplicate by phone number to prevent "multiple selection" issues
+                        val deduplicated = filteredContacts.distinctBy { 
+                            it.phoneNumbers.firstOrNull()?.normalizedNumber?.trimToComparableNumber() ?: it.contactId.toString() 
+                        }
+                        allContacts = ArrayList(deduplicated)
                         allContacts.sortBy { it.name.lowercase() }
 
                         runOnUiThread {
                             if (isFinishing || isDestroyed) return@runOnUiThread
-                            if (config.useNewUi) {
-                                fillSuggestedContacts {
-                                    setupAdapter(allContacts)
-                                }
-                            } else {
-                                setupAdapter(allContacts)
-                            }
+                            updateDisplayedContacts(binding.newConversationAddress.text?.toString() ?: "", includeSuggestions = true)
                         }
                     }
                 }
@@ -333,13 +340,27 @@ class NewConversationActivity : SimpleActivity() {
         val currAdapter = binding.contactsList.adapter
         if (currAdapter == null) {
             ContactsAdapter(this, contacts, binding.contactsList) {
-                val contact = it as SimpleContact
-                if (contact.phoneNumbers.size == 1) {
-                    launchThreadActivity(contact.phoneNumbers.first().normalizedNumber, contact.name)
-                } else {
-                    maybeShowNumberPickerDialog(contact.phoneNumbers) { number ->
-                        launchThreadActivity(number.normalizedNumber, contact.name)
+                val now = System.currentTimeMillis()
+                if (now - lastSelectionTime.get() < 1000) {
+                    android.util.Log.d("LAUNCH_DEBUG", "Blocked click - too fast")
+                    return@ContactsAdapter
+                }
+                
+                // Mark selection time immediately to block other list taps
+                lastSelectionTime.set(now)
+                
+                if (it is SimpleContact) {
+                    val contact = it
+                    if (contact.phoneNumbers.size == 1) {
+                        launchThreadActivity(contact.phoneNumbers.first().normalizedNumber, contact.name)
+                    } else {
+                        maybeShowNumberPickerDialog(contact.phoneNumbers) { number ->
+                            launchThreadActivity(number.normalizedNumber, contact.name)
+                        }
                     }
+                } else if (it is ConversationListItem) {
+                    val conversation = it.conversation
+                    launchThreadActivity(conversation.phoneNumber, conversation.title)
                 }
             }.apply {
                 binding.contactsList.adapter = this
@@ -363,15 +384,22 @@ class NewConversationActivity : SimpleActivity() {
             val suggestions = applyFilter(getSuggestedContacts(privateContacts))
             
             // Add suggested contacts to the list if they're not already there
+            var addedCount = 0
             suggestions.forEach { contact ->
-                if (!allContacts.any { it.contactId == contact.contactId }) {
-                    allContacts.add(contact)
+                val contactNumber = contact.phoneNumbers.firstOrNull()?.normalizedNumber?.trimToComparableNumber()
+                if (contactNumber != null && !allContacts.any { existing -> 
+                        existing.phoneNumbers.any { it.normalizedNumber.trimToComparableNumber() == contactNumber } 
+                    }) {
+                    allContacts.add(0, contact)
+                    addedCount++
                 }
             }
             
+            val finalSuggestionsCount = addedCount
             
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
+                (binding.contactsList.adapter as? ContactsAdapter)?.setSuggestionsCount(finalSuggestionsCount)
                 callback()
             }
         }
@@ -391,7 +419,25 @@ class NewConversationActivity : SimpleActivity() {
         })
     }
 
+    private val lastSelectionTime = java.util.concurrent.atomic.AtomicLong(0)
+    private var lastLaunchedNumber = ""
+
     private fun launchThreadActivity(phoneNumber: String, name: String, body: String = "") {
+        val now = System.currentTimeMillis()
+        // If it's a different number, we allow it after a short debounce
+        // If it's the same number, we block for longer
+        val debounce = if (phoneNumber == lastLaunchedNumber) 2000 else 1000
+        
+        if (now - lastSelectionTime.get() < debounce) {
+            android.util.Log.d("LAUNCH_DEBUG", "Blocked launch - too fast")
+            return
+        }
+        
+        lastSelectionTime.set(now)
+        lastLaunchedNumber = phoneNumber
+        android.util.Log.d("ThreadLaunchDebug", "NewConversationActivity.launchThreadActivity $phoneNumber ($name)")
+        android.util.Log.d("LAUNCH_DEBUG", "Launching thread activity for $phoneNumber ($name)")
+        
         hideKeyboard()
         val numbers = phoneNumber.split(";").toSet()
         Intent(this, ThreadActivity::class.java).apply {
@@ -412,6 +458,7 @@ class NewConversationActivity : SimpleActivity() {
             }
 
             startActivity(this)
+            finish()
         }
     }
 

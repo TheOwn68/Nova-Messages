@@ -47,7 +47,25 @@ class ContactsAdapter(
     }
 
     init {
+        setHasStableIds(true)
         submitList(items as List<Any>)
+    }
+
+    override fun getItemId(position: Int): Long {
+        val item = getItem(position)
+        return if (item is SimpleContact) {
+            // Use contactId if valid (>0), otherwise fall back to a hash of the phone number for suggested contacts
+            if (item.contactId != 0) {
+                item.contactId.toLong()
+            } else {
+                val number = item.phoneNumbers.firstOrNull()?.normalizedNumber ?: ""
+                if (number.isNotEmpty()) number.hashCode().toLong() else item.hashCode().toLong()
+            }
+        } else if (item is ConversationListItem) {
+            item.id
+        } else {
+            item.hashCode().toLong()
+        }
     }
 
     override fun getActionMenuId() = 0
@@ -85,11 +103,12 @@ class ContactsAdapter(
 
     override fun onBindViewHolder(holder: MyRecyclerViewListAdapter<Any>.ViewHolder, position: Int) {
         val item = getItem(position)
-        val view = holder.itemView
-        when (getItemViewType(position)) {
-            VIEW_TYPE_SUGGESTION -> if (item is ConversationListItem) setupSuggestionView(view, item, holder)
-            VIEW_TYPE_MODERN_PILL -> setupModernPillView(view, item, holder)
-            else -> setupContactView(view, item, holder)
+        holder.bindView(item, allowSingleClick = true, allowLongClick = false) { view, _ ->
+            when (getItemViewType(position)) {
+                VIEW_TYPE_SUGGESTION -> if (item is ConversationListItem) setupSuggestionView(view, item, holder)
+                VIEW_TYPE_MODERN_PILL -> setupModernPillView(view, item, holder)
+                else -> setupContactView(view, item, holder)
+            }
         }
         bindViewHolder(holder)
     }
@@ -97,10 +116,11 @@ class ContactsAdapter(
     private fun setupSuggestionView(view: View, item: ConversationListItem, holder: MyRecyclerViewListAdapter<Any>.ViewHolder) {
         val conversation = item.conversation
         ItemConversationRecentBinding.bind(view).apply {
-            recentAddress.text = conversation.title
-            recentAddress.setTextColor(Color.BLACK)
+            val mainTextColor = activity.config.mainTextColor
+            recentAddress.text = conversation.title.stripCountryCodePrefix()
+            recentAddress.setTextColor(mainTextColor)
             recentBody.text = "Suggested"
-            recentBody.setTextColor(Color.BLACK)
+            recentBody.setTextColor(mainTextColor)
             recentBody.alpha = 0.7f
             recentDate.visibility = View.GONE
 
@@ -117,7 +137,6 @@ class ContactsAdapter(
             gd.cornerRadius = 1000f
             recentFrame.background = gd
             recentFrame.elevation = 8f * resources.displayMetrics.density
-            recentFrame.setOnClickListener { holder.viewClicked(item) }
         }
     }
 
@@ -125,7 +144,7 @@ class ContactsAdapter(
         ItemConversationBinding.bind(view).apply {
             if (item is SimpleContact) {
                 conversationAddress.text = item.name
-                conversationBodyShort.text = item.phoneNumbers.firstOrNull()?.normalizedNumber ?: ""
+                conversationBodyShort.text = item.phoneNumbers.firstOrNull()?.normalizedNumber?.stripCountryCodePrefix() ?: ""
                 SimpleContactsHelper(activity).loadContactImage(
                     path = item.photoUri,
                     imageView = conversationImage,
@@ -133,8 +152,8 @@ class ContactsAdapter(
                 )
             } else if (item is ConversationListItem) {
                 val conversation = item.conversation
-                conversationAddress.text = conversation.title
-                conversationBodyShort.text = conversation.phoneNumber
+                conversationAddress.text = conversation.title.stripCountryCodePrefix()
+                conversationBodyShort.text = conversation.phoneNumber.stripCountryCodePrefix()
                 SimpleContactsHelper(activity).loadContactImage(
                     path = conversation.photoUri,
                     imageView = conversationImage,
@@ -142,8 +161,9 @@ class ContactsAdapter(
                 )
             }
             
-            conversationAddress.setTextColor(Color.BLACK)
-            conversationBodyShort.setTextColor(Color.BLACK)
+            val mainTextColor = activity.config.mainTextColor
+            conversationAddress.setTextColor(mainTextColor)
+            conversationBodyShort.setTextColor(mainTextColor)
             conversationBodyShort.alpha = 0.7f
             
             val density = resources.displayMetrics.density
@@ -153,15 +173,14 @@ class ContactsAdapter(
                 setColor(Color.WHITE)
             }
             conversationFrame.background = gd
-            conversationFrame.setOnClickListener { holder.viewClicked(item) }
         }
     }
 
     private fun setupModernPillView(view: View, item: Any, holder: MyRecyclerViewListAdapter<Any>.ViewHolder) {
         org.nova.messages.databinding.ItemConversationPillBinding.bind(view).apply {
             val contact = item as SimpleContact
-            pillAddress.text = contact.name
-            pillAddress.setTextColor(Color.BLACK)
+            pillAddress.text = contact.name.stripCountryCodePrefix()
+            pillAddress.setTextColor(activity.config.mainTextColor)
             
             SimpleContactsHelper(activity).loadContactImage(
                 path = contact.photoUri,
@@ -192,7 +211,6 @@ class ContactsAdapter(
             }
             
             pillFrame.elevation = 6f * density
-            pillFrame.setOnClickListener { holder.viewClicked(item) }
         }
     }
 

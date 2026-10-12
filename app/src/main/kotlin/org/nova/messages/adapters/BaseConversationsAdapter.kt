@@ -148,6 +148,10 @@ abstract class BaseConversationsAdapter(
 
     override fun onActionModeDestroyed() {
         (activity as? SimpleActivity)?.toggleCustomSelectionBar(false)
+        if (selectedKeys.isNotEmpty()) {
+            selectedKeys.clear()
+            safeNotifyDataSetChanged()
+        }
     }
 
     private fun updateCustomSelectionBar() {
@@ -198,46 +202,111 @@ abstract class BaseConversationsAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int, payloads: MutableList<Any>) {
+        super.onBindViewHolder(holder, position, payloads)
+        
         if (payloads.contains(HOVER_PAYLOAD)) {
             val recentCount = activity.config.recentConversationsCount
             if (activity.config.useNewUi && position >= recentCount) {
-                updatePillHoverState(holder, position)
+                updateVisualGlows(holder, position)
             }
             return
         }
-        super.onBindViewHolder(holder, position, payloads)
+        
+        // Refresh custom glows immediately using the bound position
+        updateVisualGlows(holder, position)
     }
 
-    private fun updatePillHoverState(holder: ViewHolder, position: Int) {
+    private fun updateVisualGlows(holder: ViewHolder, position: Int) {
+        if (position < 0 || position >= itemCount) return
         val conversation = getItem(position)
-        org.nova.messages.databinding.ItemConversationPillBinding.bind(holder.itemView).apply {
-            val isSelected = selectedKeys.contains(conversation.getSelectionKey())
-            val isHoverTarget = hoveredPosition == position
-            pillSelectionGlow.beVisibleIf(isSelected || isHoverTarget)
-            if (isHoverTarget) {
-                pillSelectionGlow.background?.applyColorFilter(properPrimaryColor)
-                pillSelectionGlow.alpha = 0.5f
+        val isSelected = selectedKeys.contains(conversation.getSelectionKey())
+        
+        if (activity.config.useNewUi) {
+            val recentCount = activity.config.recentConversationsCount
+            if (position < recentCount) {
+                try {
+                    org.nova.messages.databinding.ItemConversationRecentBinding.bind(holder.itemView).apply {
+                        recentSelectionGlow.beVisibleIf(isSelected)
+                    }
+                } catch (_: Exception) {}
             } else {
-                pillSelectionGlow.background?.applyColorFilter(properPrimaryColor)
-                pillSelectionGlow.alpha = 1.0f
+                updatePillVisualState(holder, position)
             }
         }
+    }
+
+    private fun updatePillVisualState(holder: ViewHolder, position: Int) {
+        if (position < 0 || position >= itemCount) return
+        val conversation = getItem(position)
+        try {
+            org.nova.messages.databinding.ItemConversationPillBinding.bind(holder.itemView).apply {
+                val isSelected = selectedKeys.contains(conversation.getSelectionKey())
+                val isHoverTarget = hoveredPosition != -1 && hoveredPosition == position
+                pillSelectionGlow.beVisibleIf(isSelected || isHoverTarget)
+                if (isHoverTarget) {
+                    pillSelectionGlow.background?.applyColorFilter(properPrimaryColor)
+                    pillSelectionGlow.alpha = 0.5f
+                } else {
+                    pillSelectionGlow.background?.applyColorFilter(properPrimaryColor)
+                    pillSelectionGlow.alpha = 1.0f
+                }
+            }
+        } catch (_: Exception) {}
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val conversation = getItem(position)
+        
+        // 1. Master Listener (Handles body click/select)
+        // This is attached once per bind to the root itemView
         holder.bindView(
             conversation,
-            allowSingleClick = true, // Restore default click for opening threads
-            allowLongClick = false    // Keep false to manage custom drag/select split
-        ) { itemView, _ ->
-            if (activity.config.useNewUi) {
-                val recentCount = activity.config.recentConversationsCount
-                if (position < recentCount) setupRecentView(itemView, conversation, position, holder) else setupPillView(itemView, conversation, position, holder)
-            } else {
-                setupView(itemView, conversation, holder)
+            allowSingleClick = true,
+            allowLongClick = false
+        ) { _, _ -> }
+
+        holder.itemView.setOnClickListener {
+            val currentPos = holder.bindingAdapterPosition
+            if (currentPos != RecyclerView.NO_POSITION) {
+                val currentItem = getItem(currentPos)
+                if (isSelectionModeActive()) {
+                    holder.viewLongClicked()
+                } else {
+                    holder.viewClicked(currentItem)
+                }
             }
         }
+
+        // 2. Setup Master Interaction (Long Press for Drag or CAB)
+        holder.itemView.setOnLongClickListener {
+            val currentPos = holder.bindingAdapterPosition
+            if (currentPos != RecyclerView.NO_POSITION) {
+                if (activity.config.useNewUi && currentPos >= activity.config.recentConversationsCount) {
+                    // Start Drag for Pills
+                    lastDragTime = System.currentTimeMillis()
+                    itemTouchHelper?.startDrag(holder)
+                    it.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                } else {
+                    // Normal selection for others
+                    holder.viewLongClicked()
+                }
+            }
+            true
+        }
+
+        // 3. Setup UI Visuals
+        if (activity.config.useNewUi) {
+            val recentCount = activity.config.recentConversationsCount
+            if (position < recentCount) {
+                setupRecentView(holder.itemView, conversation, position, holder)
+            } else {
+                setupPillView(holder.itemView, conversation, position, holder)
+            }
+        } else {
+            setupView(holder.itemView, conversation, holder)
+        }
+
+        // 4. Finalize
         bindViewHolder(holder)
     }
 
@@ -348,9 +417,9 @@ abstract class BaseConversationsAdapter(
                     suppressStateRestoration = true
                     submitList(list.toList()) {
                         suppressStateRestoration = false
-                        // Visual cleanup
-                        notifyItemChanged(start, HOVER_PAYLOAD)
-                        notifyItemChanged(end, HOVER_PAYLOAD)
+                        // Force full rebind to refresh captured data and listeners
+                        notifyItemChanged(start)
+                        notifyItemChanged(end)
                     }
                 }
             }
@@ -373,9 +442,22 @@ abstract class BaseConversationsAdapter(
 
     private fun setupRecentView(view: View, conversation: Conversation, position: Int, holder: ViewHolder) {
         org.nova.messages.databinding.ItemConversationRecentBinding.bind(view).apply {
+            val baseColor = activity.config.recentColor
             val mainTextColor = activity.config.mainTextColor
-            recentAddress.text = conversation.title
+            
+            recentAddress.text = conversation.title.stripCountryCodePrefix()
             recentAddress.setTextColor(mainTextColor)
+            
+            // APPLE DESIGN: Solid start (aligned with text), fading end
+            recentSeparator.beVisibleIf(activity.config.showRecentSeparator)
+            val solidColor = mainTextColor.withAlpha(0.35f)
+            val separatorColors = intArrayOf(
+                solidColor, 
+                solidColor, 
+                solidColor, 
+                android.graphics.Color.TRANSPARENT
+            )
+            recentSeparator.background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, separatorColors)
             
             // Priority: Real messages over drafts for "Recent" cards as per user request
             ensureBackgroundThread {
@@ -401,8 +483,6 @@ abstract class BaseConversationsAdapter(
             recentDate.alpha = 0.7f
             
             recentFrame.setupViewBackground(activity)
-            
-            val baseColor = activity.config.recentColor
             
             // Modern Vertical Gradient
             val lightened = baseColor.adjustColor(1.2f)
@@ -434,31 +514,22 @@ abstract class BaseConversationsAdapter(
             val isSelected = selectedKeys.contains(conversation.getSelectionKey())
             recentSelectionGlow.beVisibleIf(isSelected)
 
-            // Interaction Separation: Body is only for opening (fixed cards)
-            recentFrame.setOnClickListener {
-                if (System.currentTimeMillis() - lastDragTime < 500) return@setOnClickListener
-                
-                if (isSelectionModeActive()) {
-                    holder.viewLongClicked() 
-                } else {
-                    holder.viewClicked(conversation)
-                }
-            }
-
-            recentFrame.setOnLongClickListener {
-                // Recent cards are fixed, so we just toggle selection on body long-press
-                lastDragTime = System.currentTimeMillis()
-                holder.viewLongClicked()
-                true
-            }
+            // Interaction Separation: Drag and special long-press logic
+            // We allow root itemView listener to handle it
 
             // Image specifically for selection
             recentImage.setOnClickListener {
-                holder.viewLongClicked()
+                val currentPos = holder.bindingAdapterPosition
+                if (currentPos != RecyclerView.NO_POSITION) {
+                    holder.viewLongClicked()
+                }
             }
 
             recentImage.setOnLongClickListener {
-                holder.viewLongClicked()
+                val currentPos = holder.bindingAdapterPosition
+                if (currentPos != RecyclerView.NO_POSITION) {
+                    holder.viewLongClicked()
+                }
                 true
             }
 
@@ -473,13 +544,14 @@ abstract class BaseConversationsAdapter(
     private fun setupPillView(view: View, conversation: Conversation, position: Int, holder: ViewHolder) {
         org.nova.messages.databinding.ItemConversationPillBinding.bind(view).apply {
             val mainTextColor = activity.config.mainTextColor
-            pillAddress.text = conversation.title
+            pillAddress.text = conversation.title.stripCountryCodePrefix()
             pillAddress.setTextColor(mainTextColor) 
             pillFrame.setupViewBackground(activity)
             
             // Sync color by row
             val recentCount = activity.config.recentConversationsCount
             val rowIndex = (position - recentCount) / 2
+
             val baseColor = when (rowIndex % 3) {
                 0 -> activity.config.row1Color
                 1 -> activity.config.row2Color
@@ -514,7 +586,7 @@ abstract class BaseConversationsAdapter(
 
             // Selection Glow
             val isSelected = selectedKeys.contains(conversation.getSelectionKey())
-            val isHoverTarget = hoveredPosition == position
+            val isHoverTarget = hoveredPosition != -1 && hoveredPosition == position
             pillSelectionGlow.beVisibleIf(isSelected || isHoverTarget)
             if (isHoverTarget) {
                 pillSelectionGlow.background?.applyColorFilter(properPrimaryColor)
@@ -524,46 +596,25 @@ abstract class BaseConversationsAdapter(
                 pillSelectionGlow.alpha = 1.0f
             }
 
-            pillFrame.setOnClickListener {
-                // Click Guard: If we just finished a drag, ignore this click
-                if (System.currentTimeMillis() - lastDragTime < 500) return@setOnClickListener
-                
-                if (isSelectionModeActive()) {
-                    holder.viewLongClicked()
-                } else {
-                    holder.viewClicked(conversation)
-                }
-            }
-
-            pillFrame.setOnLongClickListener {
-                if (!isSelectionModeActive()) {
-                    // Body Long-Press strictly for Dragging
-                    lastDragTime = System.currentTimeMillis()
-                    itemTouchHelper?.startDrag(holder)
-                    it.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-                    true 
-                } else {
-                    // If selection active, body still acts as a reorder handle
-                    lastDragTime = System.currentTimeMillis()
-                    itemTouchHelper?.startDrag(holder)
-                    it.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-                    true
-                }
-            }
-
             pillImage.setOnClickListener {
-                holder.viewLongClicked()
+                val currentPosInside = holder.bindingAdapterPosition
+                if (currentPosInside != RecyclerView.NO_POSITION) {
+                    holder.viewLongClicked()
+                }
             }
 
             pillImage.setOnLongClickListener {
-                if (isSelectionModeActive()) {
-                    // While selecting, holding the picture lets you move it
-                    lastDragTime = System.currentTimeMillis()
-                    itemTouchHelper?.startDrag(holder)
-                    it.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-                } else {
-                    // Not selecting, holding image starts selection
-                    holder.viewLongClicked()
+                val currentPosInside = holder.bindingAdapterPosition
+                if (currentPosInside != RecyclerView.NO_POSITION) {
+                    if (isSelectionModeActive()) {
+                        // While selecting, holding the picture lets you move it
+                        lastDragTime = System.currentTimeMillis()
+                        itemTouchHelper?.startDrag(holder)
+                        it.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                    } else {
+                        // Not selecting, holding image starts selection
+                        holder.viewLongClicked()
+                    }
                 }
                 true
             }
@@ -605,22 +656,6 @@ abstract class BaseConversationsAdapter(
         ItemConversationBinding.bind(view).apply {
             root.setupViewBackground(activity)
             
-            // Manually re-add listeners since we disabled default ones
-            root.setOnClickListener {
-                if (System.currentTimeMillis() - lastDragTime < 500) return@setOnClickListener
-                
-                if (isSelectionModeActive()) {
-                    holder.viewLongClicked()
-                } else {
-                    holder.viewClicked(conversation)
-                }
-            }
-            
-            root.setOnLongClickListener {
-                lastDragTime = System.currentTimeMillis()
-                holder.viewLongClicked()
-                true
-            }
             root.minimumHeight = (activity as SimpleActivity).getScaledDimen(org.fossify.commons.R.dimen.two_line_list_item_min_height)
             val paddingStart = (activity as SimpleActivity).getScaledDimen(org.fossify.commons.R.dimen.activity_margin)
             val paddingTop = (activity as SimpleActivity).getScaledDimen(org.fossify.commons.R.dimen.medium_margin)
@@ -642,7 +677,7 @@ abstract class BaseConversationsAdapter(
             conversationFrame.isSelected = selectedKeys.contains(conversation.getSelectionKey())
 
             conversationAddress.apply {
-                text = conversation.title
+                text = conversation.title.stripCountryCodePrefix()
                 setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize * 1.1f)
             }
 
@@ -700,6 +735,21 @@ abstract class BaseConversationsAdapter(
             conversationImage.updateLayoutParams {
                 width = (activity as SimpleActivity).getScaledDimen(org.fossify.commons.R.dimen.list_icon_size_medium)
                 height = (activity as SimpleActivity).getScaledDimen(org.fossify.commons.R.dimen.list_icon_size_medium)
+            }
+
+            conversationImage.setOnClickListener {
+                val currentPos = holder.bindingAdapterPosition
+                if (currentPos != RecyclerView.NO_POSITION) {
+                    holder.viewLongClicked()
+                }
+            }
+
+            conversationImage.setOnLongClickListener {
+                val currentPos = holder.bindingAdapterPosition
+                if (currentPos != RecyclerView.NO_POSITION) {
+                    holder.viewLongClicked()
+                }
+                true
             }
 
             SimpleContactsHelper(activity).loadContactImage(

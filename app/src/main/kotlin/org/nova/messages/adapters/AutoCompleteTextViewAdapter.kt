@@ -48,7 +48,7 @@ class AutoCompleteTextViewAdapter(val activity: SimpleActivity, val contacts: Ar
 
             if (contact != null) {
                 itemContactName.text = contact.name
-                itemContactNumber.text = contact.phoneNumbers.first().normalizedNumber
+                itemContactNumber.text = contact.phoneNumbers.first().normalizedNumber.stripCountryCodePrefix()
                 SimpleContactsHelper(context).loadContactImage(contact.photoUri, itemContactImage, contact.name)
             }
         }

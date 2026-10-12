@@ -100,13 +100,31 @@ class ThreadActivity : SimpleActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        finish()
-        startActivity(intent)
+        setIntent(intent)
+        val newThreadId = intent.getLongExtra(THREAD_ID, 0L)
+        intent.getStringExtra(THREAD_TITLE)?.let {
+            binding.threadToolbarTitle.text = it
+        }
+        isRecycleBin = intent.getBooleanExtra(IS_RECYCLE_BIN, false)
+        isLaunchedFromShortcut = intent.getBooleanExtra(IS_LAUNCHED_FROM_SHORTCUT, false)
+        isFromNotification = intent.getBooleanExtra(IS_FROM_NOTIFICATION, false)
+
+        if (newThreadId != 0L && newThreadId != threadId) {
+            threadId = newThreadId
+            conversation = null
+            participants.clear()
+            messages.clear()
+            threadItems.clear()
+            allMessagesFetched = false
+            getOrCreateThreadAdapter().updateMessages(arrayListOf())
+            loadConversation()
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
         super.onCreate(savedInstanceState)
+        android.util.Log.d("ThreadLaunchDebug", "ThreadActivity.onCreate called with intent: $intent, extras: ${intent.extras?.keySet()?.joinToString { "$it=${intent.extras?.get(it)}" }}")
         setContentView(binding.root)
         setupOptionsMenu()
         refreshMenuItems()
@@ -117,6 +135,12 @@ class ThreadActivity : SimpleActivity() {
             )
         )
         setupMessagingEdgeToEdge()
+
+        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                handleBackNavigation()
+            }
+        })
 
         val extras = intent.extras
         if (extras == null) {
@@ -280,7 +304,7 @@ class ThreadActivity : SimpleActivity() {
         )
         
         binding.threadToolbar.setNavigationOnClickListener {
-            finish()
+            handleBackNavigation()
         }
 
         isActivityVisible = true
@@ -402,7 +426,7 @@ class ThreadActivity : SimpleActivity() {
         }
     }
 
-    private fun setupThread(callback: () -> Unit) {
+    private fun setupThread(searchedMessageId: Long = -1L, callback: () -> Unit) {
         if (conversation == null && isLaunchedFromShortcut) {
             if (isTaskRoot) {
                 Intent(this, MainActivity::class.java).apply {
@@ -430,6 +454,16 @@ class ThreadActivity : SimpleActivity() {
                     val recycledMessages = try { messagesDB.getThreadMessagesFromRecycleBin(threadId) } catch (e: Exception) { emptyList() }
                     messages = ArrayList(messages.filterNotInByKey(recycledMessages) { it.getStableId() })
                 }
+
+                if (searchedMessageId != -1L) {
+                    while (messages.none { it.id == searchedMessageId } && !allMessagesFetched) {
+                        val cutoff = messages.firstOrNull()?.date ?: break
+                        val older = fetchOlderMessages(cutoff)
+                        if (older.isEmpty()) {
+                            break
+                        }
+                    }
+                }
             }
 
             participants = getThreadParticipants(threadId, privateContactsMap)
@@ -441,7 +475,7 @@ class ThreadActivity : SimpleActivity() {
                 setupThreadTitle()
                 setupSIMSelector()
                 updateMessageType()
-                setupAdapter(forceScroll = true, providedItems = items)
+                setupAdapter(forceScroll = (searchedMessageId == -1L), providedItems = items, searchedMessageId = searchedMessageId)
                 callback()
             }
         }
@@ -469,7 +503,7 @@ class ThreadActivity : SimpleActivity() {
         return currAdapter as ThreadAdapter
     }
 
-    private fun setupAdapter(forceScroll: Boolean = false, providedItems: ArrayList<ThreadItem>? = null) {
+    private fun setupAdapter(forceScroll: Boolean = false, providedItems: ArrayList<ThreadItem>? = null, searchedMessageId: Long = -1L) {
         if (isRefreshing) return
         isRefreshing = true
 
@@ -483,11 +517,15 @@ class ThreadActivity : SimpleActivity() {
                 refreshMenuItems()
                 val forceScrollOnOpen = isFromNotification
                 isFromNotification = false
-                getOrCreateThreadAdapter().apply {
-                    updateMessages(threadItems) {
-                        isRefreshing = false
-                        if (isFinishing || isDestroyed) return@updateMessages
-                        scrollToBottom(forceScroll || forceScrollOnOpen)
+                val adapter = getOrCreateThreadAdapter()
+                if (searchedMessageId != -1L) {
+                    adapter.highlightedMessageId = searchedMessageId
+                }
+                adapter.updateMessages(threadItems) {
+                    isRefreshing = false
+                    if (isFinishing || isDestroyed) return@updateMessages
+                    if (forceScroll || forceScrollOnOpen) {
+                        scrollToBottom(true)
                     }
                 }
             }
@@ -625,9 +663,12 @@ class ThreadActivity : SimpleActivity() {
         handlePermission(PERMISSION_READ_PHONE_STATE) { granted ->
             if (granted) {
                 setupButtons()
-                setupThread {
-                    val searchedMessageId = intent.getLongExtra(SEARCHED_MESSAGE_ID, -1L)
-                    intent.removeExtra(SEARCHED_MESSAGE_ID)
+                val searchedMessageId = intent.getLongExtra(SEARCHED_MESSAGE_ID, -1L)
+                intent.removeExtra(SEARCHED_MESSAGE_ID)
+                if (searchedMessageId != -1L) {
+                    isJumpingToMessage = true
+                }
+                setupThread(searchedMessageId = searchedMessageId) {
                     if (searchedMessageId != -1L) {
                         jumpToMessage(searchedMessageId)
                     }
@@ -716,12 +757,15 @@ class ThreadActivity : SimpleActivity() {
 
                 val newThreadId = getThreadId(numbers)
                 if (threadId != newThreadId) {
-                    hideKeyboard()
-                    Intent(this@ThreadActivity, ThreadActivity::class.java).apply {
-                        putExtra(THREAD_ID, newThreadId)
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                        startActivity(this)
-                    }
+                    threadId = newThreadId
+                    intent.putExtra(THREAD_ID, newThreadId)
+                    conversation = null
+                    participants.clear()
+                    messages.clear()
+                    threadItems.clear()
+                    allMessagesFetched = false
+                    getOrCreateThreadAdapter().updateMessages(arrayListOf())
+                    loadConversation()
                 }
             }
 
@@ -871,6 +915,7 @@ class ThreadActivity : SimpleActivity() {
         }
 
         if (!isRecycleBin) {
+            items.add(R.id.manage_people to getString(R.string.add_person))
             items.add(R.id.block_number to getString(org.fossify.commons.R.string.block_number))
         }
 
@@ -892,6 +937,13 @@ class ThreadActivity : SimpleActivity() {
                 R.id.dial_number -> dialNumber()
                 R.id.archive -> archiveThread()
                 R.id.unarchive -> unarchiveThread()
+                R.id.manage_people -> {
+                    if (binding.threadAddContacts.visibility != android.view.View.VISIBLE) {
+                        binding.threadAddContacts.beVisible()
+                    } else {
+                        binding.threadAddContacts.beGone()
+                    }
+                }
                 R.id.add_number_to_contact -> addNumberToContact()
                 R.id.copy_number -> copyNumberToClipboard()
                 R.id.conversation_details -> launchConversationDetails(threadId)
@@ -957,8 +1009,6 @@ class ThreadActivity : SimpleActivity() {
             }
             binding.selectedContacts.addView(contactBinding.root)
         }
-
-        binding.threadAddContacts.beVisibleIf(participants.size > 1 || conversation == null)
     }
 
     private fun setupThreadTitle() {
@@ -966,21 +1016,37 @@ class ThreadActivity : SimpleActivity() {
         val finalTitle = if (!title.isNullOrEmpty()) title else participants.getThreadTitle()
 
         binding.threadToolbar.title = null
-        binding.threadToolbarTitle.text = finalTitle
+        binding.threadToolbarTitle.text = finalTitle.stripCountryCodePrefix()
     }
 
     private fun isSpecialNumber() = participants.size == 1 && isShortCodeWithLetters(participants.first().phoneNumbers.first().normalizedNumber)
 
     private fun jumpToMessage(messageId: Long) {
         ensureBackgroundThread {
-            val messageIndex = messages.indexOfFirstOrNull { it.id == messageId }
-            if (messageIndex != null) {
-                runOnUiThread {
-                    if (isFinishing || isDestroyed) return@runOnUiThread
-                    getOrCreateThreadAdapter().updateMessages(getThreadItems()) {
-                        if (isFinishing || isDestroyed) return@updateMessages
-                        binding.threadMessagesList.scrollToPosition(messageIndex)
+            threadItems = getThreadItems()
+            val messageIndex = threadItems.indexOfFirstOrNull { (it as? Message)?.id == messageId }
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                if (messageIndex != null && messageIndex != -1) {
+                    binding.threadMessagesList.post {
+                        val layoutManager = binding.threadMessagesList.layoutManager as? LinearLayoutManager
+                        val offset = if (binding.threadMessagesList.height > 0) binding.threadMessagesList.height / 3 else 200
+                        layoutManager?.scrollToPositionWithOffset(messageIndex, offset)
+                        isJumpingToMessage = false
                     }
+
+                    binding.threadMessagesList.postDelayed({
+                        if (!isFinishing && !isDestroyed) {
+                            val adapter = getOrCreateThreadAdapter()
+                            if (adapter.highlightedMessageId == messageId) {
+                                adapter.highlightedMessageId = -1L
+                                adapter.notifyItemChanged(messageIndex)
+                            }
+                        }
+                    }, 2500)
+                } else {
+                    isJumpingToMessage = false
+                    scrollToBottom(true)
                 }
             }
         }
@@ -1301,6 +1367,10 @@ class ThreadActivity : SimpleActivity() {
             if (forceScroll || isAtBottom || isManual) {
                 recyclerView.post {
                     if (!isFinishing && !isDestroyed) {
+                        if (adapter.itemCount <= 0) return@post
+                        val target = adapter.itemCount - 1
+                        if (target < 0) return@post
+
                         // Smoothly glide to the bottom instead of instant jump
                         if (forceScroll || isManual) {
                             // For forced scrolls (sending) or manual, use custom smooth scroller for perfect speed
@@ -1310,11 +1380,11 @@ class ThreadActivity : SimpleActivity() {
                                     return 120f / displayMetrics.densityDpi
                                 }
                             }
-                            scroller.targetPosition = adapter.itemCount - 1
+                            scroller.targetPosition = target
                             recyclerView.layoutManager?.startSmoothScroll(scroller)
                         } else {
                             // Standard smooth scroll for background receipts
-                            recyclerView.smoothScrollToPosition(adapter.itemCount - 1)
+                            recyclerView.smoothScrollToPosition(target)
                         }
                     }
                 }
@@ -1670,6 +1740,16 @@ class ThreadActivity : SimpleActivity() {
         } else if (inputBar != null) {
             inputBar.foreground = null
         }
+    }
+
+    private fun handleBackNavigation() {
+        if (isTaskRoot) {
+            Intent(this, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                startActivity(this)
+            }
+        }
+        finish()
     }
 
     companion object {

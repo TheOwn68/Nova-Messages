@@ -24,6 +24,25 @@ data class Conversation(
 ) {
     fun getSelectionKey() = (threadId xor (threadId ushr 32)).toInt()
 
+    fun isProbablyContact(): Boolean {
+        // If it's a group, we prioritize it (usually involves contacts)
+        if (isGroupConversation) return true
+
+        // If we have a photo, it's definitely a contact
+        if (photoUri.isNotEmpty()) return true
+
+        // If the title is different from the phone number, it's a contact or a named group
+        if (title != phoneNumber) return true
+
+        // If it's a Nova user, prioritize
+        if (isNovaUser) return true
+
+        // Fallback: If it contains letters or emojis, it's likely a name or a service we want to see
+        if (title.any { it.isLetter() || Character.isSurrogate(it) }) return true
+
+        return false
+    }
+
     companion object {
         fun areItemsTheSame(old: Conversation, new: Conversation): Boolean {
             return old.threadId == new.threadId

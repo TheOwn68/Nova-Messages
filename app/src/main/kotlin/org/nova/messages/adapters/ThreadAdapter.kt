@@ -6,8 +6,14 @@ import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
+import android.text.Selection
+import android.text.Spannable
+import android.text.method.LinkMovementMethod
+import android.text.style.ClickableSpan
+import android.text.util.Linkify
 import android.util.TypedValue
 import android.view.Menu
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
@@ -57,6 +63,8 @@ class ThreadAdapter(
     private val isRecycleBin: Boolean,
     private val deleteMessages: (messages: List<Message>, toRecycleBin: Boolean, fromRecycleBin: Boolean) -> Unit
 ) : MyRecyclerViewListAdapter<ThreadItem>(activity, recyclerView, ThreadItemDiffCallback(), itemClick) {
+
+    var highlightedMessageId: Long = -1L
 
     private val hasMultipleSIMCards = try {
         activity.subscriptionManagerCompat().activeSubscriptionInfoList?.size ?: 0 > 1
@@ -389,6 +397,7 @@ class ThreadAdapter(
         val playOutline = if (binding is ItemMessageReceivedBinding) binding.threadMessagePlayOutline else (binding as ItemMessageSentBinding).threadMessagePlayOutline
         val overlay = if (binding is ItemMessageReceivedBinding) binding.selectionOverlay else (binding as ItemMessageSentBinding).selectionOverlay
         val reactionView = if (binding is ItemMessageReceivedBinding) binding.messageReaction else (binding as ItemMessageSentBinding).messageReaction
+        val bottomLine = if (binding is ItemMessageReceivedBinding) binding.threadMessageBottomLine else (binding as ItemMessageSentBinding).threadMessageBottomLine
 
         holderView.visibility = View.VISIBLE
         wrapper.visibility = View.VISIBLE
@@ -401,10 +410,13 @@ class ThreadAdapter(
         }
 
         // Selection Overlay Logic (Theme Perfect)
-        overlay.beVisibleIf(isSelected)
-        if (isSelected) {
+        val isHighlighted = message.id == highlightedMessageId
+        overlay.beVisibleIf(isSelected || isHighlighted)
+        if (isSelected || isHighlighted) {
             val simpleActivity = activity as SimpleActivity
-            val highlightColor = if (simpleActivity.config.topBarColor != 0) {
+            val highlightColor = if (isHighlighted) {
+                simpleActivity.getProperPrimaryColor().withAlpha(0.35f)
+            } else if (simpleActivity.config.topBarColor != 0) {
                 simpleActivity.run { simpleActivity.config.topBarColor.withAlpha(0.3f) }
             } else {
                 simpleActivity.run { Color.BLACK.withAlpha(0.1f) }
@@ -461,6 +473,14 @@ class ThreadAdapter(
                             floatArrayOf(r32, r32, r32, r32, 0f, 0f, r32, r32)
                         }
                     }
+                    7 -> floatArrayOf(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f) // Underlined (Rectangle radii, but will be transparent)
+                    8 -> { // Side Pill (Flat against the screen edge)
+                        if (isReceived) {
+                            floatArrayOf(0f, 0f, rMax, rMax, rMax, rMax, 0f, 0f)
+                        } else {
+                            floatArrayOf(rMax, rMax, 0f, 0f, 0f, 0f, rMax, rMax)
+                        }
+                    }
                     else -> { // Default Modern
                         val r4 = 4f * density
                         if (isReceived) {
@@ -471,33 +491,48 @@ class ThreadAdapter(
                     }
                 }
                 
-                // Bubble Outlines
-                if (config.useNewUi) {
-                    val outlineOn = if (isReceived) config.receivedBubblesOutline else config.sentBubblesOutline
-                    if (outlineOn) {
-                        val outlineColor = if (isReceived) config.receivedBubblesOutlineColor else config.sentBubblesOutlineColor
-                        val thickness = if (isReceived) config.receivedBubblesOutlineThickness else config.sentBubblesOutlineThickness
-                        val thickStroke = (thickness * density).toInt()
-                        
-                        gd.cornerRadii = baseRadii
-                        gd.setStroke(thickStroke, outlineColor)
-                        
-                        val layerDrawable = LayerDrawable(arrayOf(gd))
-                        layerDrawable.setLayerInset(0, 0, 0, 0, 0)
-                        background = layerDrawable
+                // Underlined Style Logic
+                if (config.bubbleShape == 7) {
+                    background = null
+                    elevation = 0f
+                    bottomLine.beVisible()
+                    
+                    val lineColors = intArrayOf(
+                        android.graphics.Color.TRANSPARENT,
+                        bgColor.withAlpha(0.6f),
+                        android.graphics.Color.TRANSPARENT
+                    )
+                    bottomLine.background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, lineColors)
+                } else {
+                    bottomLine.beGone()
+                    // Bubble Outlines
+                    if (config.useNewUi) {
+                        val outlineOn = if (isReceived) config.receivedBubblesOutline else config.sentBubblesOutline
+                        if (outlineOn) {
+                            val outlineColor = if (isReceived) config.receivedBubblesOutlineColor else config.sentBubblesOutlineColor
+                            val thickness = if (isReceived) config.receivedBubblesOutlineThickness else config.sentBubblesOutlineThickness
+                            val thickStroke = (thickness * density).toInt()
+                            
+                            gd.cornerRadii = baseRadii
+                            gd.setStroke(thickStroke, outlineColor)
+                            
+                            val layerDrawable = LayerDrawable(arrayOf(gd))
+                            layerDrawable.setLayerInset(0, 0, 0, 0, 0)
+                            background = layerDrawable
+                        } else {
+                            gd.cornerRadii = baseRadii
+                            background = gd
+                        }
                     } else {
-                        val radii = baseRadii
                         gd.cornerRadii = baseRadii
                         background = gd
                     }
-                } else {
-                    val radii = baseRadii
-                    gd.cornerRadii = baseRadii
-                    background = gd
+                    
+                    // Material 3 Depth (Standardized for stability)
+                    elevation = 4f * density
                 }
                 
-                // Material 3 Depth (Standardized for stability)
-                elevation = 4f * density
+                clipToOutline = false 
                 clipToOutline = false 
                 outlineProvider = object : android.view.ViewOutlineProvider() {
                     override fun getOutline(view: View, outline: android.graphics.Outline) {
@@ -579,11 +614,15 @@ class ThreadAdapter(
             val style = if (message.isScheduled) Typeface.ITALIC else Typeface.NORMAL
             typeface = Typeface.create(customTypeface, style)
 
+            if (message.body.isNotEmpty()) {
+                Linkify.addLinks(this, Linkify.WEB_URLS or Linkify.EMAIL_ADDRESSES)
+            }
+            movementMethod = TouchableLinkMovementMethod
+
             // Ensure clicks pass through to the bubble container
             isClickable = true
             isFocusable = true
             isLongClickable = true
-            movementMethod = null 
 
             setOnClickListener {
                 android.util.Log.d("ReactionInteraction", "bodyView tapped for message ${message.id}, delegating to bodyHolder")
@@ -871,5 +910,44 @@ private class ThreadItemDiffCallback : DiffUtil.ItemCallback<ThreadItem>() {
             is Message -> Message.areContentsTheSame(oldItem, newItem as Message)
             else -> true
         }
+    }
+}
+
+private object TouchableLinkMovementMethod : LinkMovementMethod() {
+    override fun onTouchEvent(widget: TextView, buffer: Spannable, event: MotionEvent): Boolean {
+        val action = event.action
+        if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_DOWN) {
+            var x = event.x.toInt()
+            var y = event.y.toInt()
+
+            x -= widget.totalPaddingLeft
+            y -= widget.totalPaddingTop
+
+            x += widget.scrollX
+            y += widget.scrollY
+
+            val layout = widget.layout
+            if (layout != null) {
+                val line = layout.getLineForVertical(y)
+                val off = layout.getOffsetForHorizontal(line, x.toFloat())
+
+                val link = buffer.getSpans(off, off, ClickableSpan::class.java)
+
+                if (link.isNotEmpty()) {
+                    val spanStart = buffer.getSpanStart(link[0])
+                    val spanEnd = buffer.getSpanEnd(link[0])
+                    if (off in spanStart until spanEnd) {
+                        if (action == MotionEvent.ACTION_UP) {
+                            link[0].onClick(widget)
+                        } else {
+                            Selection.setSelection(buffer, spanStart, spanEnd)
+                        }
+                        return true
+                    }
+                }
+            }
+            Selection.removeSelection(buffer)
+        }
+        return false
     }
 }

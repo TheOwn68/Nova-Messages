@@ -2,7 +2,6 @@ package org.nova.messages.extensions
 
 import android.content.Context
 import android.graphics.Color
-import android.graphics.Typeface
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
@@ -47,7 +46,6 @@ fun Int.getScaledDimen(context: Context): Int {
     return context.resources.getDimensionPixelSize(this)
 }
 
-fun Context.getCustomTypeface(): Typeface? = null
 
 fun View.updateAppFonts() {
     if (this is ViewGroup) {

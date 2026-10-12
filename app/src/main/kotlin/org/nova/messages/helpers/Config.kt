@@ -20,6 +20,10 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getInt(DOMINANT_COLOR, 0)
         set(dominantColor) = prefs.edit().putInt(DOMINANT_COLOR, dominantColor).apply()
 
+    var inputBarDominantColor: Int
+        get() = prefs.getInt(INPUT_BAR_DOMINANT_COLOR, 0)
+        set(inputBarDominantColor) = prefs.edit().putInt(INPUT_BAR_DOMINANT_COLOR, inputBarDominantColor).apply()
+
     fun saveUseSIMIdAtNumber(number: String, SIMId: Int) {
         prefs.edit().putInt(USE_SIM_ID_PREFIX + number, SIMId).apply()
     }
@@ -209,6 +213,10 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getInt(RECENT_CONVERSATIONS_COUNT, 2)
         set(recentConversationsCount) = prefs.edit().putInt(RECENT_CONVERSATIONS_COUNT, recentConversationsCount).apply()
 
+    var showRecentSeparator: Boolean
+        get() = prefs.getBoolean(SHOW_RECENT_SEPARATOR, true)
+        set(showRecentSeparator) = prefs.edit().putBoolean(SHOW_RECENT_SEPARATOR, showRecentSeparator).apply()
+
     var recentColor: Int
         get() = prefs.getInt(RECENT_COLOR, Color.parseColor("#FFE4E1"))
         set(recentColor) = prefs.edit().putInt(RECENT_COLOR, recentColor).apply()
@@ -243,6 +251,10 @@ class Config(context: Context) : BaseConfig(context) {
     var fontFamilyNova: Int
         get() = prefs.getInt(FONT_FAMILY_NOVA, 0) // Default to System
         set(fontFamilyNova) = prefs.edit().putInt(FONT_FAMILY_NOVA, fontFamilyNova).apply()
+
+    var customFontPath: String
+        get() = prefs.getString(CUSTOM_FONT_PATH, "")!!
+        set(customFontPath) = prefs.edit().putString(CUSTOM_FONT_PATH, customFontPath).apply()
 
     var topBarColor: Int
         get() = prefs.getInt(TOP_BAR_COLOR, 0)
@@ -440,6 +452,34 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getInt(RECEIVED_BUBBLES_OUTLINE_THICKNESS, 2)
         set(receivedBubblesOutlineThickness) = prefs.edit().putInt(RECEIVED_BUBBLES_OUTLINE_THICKNESS, receivedBubblesOutlineThickness).apply()
 
+    var themePresetIds: String
+        get() = prefs.getString(THEME_PRESETS, "1,2,3")!!
+        set(themePresetIds) = prefs.edit().putString(THEME_PRESETS, themePresetIds).apply()
+
+    fun getPresetName(id: Int): String {
+        return prefs.getString("preset_${id}_name", "Preset $id")!!
+    }
+
+    fun setPresetName(id: Int, name: String) {
+        prefs.edit().putString("preset_${id}_name", name).apply()
+    }
+
+    fun deletePreset(id: Int) {
+        val currentIds = themePresetIds.split(",").toMutableList()
+        currentIds.remove(id.toString())
+        themePresetIds = currentIds.joinToString(",")
+        
+        // Optionally clear all keys starting with preset_${id}_
+        val editor = prefs.edit()
+        val prefix = "preset_${id}_"
+        prefs.all.keys.forEach { key ->
+            if (key.startsWith(prefix)) {
+                editor.remove(key)
+            }
+        }
+        editor.apply()
+    }
+
     fun savePreset(id: Int) {
         val prefix = "preset_${id}_"
         val editor = prefs.edit()
@@ -458,8 +498,7 @@ class Config(context: Context) : BaseConfig(context) {
             NOTIFICATION_OUTLINE_COLOR, NOTIFICATION_OUTLINE_THICKNESS,
             TOP_BAR_OUTLINE, TOP_BAR_OUTLINE_COLOR, SEARCH_BAR_OUTLINE, SEARCH_BAR_OUTLINE_COLOR,
             BIG_CONTACTS_OUTLINE, BIG_CONTACTS_OUTLINE_COLOR, SMALL_CONTACTS_OUTLINE, SMALL_CONTACTS_OUTLINE_COLOR,
-            SENT_BUBBLES_OUTLINE, SENT_BUBBLES_OUTLINE_COLOR, RECEIVED_BUBBLES_OUTLINE, RECEIVED_BUBBLES_OUTLINE_COLOR,
-            PRESET_1_NAME, PRESET_2_NAME, PRESET_3_NAME // Include names in preset
+            SENT_BUBBLES_OUTLINE, SENT_BUBBLES_OUTLINE_COLOR, RECEIVED_BUBBLES_OUTLINE, RECEIVED_BUBBLES_OUTLINE_COLOR
         )
         themeKeys.forEach { key ->
             val value = prefs.all[key]
@@ -493,8 +532,7 @@ class Config(context: Context) : BaseConfig(context) {
             NOTIFICATION_OUTLINE_COLOR, NOTIFICATION_OUTLINE_THICKNESS,
             TOP_BAR_OUTLINE, TOP_BAR_OUTLINE_COLOR, SEARCH_BAR_OUTLINE, SEARCH_BAR_OUTLINE_COLOR,
             BIG_CONTACTS_OUTLINE, BIG_CONTACTS_OUTLINE_COLOR, SMALL_CONTACTS_OUTLINE, SMALL_CONTACTS_OUTLINE_COLOR,
-            SENT_BUBBLES_OUTLINE, SENT_BUBBLES_OUTLINE_COLOR, RECEIVED_BUBBLES_OUTLINE, RECEIVED_BUBBLES_OUTLINE_COLOR,
-            PRESET_1_NAME, PRESET_2_NAME, PRESET_3_NAME
+            SENT_BUBBLES_OUTLINE, SENT_BUBBLES_OUTLINE_COLOR, RECEIVED_BUBBLES_OUTLINE, RECEIVED_BUBBLES_OUTLINE_COLOR
         )
         themeKeys.forEach { key ->
             val value = prefs.all[prefix + key]
