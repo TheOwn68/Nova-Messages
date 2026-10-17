@@ -2,5 +2,5 @@
 <paths>
     <cache-path name="compressed_files" path="compressed/"/>
     <cache-path name="attachment_files" path="attachments/"/>
-    <cache-path name="cache_root" path="."/>
+    <cache-path name="shared_files" path="shared/"/>
 </paths>

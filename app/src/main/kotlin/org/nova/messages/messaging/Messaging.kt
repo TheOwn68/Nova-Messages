@@ -53,6 +53,7 @@ fun Context.sendMessageCompat(
     val messagingUtils = messagingUtils
     var finalBody = text
     var isEncrypted = false
+    var pendingKeyUpdate: Pair<org.nova.messages.models.Conversation, String>? = null
 
     if (attachments.isEmpty() && addresses.size == 1 && !isLongMmsMessage(text, settings)) {
         val address = addresses.first()
@@ -65,10 +66,9 @@ fun Context.sendMessageCompat(
                 val encoded = NovaCrypto.encodeLetters(text)
                 val encrypted = NovaCrypto.encrypt(encoded, newKey)
                 finalBody = NovaCrypto.wrapMessage(encrypted, token)
-                
-                // Update conversation key
-                conversation.novaSharedSecret = newKey
-                conversationsDB.insertOrUpdate(conversation)
+
+                // Defer key update until after successful send to avoid desync on failure
+                pendingKeyUpdate = conversation to newKey
                 isEncrypted = true
             } catch (e: Exception) {
                 android.util.Log.e("Messaging", "Encryption failed", e)
@@ -91,8 +91,16 @@ fun Context.sendMessageCompat(
 
             val lastAttachment = attachments[lastIndex]
             messagingUtils.sendMmsMessage(finalBody, addresses, lastAttachment, settings, messageId)
+            pendingKeyUpdate?.let { (conv, key) ->
+                conv.novaSharedSecret = key
+                conversationsDB.insertOrUpdate(conv)
+            }
         } else {
             messagingUtils.sendMmsMessage(finalBody, addresses, null, settings, messageId)
+            pendingKeyUpdate?.let { (conv, key) ->
+                conv.novaSharedSecret = key
+                conversationsDB.insertOrUpdate(conv)
+            }
         }
     } else {
         try {
@@ -103,6 +111,11 @@ fun Context.sendMessageCompat(
                 requireDeliveryReport = settings.deliveryReports,
                 messageId = messageId
             )
+            // Persist key update only after successful send
+            pendingKeyUpdate?.let { (conv, key) ->
+                conv.novaSharedSecret = key
+                conversationsDB.insertOrUpdate(conv)
+            }
         } catch (e: SmsException) {
             when (e.errorCode) {
                 EMPTY_DESTINATION_ADDRESS -> toast(

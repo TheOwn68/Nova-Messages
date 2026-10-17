@@ -109,7 +109,13 @@ class ThreadActivity : SimpleActivity() {
         isLaunchedFromShortcut = intent.getBooleanExtra(IS_LAUNCHED_FROM_SHORTCUT, false)
         isFromNotification = intent.getBooleanExtra(IS_FROM_NOTIFICATION, false)
 
-        if (newThreadId != 0L && newThreadId != threadId) {
+        val searchedMessageId = intent.getLongExtra(SEARCHED_MESSAGE_ID, -1L)
+        intent.removeExtra(SEARCHED_MESSAGE_ID)
+        if (searchedMessageId != -1L) {
+            isJumpingToMessage = true
+        }
+
+        if (newThreadId != 0L) {
             threadId = newThreadId
             conversation = null
             participants.clear()
@@ -117,14 +123,30 @@ class ThreadActivity : SimpleActivity() {
             threadItems.clear()
             allMessagesFetched = false
             getOrCreateThreadAdapter().updateMessages(arrayListOf())
-            loadConversation()
+            
+            setupThread(searchedMessageId = searchedMessageId) {
+                if (searchedMessageId != -1L) {
+                    jumpToMessage(searchedMessageId)
+                }
+            }
+        }
+
+        intent.getStringExtra(THREAD_TEXT)?.let {
+            binding.messageHolder.threadTypeMessage.setText(it)
+        }
+
+        if (intent.extras?.containsKey(THREAD_ATTACHMENT_URI) == true) {
+            val uri = intent.getStringExtra(THREAD_ATTACHMENT_URI)!!.toUri()
+            addAttachment(uri)
+        } else if (intent.extras?.containsKey(THREAD_ATTACHMENT_URIS) == true) {
+            val uris = intent.getParcelableArrayListExtra<Uri>(THREAD_ATTACHMENT_URIS)
+            uris?.forEach { addAttachment(it) }
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
         super.onCreate(savedInstanceState)
-        android.util.Log.d("ThreadLaunchDebug", "ThreadActivity.onCreate called with intent: $intent, extras: ${intent.extras?.keySet()?.joinToString { "$it=${intent.extras?.get(it)}" }}")
         setContentView(binding.root)
         setupOptionsMenu()
         refreshMenuItems()
@@ -163,6 +185,7 @@ class ThreadActivity : SimpleActivity() {
         binding.threadMessagesList.itemAnimator = null
         binding.threadMessagesList.setItemViewCacheSize(20)
         (binding.threadMessagesList.layoutManager as LinearLayoutManager).stackFromEnd = true
+        setupScrollListener()
         loadConversation()
         setupExpandingInputBar()
 
@@ -673,16 +696,18 @@ class ThreadActivity : SimpleActivity() {
                         jumpToMessage(searchedMessageId)
                     }
                 }
-                runOnUiThread {
-                    setupScrollListener()
-                }
             } else {
                 finish()
             }
         }
     }
 
+    private var isButtonsInitialized = false
+
     private fun setupButtons() = binding.apply {
+        if (isButtonsInitialized) return@apply
+        isButtonsInitialized = true
+
         val inputBarColor = config.inputBarTextColor
         val mainTextColor = config.mainTextColor
 
@@ -1257,17 +1282,21 @@ class ThreadActivity : SimpleActivity() {
     }
 
     private fun archiveThread() {
-        try {
-            updateConversationArchivedStatus(threadId, true)
-            finish()
-        } catch (e: Exception) {
-            showErrorToast(e)
+        ensureBackgroundThread {
+            try {
+                updateConversationArchivedStatus(threadId, true)
+                runOnUiThread { if (!isFinishing && !isDestroyed) finish() }
+            } catch (e: Exception) {
+                showErrorToast(e)
+            }
         }
     }
 
     private fun unarchiveThread() {
-        updateConversationArchivedStatus(threadId, false)
-        refreshMenuItems()
+        ensureBackgroundThread {
+            updateConversationArchivedStatus(threadId, false)
+            runOnUiThread { if (!isFinishing && !isDestroyed) refreshMenuItems() }
+        }
     }
 
     private fun addNumberToContact() {
@@ -1283,9 +1312,12 @@ class ThreadActivity : SimpleActivity() {
         val number = participants.firstOrNull()?.phoneNumbers?.firstOrNull()?.value ?: return
         copyToClipboard(number)
     }
+
     private fun markAsUnread() {
-        markThreadMessagesUnread(threadId)
-        finish()
+        ensureBackgroundThread {
+            markThreadMessagesUnread(threadId)
+            runOnUiThread { if (!isFinishing && !isDestroyed) finish() }
+        }
     }
     private fun tryBlocking() {
         val numbers = participants.getAddresses()
@@ -1571,8 +1603,11 @@ class ThreadActivity : SimpleActivity() {
     }
 
     private fun updateMessageType() {
-        binding.messageHolder.threadSendMessage.text = ""
-        binding.messageHolder.threadNovaLock.beVisibleIf(conversation?.isNovaUser == true)
+        runOnUiThread {
+            if (isFinishing || isDestroyed) return@runOnUiThread
+            binding.messageHolder.threadSendMessage.text = ""
+            binding.messageHolder.threadNovaLock.beVisibleIf(conversation?.isNovaUser == true)
+        }
     }
 
     @SuppressLint("MissingPermission")

@@ -435,7 +435,6 @@ class NewConversationActivity : SimpleActivity() {
         
         lastSelectionTime.set(now)
         lastLaunchedNumber = phoneNumber
-        android.util.Log.d("ThreadLaunchDebug", "NewConversationActivity.launchThreadActivity $phoneNumber ($name)")
         android.util.Log.d("LAUNCH_DEBUG", "Launching thread activity for $phoneNumber ($name)")
         
         hideKeyboard()

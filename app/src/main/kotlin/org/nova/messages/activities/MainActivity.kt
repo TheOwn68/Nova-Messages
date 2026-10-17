@@ -74,8 +74,6 @@ class MainActivity : SimpleActivity() {
 
         setupNovaNavBar()
         loadMessages()
-        
-        org.nova.messages.helpers.UpdateHelper.checkForUpdate(this)
 
         ViewCompat.setOnApplyWindowInsetsListener(binding.mainCoordinator) { _, insets ->
             val isImeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
@@ -85,6 +83,17 @@ class MainActivity : SimpleActivity() {
             wasImeVisible = isImeVisible
             insets
         }
+
+        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (isSearchExpanded) {
+                    closeSearch()
+                } else {
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                }
+            }
+        })
     }
 
     override fun onResume() {
@@ -112,7 +121,7 @@ class MainActivity : SimpleActivity() {
         }
         setupScaledToolbar(binding.mainToolbar)
         binding.conversationsFab.updateLayoutParams<androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams> {
-            topMargin = 3.getScaledPx()
+            topMargin = 12.getScaledPx()
             marginEnd = 12.getScaledPx()
         }
 
@@ -171,7 +180,7 @@ class MainActivity : SimpleActivity() {
             novaSearchIcon.alpha = 0.6f
             
             // Highlight Home (Current Screen) with subtle transparency
-            navHomeBtn.setBackgroundColor(Color.WHITE.withAlpha(0.1f))
+            navHomeBtn.setBackgroundResource(R.drawable.nav_button_active_left)
             
             navSearchContainer.setOnClickListener {
                 if (!isSearchExpanded) expandSearchBar()
@@ -347,9 +356,9 @@ class MainActivity : SimpleActivity() {
                     val intent = roleManager.createRequestRoleIntent(RoleManager.ROLE_SMS)
                     startActivityForResult(intent, MAKE_DEFAULT_APP_REQUEST)
                 }
-            } else if (!isFinishing && !isDestroyed && config.appRunCount <= 1) {
-                toast(org.fossify.commons.R.string.unknown_error_occurred)
-                finish()
+            } else if (!isFinishing && !isDestroyed) {
+                // Show rationale instead of silently exiting
+                toast("This app must be set as the default SMS app to function. Please set it in Settings.")
             }
         } else {
             if (Telephony.Sms.getDefaultSmsPackage(this) == packageName) {
@@ -369,14 +378,14 @@ class MainActivity : SimpleActivity() {
                 val roleManager = getSystemService(RoleManager::class.java)
                 if (roleManager?.isRoleHeld(RoleManager.ROLE_SMS) == true) {
                     askPermissions()
-                } else if (!isFinishing && !isDestroyed && config.appRunCount <= 1) {
-                    finish()
+                } else if (!isFinishing && !isDestroyed) {
+                    toast("This app must be set as the default SMS app to function. Please set it in Settings.")
                 }
             } else {
                 if (Telephony.Sms.getDefaultSmsPackage(this) == packageName) {
                     askPermissions()
-                } else if (!isFinishing && !isDestroyed && config.appRunCount <= 1) {
-                    finish()
+                } else if (!isFinishing && !isDestroyed) {
+                    toast("This app must be set as the default SMS app to function. Please set it in Settings.")
                 }
             }
         }
@@ -616,7 +625,6 @@ class MainActivity : SimpleActivity() {
 
     private fun handleConversationClick(any: Any) {
         val conv = any as Conversation
-        android.util.Log.d("ThreadLaunchDebug", "MainActivity.handleConversationClick thread=${conv.threadId} title=${conv.title}", Exception("trace"))
         Intent(this, ThreadActivity::class.java).apply {
             putExtra(THREAD_ID, conv.threadId)
             putExtra(THREAD_TITLE, conv.title)
@@ -676,6 +684,13 @@ class MainActivity : SimpleActivity() {
         }
     }
 
+    private fun closeSearch() = binding.apply {
+        novaSearchInput.setText("")
+        classicSearchInput.setText("")
+        searchTextChanged("")
+        shrinkSearchBar()
+    }
+
     private fun showSearchResults(messages: List<Message>, conversations: List<Conversation>, searchedText: String) {
         val results = ArrayList<SearchResult>()
         conversations.forEach { conv ->
@@ -697,12 +712,13 @@ class MainActivity : SimpleActivity() {
             val curr = binding.searchResultsList.adapter
             if (curr == null) {
                 SearchResultsAdapter(this, results, binding.searchResultsList, searchedText) {
-                    android.util.Log.d("ThreadLaunchDebug", "MainActivity.searchResultClick $it", Exception("trace"))
+                    val searchResult = it as SearchResult
                     hideKeyboard()
+                    closeSearch()
                     Intent(this, ThreadActivity::class.java).apply {
-                        putExtra(THREAD_ID, (it as SearchResult).threadId)
-                        putExtra(THREAD_TITLE, it.title)
-                        putExtra(SEARCHED_MESSAGE_ID, it.messageId)
+                        putExtra(THREAD_ID, searchResult.threadId)
+                        putExtra(THREAD_TITLE, searchResult.title)
+                        putExtra(SEARCHED_MESSAGE_ID, searchResult.messageId)
                         startActivity(this)
                     }
                 }.also { binding.searchResultsList.adapter = it }

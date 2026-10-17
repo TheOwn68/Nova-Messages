@@ -408,8 +408,8 @@
         android:alpha="0.92"
         android:elevation="10dp"
         android:orientation="horizontal"
-        android:paddingStart="4dp"
-        android:paddingEnd="4dp"
+        android:paddingStart="0dp"
+        android:paddingEnd="0dp"
         android:gravity="center_vertical">
 
         <FrameLayout android:id="@+id/nav_home_btn" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="?selectableItemBackground"><ImageView android:id="@+id/nav_home_icon" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center" android:src="@drawable/ic_home_modern" android:alpha="0.6" app:tint="@android:color/white" /></FrameLayout>

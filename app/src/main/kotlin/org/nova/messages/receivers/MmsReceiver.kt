@@ -14,6 +14,7 @@ import org.fossify.commons.helpers.ensureBackgroundThread
 import org.nova.messages.R
 import org.nova.messages.extensions.getConversations
 import org.nova.messages.extensions.getLatestMMS
+import org.nova.messages.extensions.getMMSMessage
 import org.nova.messages.extensions.getNameFromAddress
 import org.nova.messages.extensions.insertOrUpdateConversation
 import org.nova.messages.extensions.shouldUnarchive
@@ -29,8 +30,9 @@ class MmsReceiver : MmsReceivedReceiver() {
     override fun isAddressBlocked(context: Context, address: String): Boolean {
         if (context.isNumberBlocked(address)) return true
         if (context.baseConfig.blockUnknownNumbers) {
-            val privateCursor = context.getMyContactsCursor(favoritesOnly = false, withPhoneNumbersOnly = true)
-            val result = SimpleContactsHelper(context).existsSync(address, privateCursor)
+            val result = context.getMyContactsCursor(favoritesOnly = false, withPhoneNumbersOnly = true).use { privateCursor ->
+                SimpleContactsHelper(context).existsSync(address, privateCursor)
+            }
             return result == ContactLookupResult.NotFound
         }
 
@@ -42,7 +44,7 @@ class MmsReceiver : MmsReceivedReceiver() {
     }
 
     override fun onMessageReceived(context: Context, messageUri: Uri) {
-        val mms = context.getLatestMMS() ?: return
+        val mms = context.getMMSMessage(messageUri) ?: return
         val address = mms.getSender()?.phoneNumbers?.firstOrNull()?.normalizedNumber ?: ""
         val size = context.resources.getDimension(R.dimen.notification_large_icon_size).toInt()
         ensureBackgroundThread {
@@ -61,12 +63,17 @@ class MmsReceiver : MmsReceivedReceiver() {
         address: String
     ) {
         val glideBitmap = try {
-            Glide.with(context)
-                .asBitmap()
-                .load(mms.attachment!!.attachments.first().getUri())
-                .centerCrop()
-                .into(size, size)
-                .get()
+            val attachmentUri = mms.attachment?.attachments?.firstOrNull()?.getUri()
+            if (attachmentUri != null) {
+                Glide.with(context)
+                    .asBitmap()
+                    .load(attachmentUri)
+                    .centerCrop()
+                    .into(size, size)
+                    .get()
+            } else {
+                null
+            }
         } catch (e: Exception) {
             null
         }
@@ -88,10 +95,8 @@ class MmsReceiver : MmsReceivedReceiver() {
         val conversation = context.getConversations(mms.threadId).firstOrNull() ?: return
         if (mms.isEncrypted) {
             conversation.isNovaUser = true
-        } else if (mms.body.endsWith("\u200B")) {
-            conversation.isNovaUser = true
+            runCatching { context.insertOrUpdateConversation(conversation) }
         }
-        runCatching { context.insertOrUpdateConversation(conversation) }
         if (context.shouldUnarchive()) {
             context.updateConversationArchivedStatus(mms.threadId, false)
         }

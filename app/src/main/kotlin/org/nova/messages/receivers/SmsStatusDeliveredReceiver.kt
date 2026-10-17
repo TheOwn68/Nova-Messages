@@ -1,6 +1,5 @@
 package org.nova.messages.receivers
 
-import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
@@ -60,6 +59,7 @@ class SmsStatusDeliveredReceiver : SendStatusReceiver() {
     }
 
     private fun updateSmsStatusAndDateSent(context: Context, messageUri: Uri?, timeSentInMillis: Long = -1L) {
+        if (messageUri == null) return
         val resolver = context.contentResolver
         val values = ContentValues().apply {
             if (status != Sms.Sent.STATUS_NONE) {
@@ -68,21 +68,7 @@ class SmsStatusDeliveredReceiver : SendStatusReceiver() {
             put(Sms.Sent.DATE_SENT, timeSentInMillis)
         }
 
-        if (messageUri != null) {
-            resolver.update(messageUri, values, null, null)
-        } else {
-            // mark latest sms as delivered, need to check if this is still necessary (or reliable)
-            val cursor = resolver.query(Sms.Sent.CONTENT_URI, null, null, null, "date desc")
-            cursor?.use {
-                if (cursor.moveToFirst()) {
-                    @SuppressLint("Range")
-                    val id = cursor.getString(cursor.getColumnIndex(Sms.Sent._ID))
-                    val selection = "${Sms._ID} = ?"
-                    val selectionArgs = arrayOf(id.toString())
-                    resolver.update(Sms.Sent.CONTENT_URI, values, selection, selectionArgs)
-                }
-            }
-        }
+        resolver.update(messageUri, values, null, null)
     }
 
     override fun updateAppDatabase(context: Context, intent: Intent, receiverResultCode: Int) {

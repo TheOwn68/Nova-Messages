@@ -83,7 +83,7 @@ class SmsReceiver : BroadcastReceiver() {
                             val newKey = NovaCrypto.evolveKey(conversation.novaSharedSecret, token)
                             val decodedNums = NovaCrypto.decrypt(encryptedPart, newKey)
                             finalBody = NovaCrypto.decodeNumbers(decodedNums)
-                            
+
                             // Successfully decrypted! Update conversation state
                             conversation.isNovaUser = true
                             conversation.novaSharedSecret = newKey
@@ -93,22 +93,10 @@ class SmsReceiver : BroadcastReceiver() {
                             android.util.Log.e("SmsReceiver", "Decryption failed", e)
                         }
                     }
-                } else if (body.endsWith("\u200B")) {
-                    // Hidden heartbeat detected
-                    val conversation = appContext.conversationsDB.getConversationWithThreadId(threadId)
-                    if (conversation != null && !conversation.isNovaUser) {
-                        conversation.isNovaUser = true
-                        appContext.conversationsDB.insertOrUpdate(conversation)
-                    }
-                } else {
-                    // Received a plain message without a heartbeat.
-                    // If we previously thought they were a Nova user, downgrade now to avoid "breaking" the chat.
-                    val conversation = appContext.conversationsDB.getConversationWithThreadId(threadId)
-                    if (conversation != null && conversation.isNovaUser) {
-                        conversation.isNovaUser = false
-                        appContext.conversationsDB.insertOrUpdate(conversation)
-                    }
                 }
+                // Note: isNovaUser is only set true on successful decryption above.
+                // We do NOT flip it based on heartbeat suffix or plain messages,
+                // since those can be spoofed by any sender.
 
                 android.util.Log.d("SmsReceiver", "Handling message from '$address', threadId: $threadId")
                 handleMessageSync(

@@ -3,6 +3,7 @@ package org.nova.messages.extensions
 import android.annotation.SuppressLint
 import android.app.Application
 import android.content.ContentResolver
+import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.database.Cursor
@@ -187,8 +188,9 @@ fun Context.getMessages(
             val (token, encryptedPart) = unwrapped
             if (sharedSecret != null) {
                 try {
-                    val newKey = NovaCrypto.evolveKey(sharedSecret, token)
-                    val decodedNums = NovaCrypto.decrypt(encryptedPart, newKey)
+                    // Use the stored key directly; key evolution already happened
+                    // during send/receive. Do NOT evolve again here.
+                    val decodedNums = NovaCrypto.decrypt(encryptedPart, sharedSecret)
                     finalBody = NovaCrypto.decodeNumbers(decodedNums)
                     isEncrypted = true
                 } catch (e: Exception) {
@@ -272,7 +274,8 @@ fun Context.getMMS(
     threadId: Long? = null,
     sortOrder: String? = null,
     dateFrom: Int = -1,
-    selectionOverride: String? = null
+    selectionOverride: String? = null,
+    selectionArgsOverride: Array<String>? = null
 ): ArrayList<Message> {
     val uri = Mms.CONTENT_URI
     val projection = arrayOf(
@@ -286,7 +289,7 @@ fun Context.getMMS(
     )
 
     var selection: String? = selectionOverride
-    var selectionArgs: Array<String>? = null
+    var selectionArgs: Array<String>? = selectionArgsOverride
 
     if (selectionOverride == null) {
         if (threadId == null && dateFrom != -1) {
@@ -336,8 +339,9 @@ fun Context.getMMS(
             val (token, encryptedPart) = unwrapped
             if (sharedSecret != null) {
                 try {
-                    val newKey = NovaCrypto.evolveKey(sharedSecret, token)
-                    val decodedNums = NovaCrypto.decrypt(encryptedPart, newKey)
+                    // Use the stored key directly; key evolution already happened
+                    // during send/receive. Do NOT evolve again here.
+                    val decodedNums = NovaCrypto.decrypt(encryptedPart, sharedSecret)
                     finalBody = NovaCrypto.decodeNumbers(decodedNums)
                     isEncrypted = true
                 } catch (e: Exception) {
@@ -575,12 +579,14 @@ fun Context.searchMessages(text: String, limit: Int = MESSAGES_LIMIT): ArrayList
             val (token, encryptedPart) = unwrapped
             val conversation = conversationsDB.getConversationWithThreadId(threadId)
             if (conversation != null) {
-                try {
-                    val newKey = NovaCrypto.evolveKey(conversation.novaSharedSecret, token)
-                    val decodedNums = NovaCrypto.decrypt(encryptedPart, newKey)
-                    finalBody = NovaCrypto.decodeNumbers(decodedNums)
-                    isEncrypted = true
-                } catch (_: Exception) {}
+                val secret = conversation.novaSharedSecret
+                if (secret != null) {
+                    try {
+                        val decodedNums = NovaCrypto.decrypt(encryptedPart, secret)
+                        finalBody = NovaCrypto.decodeNumbers(decodedNums)
+                        isEncrypted = true
+                    } catch (_: Exception) {}
+                }
             }
         }
 
@@ -656,6 +662,9 @@ fun Context.getConversationIds(): List<Long> {
 // based on https://stackoverflow.com/a/6446831/1967672
 @SuppressLint("NewApi")
 fun Context.getMmsAttachment(id: Long): MessageAttachment {
+    val cached = MessagingCache.mmsAttachmentCache.get(id)
+    if (cached != null) return cached
+
     val uri = if (isQPlus()) {
         Mms.Part.CONTENT_URI
     } else {
@@ -718,12 +727,18 @@ fun Context.getMmsAttachment(id: Long): MessageAttachment {
         }
     }
 
+    MessagingCache.mmsAttachmentCache.put(id, messageAttachment)
     return messageAttachment
 }
 
 fun Context.getLatestMMS(): Message? {
     val sortOrder = "${Mms.DATE} DESC LIMIT 1"
     return getMMS(sortOrder = sortOrder).firstOrNull()
+}
+
+fun Context.getMMSMessage(messageUri: Uri): Message? {
+    val mmsId = try { ContentUris.parseId(messageUri) } catch (_: Exception) { return getLatestMMS() }
+    return getMMS(selectionOverride = "${Mms._ID} = ?", selectionArgsOverride = arrayOf(mmsId.toString())).firstOrNull() ?: getLatestMMS()
 }
 
 fun Context.getThreadSnippet(threadId: Long): String {
@@ -1261,9 +1276,11 @@ fun Context.getContactFromAddress(address: String, callback: ((contact: SimpleCo
         val contact = it.firstOrNull { it.doesHavePhoneNumber(address) }
         if (contact == null) {
             val privateContacts = MyContactsContentProvider.getSimpleContacts(this, privateCursor)
+            privateCursor?.close()
             val privateContact = privateContacts.firstOrNull { it.doesHavePhoneNumber(address) }
             callback(privateContact)
         } else {
+            privateCursor?.close()
             callback(contact)
         }
     }

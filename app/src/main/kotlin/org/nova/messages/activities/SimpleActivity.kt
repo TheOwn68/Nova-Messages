@@ -52,6 +52,19 @@ import kotlin.math.max
 
 open class SimpleActivity : BaseSimpleActivity() {
 
+    override fun getPackageName(): String {
+        // Spoof package name only when called from fossify commons (to suppress
+        // the "fake version" modded-app warning). Return the real name otherwise
+        // so Intent(this, ...) resolves correctly.
+        val stackTrace = Thread.currentThread().stackTrace
+        for (element in stackTrace) {
+            if (element.className.startsWith("org.fossify.")) {
+                return "org.fossify.messages"
+            }
+        }
+        return super.getPackageName()
+    }
+
     val uiScale get() = config.uiScale
 
 
@@ -469,16 +482,8 @@ open class SimpleActivity : BaseSimpleActivity() {
         }
     }
 
-    private var isCheckingPackage = false
-
-    override fun getPackageName(): String {
-        return if (isCheckingPackage) "org.fossify.messages" else super.getPackageName()
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
-        isCheckingPackage = true
         super.onCreate(savedInstanceState)
-        isCheckingPackage = false
 
         onBackPressedDispatcher.addCallback(this, selectionBackCallback)
         requestHighRefreshRate()
@@ -494,9 +499,9 @@ open class SimpleActivity : BaseSimpleActivity() {
         applyCustomColors()
         
         // Suppress popups safely
-        config.appSideloadingStatus = 0
-        config.hadThankYouInstalled = true
-        config.appRunCount = 1
+        if (config.appSideloadingStatus != 0) config.appSideloadingStatus = 0
+        if (!config.hadThankYouInstalled) config.hadThankYouInstalled = true
+        if (config.appRunCount != 1) config.appRunCount = 1
     }
 
     override fun onSupportActionModeStarted(mode: androidx.appcompat.view.ActionMode) {

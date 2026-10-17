@@ -2,9 +2,10 @@ package org.nova.messages.helpers
 
 import android.util.Base64
 import java.security.MessageDigest
+import java.security.SecureRandom
 import javax.crypto.Cipher
+import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
-import javax.crypto.spec.IvParameterSpec
 
 object NovaCrypto {
     private val encodingMap = mapOf(
@@ -24,35 +25,42 @@ object NovaCrypto {
     const val NOVA_PREFIX = "\u200B\u200CNOVA:"
     private const val DEFAULT_SECRET = "NOVA_CORE_SECRET_2026_EVOLVE_INIT"
 
+    // GCM IV is 12 bytes; prepended to ciphertext so receiver can recover it.
+    private const val IV_LENGTH = 12
+    private const val GCM_TAG_LENGTH = 128
+
+    /**
+     * Encode letters to their 4-digit representation.
+     * Preserves case: only uppercase A-Z are encoded; lowercase and other chars pass through.
+     */
     fun encodeLetters(text: String): String {
-        return text.uppercase().map { char ->
+        return text.map { char ->
             encodingMap[char]?.first ?: char.toString()
         }.joinToString("")
     }
 
+    /**
+     * Decode 4-digit sequences back to letters.
+     * Only decodes when the 4-digit group is a known encoded letter (in decodingMap).
+     * Leaves all other characters (including real numbers) untouched.
+     */
     fun decodeNumbers(encoded: String): String {
-        var result = ""
+        val result = StringBuilder()
         var i = 0
         while (i < encoded.length) {
-            var found = false
-            for (len in 4 downTo 1) {
-                if (i + len <= encoded.length) {
-                    val part = encoded.substring(i, i + len)
-                    val letter = decodingMap[part]
-                    if (letter != null) {
-                        result += letter
-                        i += len
-                        found = true
-                        break
-                    }
+            if (i + 4 <= encoded.length) {
+                val part = encoded.substring(i, i + 4)
+                val letter = decodingMap[part]
+                if (letter != null) {
+                    result.append(letter)
+                    i += 4
+                    continue
                 }
             }
-            if (!found) {
-                result += encoded[i]
-                i++
-            }
+            result.append(encoded[i])
+            i++
         }
-        return result
+        return result.toString()
     }
 
     fun evolveKey(currentSecret: String?, token: String): String {
@@ -68,22 +76,35 @@ object NovaCrypto {
         return SecretKeySpec(digest.copyOfRange(0, 16), "AES")
     }
 
+    /**
+     * Encrypt text using AES-GCM with a random 12-byte IV.
+     * The IV is prepended to the ciphertext and the whole thing is Base64-encoded.
+     */
     fun encrypt(text: String, secret: String): String {
         val key = getAESKey(secret)
-        val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
-        val iv = IvParameterSpec(ByteArray(16))
-        cipher.init(Cipher.ENCRYPT_MODE, key, iv)
-        val encrypted = cipher.doFinal(text.toByteArray())
-        return Base64.encodeToString(encrypted, Base64.NO_WRAP)
+        val iv = ByteArray(IV_LENGTH).also { SecureRandom().nextBytes(it) }
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, key, GCMParameterSpec(GCM_TAG_LENGTH, iv))
+        val encrypted = cipher.doFinal(text.toByteArray(Charsets.UTF_8))
+        // Prepend IV to ciphertext
+        val combined = iv + encrypted
+        return Base64.encodeToString(combined, Base64.NO_WRAP)
     }
 
+    /**
+     * Decrypt Base64-encoded ciphertext.
+     * Extracts the 12-byte IV from the first 12 bytes, then decrypts the rest.
+     */
     fun decrypt(encryptedBase64: String, secret: String): String {
         val key = getAESKey(secret)
-        val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
-        val iv = IvParameterSpec(ByteArray(16))
-        cipher.init(Cipher.DECRYPT_MODE, key, iv)
-        val decoded = Base64.decode(encryptedBase64, Base64.NO_WRAP)
-        return String(cipher.doFinal(decoded))
+        val combined = Base64.decode(encryptedBase64, Base64.NO_WRAP)
+        if (combined.size < IV_LENGTH) throw IllegalArgumentException("Ciphertext too short")
+        val iv = combined.copyOfRange(0, IV_LENGTH)
+        val ciphertext = combined.copyOfRange(IV_LENGTH, combined.size)
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(GCM_TAG_LENGTH, iv))
+        val decoded = cipher.doFinal(ciphertext)
+        return String(decoded, Charsets.UTF_8)
     }
 
     fun getTokenForFirstChar(text: String): String {
@@ -103,7 +124,7 @@ object NovaCrypto {
         val tokenRegex = Regex("\u200D(.*?)\u200E")
         val match = tokenRegex.find(fullText) ?: return null
         val token = match.groupValues[1]
-        
+
         var encryptedPart = fullText.substringAfter("\u200E")
         if (encryptedPart.length > 2) {
             encryptedPart = encryptedPart.substring(1, encryptedPart.length - 1)

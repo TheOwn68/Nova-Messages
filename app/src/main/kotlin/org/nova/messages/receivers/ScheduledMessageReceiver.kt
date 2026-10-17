@@ -3,8 +3,6 @@ package org.nova.messages.receivers
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.os.Handler
-import android.os.Looper
 import android.os.PowerManager
 import org.fossify.commons.extensions.showErrorToast
 import org.fossify.commons.helpers.ensureBackgroundThread
@@ -25,7 +23,7 @@ class ScheduledMessageReceiver : BroadcastReceiver() {
         val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
         val wakelock = powerManager.newWakeLock(
             PowerManager.PARTIAL_WAKE_LOCK,
-            "simple.messenger:scheduled.message.receiver"
+            "org.nova.messages:scheduled.message.receiver"
         )
         wakelock.acquire(1.minutes.inWholeMilliseconds)
 
@@ -58,13 +56,13 @@ class ScheduledMessageReceiver : BroadcastReceiver() {
         val attachments = message.attachment?.attachments ?: emptyList()
 
         try {
-            Handler(Looper.getMainLooper()).post {
-                context.sendMessageCompat(message.body, addresses, message.subscriptionId, attachments)
-            }
+            // We're already on a background thread (onReceive uses ensureBackgroundThread).
+            // Send synchronously so we can delete only after successful send.
+            context.sendMessageCompat(message.body, addresses, message.subscriptionId, attachments)
 
             // delete temporary conversation and message as it's already persisted to the telephony db now
             context.deleteScheduledMessage(messageId)
-            context.conversationsDB.deleteThreadId(messageId)
+            context.conversationsDB.deleteThreadId(threadId)
             refreshMessages()
             refreshConversations()
         } catch (e: Exception) {

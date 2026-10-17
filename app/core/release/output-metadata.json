@@ -8,12 +8,38 @@
   "variantName": "coreRelease",
   "elements": [
     {
-      "type": "SINGLE",
+      "type": "UNIVERSAL",
       "filters": [],
       "attributes": [],
       "versionCode": 27,
-      "versionName": "2.4.2",
-      "outputFile": "messages-27-core-release.apk"
+      "versionName": "2.4.5",
+      "outputFile": "messages-27-core-universal-release.apk"
+    },
+    {
+      "type": "ONE_OF_MANY",
+      "filters": [
+        {
+          "filterType": "ABI",
+          "value": "arm64-v8a"
+        }
+      ],
+      "attributes": [],
+      "versionCode": 27,
+      "versionName": "2.4.5",
+      "outputFile": "messages-27-core-arm64-v8a-release.apk"
+    },
+    {
+      "type": "ONE_OF_MANY",
+      "filters": [
+        {
+          "filterType": "ABI",
+          "value": "armeabi-v7a"
+        }
+      ],
+      "attributes": [],
+      "versionCode": 27,
+      "versionName": "2.4.5",
+      "outputFile": "messages-27-core-armeabi-v7a-release.apk"
     }
   ],
   "elementType": "File",
@@ -22,14 +48,18 @@
       "minApi": 28,
       "maxApi": 30,
       "baselineProfiles": [
-        "baselineProfiles/1/messages-27-core-release.dm"
+        "baselineProfiles/1/messages-27-core-universal-release.dm",
+        "baselineProfiles/1/messages-27-core-arm64-v8a-release.dm",
+        "baselineProfiles/1/messages-27-core-armeabi-v7a-release.dm"
       ]
     },
     {
       "minApi": 31,
       "maxApi": 2147483647,
       "baselineProfiles": [
-        "baselineProfiles/0/messages-27-core-release.dm"
+        "baselineProfiles/0/messages-27-core-universal-release.dm",
+        "baselineProfiles/0/messages-27-core-arm64-v8a-release.dm",
+        "baselineProfiles/0/messages-27-core-armeabi-v7a-release.dm"
       ]
     }
   ],

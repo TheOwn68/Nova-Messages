@@ -20,7 +20,8 @@ fun Context.getScheduleSendPendingIntent(message: Message): PendingIntent {
     intent.putExtra(SCHEDULED_MESSAGE_ID, message.id)
 
     val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-    return PendingIntent.getBroadcast(this, message.id.toInt(), intent, flags)
+    val requestCode = (message.id xor (message.id ushr 32)).toInt()
+    return PendingIntent.getBroadcast(this, requestCode, intent, flags)
 }
 
 fun Context.scheduleMessage(message: Message) {
@@ -28,11 +29,22 @@ fun Context.scheduleMessage(message: Message) {
     val triggerAtMillis = message.millis()
 
     val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-    AlarmManagerCompat.setExactAndAllowWhileIdle(alarmManager, AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+    val canScheduleExact = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+        alarmManager.canScheduleExactAlarms()
+    } else {
+        true
+    }
+
+    if (canScheduleExact) {
+        AlarmManagerCompat.setExactAndAllowWhileIdle(alarmManager, AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+    } else {
+        alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+    }
 }
 
 fun Context.cancelScheduleSendPendingIntent(messageId: Long) {
     val intent = Intent(this, ScheduledMessageReceiver::class.java)
     val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-    PendingIntent.getBroadcast(this, messageId.toInt(), intent, flags).cancel()
+    val requestCode = (messageId xor (messageId ushr 32)).toInt()
+    PendingIntent.getBroadcast(this, requestCode, intent, flags).cancel()
 }

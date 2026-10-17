@@ -2,9 +2,11 @@ package org.nova.messages.helpers
 
 import android.util.LruCache
 import android.content.Context
+import java.util.concurrent.ConcurrentHashMap
 import org.fossify.commons.models.SimpleContact
 import org.nova.messages.models.NamePhoto
 import org.nova.messages.models.Conversation
+import org.nova.messages.models.MessageAttachment
 import org.nova.messages.extensions.conversationsDB
 
 private const val CACHE_SIZE = 128
@@ -16,7 +18,10 @@ object MessagingCache {
     val addressIdCache = LruCache<Int, String>(CACHE_SIZE)
     
     // Key is "id_isMms" (e.g., "123_false" for SMS, "456_true" for MMS)
-    val reactionsCache = HashMap<String, String>() 
+    val reactionsCache = ConcurrentHashMap<String, String>() 
+
+    // MMS attachment cache (MMS parts don't change after download)
+    val mmsAttachmentCache = LruCache<Long, MessageAttachment>(CACHE_SIZE) 
 
     fun getReactionKey(id: Long, isMms: Boolean) = "${id}_$isMms"
 

@@ -23,7 +23,7 @@ class ArchivedConversationsAdapter(
         return listOf(
             R.id.cab_select_all,
             R.id.cab_delete,
-            R.id.cab_archive // Unarchive in this context
+            R.id.cab_unarchive
         )
     }
 
@@ -34,7 +34,7 @@ class ArchivedConversationsAdapter(
 
         when (id) {
             R.id.cab_delete -> askConfirmDelete()
-            R.id.cab_unarchive -> unarchiveConversation()
+            R.id.cab_unarchive, R.id.cab_archive -> unarchiveConversation()
             R.id.cab_select_all -> selectAll()
         }
     }
@@ -94,7 +94,7 @@ class ArchivedConversationsAdapter(
                 refreshConversations()
                 finishActMode()
             } else {
-                submitList(newList)
+                updateConversations(ArrayList(newList))
                 if (newList.isEmpty()) {
                     refreshConversations()
                 }

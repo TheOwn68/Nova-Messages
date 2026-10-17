@@ -106,7 +106,7 @@ class RecycleBinConversationsAdapter(
                 refreshConversations()
                 finishActMode()
             } else {
-                submitList(newList)
+                updateConversations(ArrayList(newList))
                 if (newList.isEmpty()) {
                     refreshConversations()
                 }

@@ -107,7 +107,7 @@ class SettingsActivity : SimpleActivity() {
             novaSearchIcon.alpha = 0.6f
             
             // Highlight Settings (Current Screen) with subtle transparency
-            navSettingsBtn.setBackgroundColor(Color.WHITE.withAlpha(0.1f))
+            navSettingsBtn.setBackgroundResource(R.drawable.nav_button_active_right)
             
             navHomeBtn.setOnClickListener {
                 finish() // Go back to main
@@ -671,7 +671,8 @@ class SettingsActivity : SimpleActivity() {
             getString(R.string.bubble_shape_messenger),
             getString(R.string.bubble_shape_teardrop),
             "Underlined",
-            "Side Pill"
+            "Side Pill",
+            "Dewdrop"
         )
         val adapter = object : ArrayAdapter<String>(this@SettingsActivity, android.R.layout.simple_spinner_item, shapes) {
             override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
@@ -1390,6 +1391,11 @@ class SettingsActivity : SimpleActivity() {
                 8 -> {
                     if (isReceived) floatArrayOf(0f, 0f, rMax, rMax, rMax, rMax, 0f, 0f)
                     else floatArrayOf(rMax, rMax, 0f, 0f, 0f, 0f, rMax, rMax)
+                }
+                9 -> {
+                    val r32 = 32f * density
+                    if (isReceived) floatArrayOf(0f, 0f, r32, r32, r32, r32, r32, r32)
+                    else floatArrayOf(r32, r32, 0f, 0f, r32, r32, r32, r32)
                 }
                 else -> {
                     val r4 = 4f * density

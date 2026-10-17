@@ -58,8 +58,11 @@ class ShortcutHelper(private val context: Context) {
             addCategory(Intent.CATEGORY_BROWSABLE)
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         }
+        val mainIntent = Intent(context, MainActivity::class.java).apply {
+            action = Intent.ACTION_MAIN
+        }
         val intents = androidx.core.app.TaskStackBuilder.create(context).apply {
-            addNextIntent(Intent(context, MainActivity::class.java))
+            addNextIntent(mainIntent)
             addNextIntent(targetIntent)
         }.intents
 

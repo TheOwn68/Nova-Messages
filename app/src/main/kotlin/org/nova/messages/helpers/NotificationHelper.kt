@@ -78,12 +78,9 @@ class NotificationHelper(private val context: Context) {
         val hasThreadSound = context.config.getThreadNotificationSound(threadId).isNotEmpty()
         
         val notificationChannelId = if (hasCustomNotifications || hasThreadSound) {
-            val threadSound = context.config.getThreadNotificationSound(threadId)
-            val soundHash = threadSound.hashCode()
-            if (soundHash != 0) "${threadId}_$soundHash" else threadId.toString()
+            "thread_channel_$threadId"
         } else {
-            val soundHash = context.config.notificationSound.hashCode()
-            if (soundHash != 0) "${NOTIFICATION_CHANNEL_ID}_$soundHash" else NOTIFICATION_CHANNEL_ID
+            NOTIFICATION_CHANNEL_ID
         }
             
         if (hasCustomNotifications || hasThreadSound) {
@@ -255,12 +252,9 @@ class NotificationHelper(private val context: Context) {
         val hasThreadSound = context.config.getThreadNotificationSound(threadId).isNotEmpty()
         
         val notificationChannelId = if (hasCustomNotifications || hasThreadSound) {
-            val threadSound = context.config.getThreadNotificationSound(threadId)
-            val soundHash = threadSound.hashCode()
-            if (soundHash != 0) "${threadId}_$soundHash" else threadId.toString()
+            "thread_channel_$threadId"
         } else {
-            val soundHash = context.config.notificationSound.hashCode()
-            if (soundHash != 0) "${NOTIFICATION_CHANNEL_ID}_$soundHash" else NOTIFICATION_CHANNEL_ID
+            NOTIFICATION_CHANNEL_ID
         }
             
         if (hasCustomNotifications || hasThreadSound) {
@@ -269,7 +263,7 @@ class NotificationHelper(private val context: Context) {
             createChannel(notificationChannelId, context.getString(R.string.message_not_sent_short), null)
         }
 
-        val notificationId = generateRandomId().hashCode()
+        val notificationId = threadId.hashCode()
         val intent = Intent(context, ThreadActivity::class.java).apply {
             putExtra(THREAD_ID, threadId)
         }

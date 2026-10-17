@@ -143,7 +143,7 @@ class ConversationsAdapter(
 
             activity.runOnUiThread {
                 if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
-                submitList(newList)
+                updateConversations(ArrayList(newList))
                 finishActMode()
             }
         }
@@ -214,7 +214,7 @@ class ConversationsAdapter(
                 refreshConversations()
                 finishActMode()
             } else {
-                submitList(newList)
+                updateConversations(ArrayList(newList))
                 if (newList.isEmpty()) {
                     refreshConversations()
                 }
@@ -246,7 +246,7 @@ class ConversationsAdapter(
                 refreshConversations()
                 finishActMode()
             } else {
-                submitList(newList)
+                updateConversations(ArrayList(newList))
                 if (newList.isEmpty()) {
                     refreshConversations()
                 }

@@ -29,18 +29,24 @@ class MessagesImporter(private val activity: SimpleActivity) {
     private var messagesFailed = 0
 
     fun importMessages(uri: Uri) {
-        try {
-            val fileType = activity.contentResolver.getType(uri).orEmpty()
-            val isXml =
-                isXmlMimeType(fileType) || (uri.path?.endsWith("txt") == true && isFileXml(uri))
-            if (isXml) {
-                activity.toast(org.fossify.commons.R.string.importing)
-                getInputStreamFromUri(uri)!!.importXml()
-            } else {
-                importJson(uri)
+        ensureBackgroundThread {
+            try {
+                val fileType = activity.contentResolver.getType(uri).orEmpty()
+                val isXml =
+                    isXmlMimeType(fileType) || (uri.path?.endsWith("txt") == true && isFileXml(uri))
+                if (isXml) {
+                    activity.runOnUiThread {
+                        activity.toast(org.fossify.commons.R.string.importing)
+                    }
+                    getInputStreamFromUri(uri)!!.importXml()
+                } else {
+                    activity.runOnUiThread {
+                        importJson(uri)
+                    }
+                }
+            } catch (e: Throwable) { // also catch OutOfMemoryError etc.
+                activity.showErrorToast(e.toString())
             }
-        } catch (e: Throwable) { // also catch OutOfMemoryError etc.
-            activity.showErrorToast(e.toString())
         }
     }
 

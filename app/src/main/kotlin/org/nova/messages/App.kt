@@ -47,7 +47,7 @@ class App : FossifyApp() {
         config.appId = packageName
         config.appSideloadingStatus = 0
         config.hadThankYouInstalled = true
-        config.appRunCount = 100 // Avoid early popups
+        config.appRunCount = 1 // Pinned at 1: commons shows a "modded app" warning when this is a multiple of 100
 
         ensureBackgroundThread {
             rescheduleAllScheduledMessages()
@@ -67,11 +67,20 @@ class App : FossifyApp() {
         MessagingCache.conversationCache.evictAll()
         MessagingCache.addressIdCache.evictAll()
         MessagingCache.reactionsCache.clear()
+        MessagingCache.mmsAttachmentCache.evictAll()
         com.bumptech.glide.Glide.get(this).onLowMemory()
     }
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
+        if (level >= TRIM_MEMORY_MODERATE) {
+            MessagingCache.namePhoto.evictAll()
+            MessagingCache.participantsCache.evictAll()
+            MessagingCache.conversationCache.evictAll()
+            MessagingCache.addressIdCache.evictAll()
+            MessagingCache.reactionsCache.clear()
+            MessagingCache.mmsAttachmentCache.evictAll()
+        }
         com.bumptech.glide.Glide.get(this).onTrimMemory(level)
     }
 

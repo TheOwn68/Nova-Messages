@@ -459,20 +459,9 @@ abstract class BaseConversationsAdapter(
             )
             recentSeparator.background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, separatorColors)
             
-            // Priority: Real messages over drafts for "Recent" cards as per user request
-            ensureBackgroundThread {
-                if (isDragging) return@ensureBackgroundThread
-                val liveSnippet = activity.getThreadSnippet(conversation.threadId)
-                val type = activity.getLatestMessageType(conversation.threadId)
-                // type 2 is SENT, type 1 is INBOX
-                val isSent = type == 2 || type == 4 || type == 5 || type == 6 
-                activity.runOnUiThread {
-                    if (activity.isFinishing || activity.isDestroyed || isDragging) return@runOnUiThread
-                    recentBody.text = if (isSent && liveSnippet.isNotEmpty()) "You: $liveSnippet" else liveSnippet.ifEmpty { conversation.snippet }
-                    recentBody.setTextColor(mainTextColor)
-                    recentBody.alpha = 0.8f
-                }
-            }
+            recentBody.text = conversation.snippet
+            recentBody.setTextColor(mainTextColor)
+            recentBody.alpha = 0.8f
 
             recentDate.text = (conversation.date * 1000L).formatDateOrTime(
                 context = activity,
@@ -682,17 +671,8 @@ abstract class BaseConversationsAdapter(
             }
 
             conversationBodyShort.apply {
-                ensureBackgroundThread {
-                    if (isDragging) return@ensureBackgroundThread
-                    val liveSnippet = activity.getThreadSnippet(conversation.threadId)
-                    val type = activity.getLatestMessageType(conversation.threadId)
-                    val isSent = type == 2 || type == 4 || type == 5 || type == 6 
-                    activity.runOnUiThread {
-                        if (activity.isFinishing || activity.isDestroyed || isDragging) return@runOnUiThread
-                        text = if (isSent && liveSnippet.isNotEmpty()) "You: $liveSnippet" else liveSnippet.ifEmpty { smsDraft ?: conversation.snippet }
-                        setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
-                    }
-                }
+                text = smsDraft?.let { "Draft: $it" } ?: conversation.snippet
+                setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
             }
 
             conversationDate.apply {

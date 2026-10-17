@@ -86,6 +86,60 @@ class ThreadAdapter(
         private const val MAX_MEDIA_HEIGHT_RATIO = 2
         private const val SIM_BITS = 10
         private const val SIM_MASK = (1L shl SIM_BITS) - 1
+
+        // Typeface cache to avoid recreating on every bind
+        private val typefaceCache = android.util.LruCache<Pair<android.graphics.Typeface, Int>, android.graphics.Typeface>(32)
+        fun getCachedTypeface(base: android.graphics.Typeface, style: Int): android.graphics.Typeface {
+            val key = base to style
+            return typefaceCache.get(key) ?: android.graphics.Typeface.create(base, style).also {
+                typefaceCache.put(key, it)
+            }
+        }
+
+        // Base radii cache to avoid recomputing float arrays on every bind
+        private val radiiCache = android.util.LruCache<String, FloatArray>(64)
+        fun getCachedBaseRadii(bubbleShape: Int, isReceived: Boolean, density: Float): FloatArray {
+            val key = "$bubbleShape-$isReceived-$density"
+            radiiCache.get(key)?.let { return it.copyOf() }
+            val r18 = 18f * density
+            val r12 = 12f * density
+            val r6 = 6f * density
+            val rMax = 1000f * density
+            val result = when (bubbleShape) {
+                1 -> floatArrayOf(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f)
+                2 -> floatArrayOf(r12, r12, r12, r12, r12, r12, r12, r12)
+                3 -> floatArrayOf(rMax, rMax, rMax, rMax, rMax, rMax, rMax, rMax)
+                4 -> floatArrayOf(r6, r6, r6, r6, r6, r6, r6, r6)
+                5 -> {
+                    val r32 = 32f * density
+                    val r14 = 14f * density
+                    if (isReceived) floatArrayOf(r32, r32, r32, r32, r32, r32, r14, r14)
+                    else floatArrayOf(r32, r32, r32, r32, r14, r14, r32, r32)
+                }
+                6 -> {
+                    val r32 = 32f * density
+                    if (isReceived) floatArrayOf(r32, r32, r32, r32, r32, r32, 0f, 0f)
+                    else floatArrayOf(r32, r32, r32, r32, 0f, 0f, r32, r32)
+                }
+                7 -> floatArrayOf(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f)
+                8 -> {
+                    if (isReceived) floatArrayOf(0f, 0f, rMax, rMax, rMax, rMax, 0f, 0f)
+                    else floatArrayOf(rMax, rMax, 0f, 0f, 0f, 0f, rMax, rMax)
+                }
+                9 -> {
+                    val r32 = 32f * density
+                    if (isReceived) floatArrayOf(0f, 0f, r32, r32, r32, r32, r32, r32)
+                    else floatArrayOf(r32, r32, 0f, 0f, r32, r32, r32, r32)
+                }
+                else -> {
+                    val r4 = 4f * density
+                    if (isReceived) floatArrayOf(r18, r18, r18, r18, r18, r18, r4, r4)
+                    else floatArrayOf(r18, r18, r18, r18, r4, r4, r18, r18)
+                }
+            }
+            radiiCache.put(key, result)
+            return result.copyOf()
+        }
     }
 
     init {
@@ -446,51 +500,8 @@ class ThreadAdapter(
                 val gd = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(lightened, bgColor, darkened))
                 
                 val density = resources.displayMetrics.density
-                val r18 = 18f * density
-                val r12 = 12f * density
-                val r6 = 6f * density
-                val rMax = 1000f * density
-                
-                val baseRadii = when (config.bubbleShape) {
-                    1 -> floatArrayOf(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f) // Rectangle
-                    2 -> floatArrayOf(r12, r12, r12, r12, r12, r12, r12, r12) // Rounded Rectangle (Reduced to differentiate from Pill)
-                    3 -> floatArrayOf(rMax, rMax, rMax, rMax, rMax, rMax, rMax, rMax) // Pill
-                    4 -> floatArrayOf(r6, r6, r6, r6, r6, r6, r6, r6) // Soft Rectangle
-                    5 -> { // Messenger Style (Bubbly, soft tail)
-                        val r32 = 32f * density
-                        val r14 = 14f * density
-                        if (isReceived) {
-                            floatArrayOf(r32, r32, r32, r32, r32, r32, r14, r14)
-                        } else {
-                            floatArrayOf(r32, r32, r32, r32, r14, r14, r32, r32)
-                        }
-                    }
-                    6 -> { // Teardrop (One sharp corner)
-                        val r32 = 32f * density
-                        if (isReceived) {
-                            floatArrayOf(r32, r32, r32, r32, r32, r32, 0f, 0f)
-                        } else {
-                            floatArrayOf(r32, r32, r32, r32, 0f, 0f, r32, r32)
-                        }
-                    }
-                    7 -> floatArrayOf(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f) // Underlined (Rectangle radii, but will be transparent)
-                    8 -> { // Side Pill (Flat against the screen edge)
-                        if (isReceived) {
-                            floatArrayOf(0f, 0f, rMax, rMax, rMax, rMax, 0f, 0f)
-                        } else {
-                            floatArrayOf(rMax, rMax, 0f, 0f, 0f, 0f, rMax, rMax)
-                        }
-                    }
-                    else -> { // Default Modern
-                        val r4 = 4f * density
-                        if (isReceived) {
-                            floatArrayOf(r18, r18, r18, r18, r18, r18, r4, r4)
-                        } else {
-                            floatArrayOf(r18, r18, r18, r18, r4, r4, r18, r18)
-                        }
-                    }
-                }
-                
+                val baseRadii = getCachedBaseRadii(config.bubbleShape, isReceived, density)
+
                 // Underlined Style Logic
                 if (config.bubbleShape == 7) {
                     background = null
@@ -532,8 +543,7 @@ class ThreadAdapter(
                     elevation = 4f * density
                 }
                 
-                clipToOutline = false 
-                clipToOutline = false 
+                clipToOutline = false
                 outlineProvider = object : android.view.ViewOutlineProvider() {
                     override fun getOutline(view: View, outline: android.graphics.Outline) {
                         val path = android.graphics.Path()
@@ -567,22 +577,17 @@ class ThreadAdapter(
             }
 
             setOnClickListener {
-                android.util.Log.d("ReactionInteraction", "bodyHolder tapped for message ${message.id} (type=${message.type}, isReceived=${message.isReceivedMessage()}, reaction=${message.reaction})")
                 if (isSelectionModeActive()) {
                     holder.viewLongClicked()
                     updateCustomSelectionBar()
                 } else if (message.isReceivedMessage() && message.reaction == null) {
-                    android.util.Log.d("ReactionInteraction", "Showing ReactionPickerDialog for message ${message.id}")
                     try {
                         org.nova.messages.dialogs.ReactionPickerDialog(activity, this) { emoji ->
-                            android.util.Log.d("ReactionInteraction", "Reaction $emoji picked for message ${message.id}")
                             (activity as? ThreadActivity)?.onReactionPicked(message, emoji)
                         }.show()
                     } catch (e: Exception) {
                         android.util.Log.e("ReactionPicker", "Failed to show dialog from bubble tap", e)
                     }
-                } else {
-                    android.util.Log.d("ReactionInteraction", "Reaction picker disabled for message ${message.id}: isReceived=${message.isReceivedMessage()}, hasReaction=${message.reaction != null}")
                 }
             }
         }
@@ -612,12 +617,27 @@ class ThreadAdapter(
             
             val customTypeface = (activity as SimpleActivity).getCustomTypeface()
             val style = if (message.isScheduled) Typeface.ITALIC else Typeface.NORMAL
-            typeface = Typeface.create(customTypeface, style)
+            typeface = getCachedTypeface(customTypeface, style)
 
-            if (message.body.isNotEmpty()) {
-                Linkify.addLinks(this, Linkify.WEB_URLS or Linkify.EMAIL_ADDRESSES)
+            val hasPotentialLinks = message.body.isNotEmpty() && (
+                message.body.contains("http", ignoreCase = true) ||
+                message.body.contains("www.", ignoreCase = true) ||
+                message.body.contains("@") ||
+                message.body.contains(".com", ignoreCase = true) ||
+                message.body.contains(".org", ignoreCase = true) ||
+                message.body.contains(".net", ignoreCase = true)
+            )
+            // Only run Linkify if the body text has changed since last bind
+            val lastBody = tag as? String
+            if (hasPotentialLinks) {
+                if (lastBody != message.body) {
+                    Linkify.addLinks(this, Linkify.WEB_URLS or Linkify.EMAIL_ADDRESSES)
+                }
+                movementMethod = TouchableLinkMovementMethod
+            } else {
+                movementMethod = null
             }
-            movementMethod = TouchableLinkMovementMethod
+            tag = message.body
 
             // Ensure clicks pass through to the bubble container
             isClickable = true
@@ -625,12 +645,10 @@ class ThreadAdapter(
             isLongClickable = true
 
             setOnClickListener {
-                android.util.Log.d("ReactionInteraction", "bodyView tapped for message ${message.id}, delegating to bodyHolder")
                 bodyHolder.performClick()
             }
             
             setOnLongClickListener {
-                android.util.Log.d("ReactionInteraction", "bodyView long-pressed for message ${message.id}, delegating to bodyHolder")
                 bodyHolder.performLongClick()
             }
 
@@ -795,7 +813,7 @@ class ThreadAdapter(
                 )
                 setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize * 0.8f)
                 val customTypeface = (activity as SimpleActivity).getCustomTypeface()
-                typeface = Typeface.create(customTypeface, Typeface.NORMAL)
+                typeface = getCachedTypeface(customTypeface, Typeface.NORMAL)
             }
             
             val dateTimeColor = activity.config.mainTextColor

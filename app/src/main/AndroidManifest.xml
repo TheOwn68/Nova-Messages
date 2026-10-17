@@ -9,7 +9,6 @@
     <uses-permission android:name="android.permission.SEND_SMS" />
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-permission android:name="android.permission.RECEIVE_MMS" />
-    <uses-permission android:name="android.provider.Telephony.SMS_RECEIVED" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
@@ -35,7 +34,7 @@
 
     <application
         android:name=".App"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:appCategory="productivity"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -55,7 +54,7 @@
         <activity
             android:name=".activities.MainActivity"
             android:configChanges="orientation"
-            android:exported="true" />
+            android:exported="false" />
 
         <activity
             android:name=".activities.AppLockActivity"
@@ -71,14 +70,14 @@
         <activity
             android:name=".activities.RecycleBinConversationsActivity"
             android:configChanges="orientation"
-            android:exported="true"
+            android:exported="false"
             android:label="@string/recycle_bin"
             android:parentActivityName=".activities.MainActivity" />
 
         <activity
             android:name=".activities.ArchivedConversationsActivity"
             android:configChanges="orientation"
-            android:exported="true"
+            android:exported="false"
             android:label="@string/archived_conversations"
             android:parentActivityName=".activities.MainActivity" />
 
@@ -219,18 +218,18 @@
 
         <receiver
             android:name=".receivers.MmsSentReceiver"
-            android:exported="true"
+            android:exported="false"
             android:taskAffinity="com.klinker.android.messaging.MMS_SENT" />
 
         <receiver
             android:name=".receivers.MmsReceiver"
-            android:exported="true"
+            android:exported="false"
             android:taskAffinity="com.klinker.android.messaging.MMS_RECEIVED" />
 
         <receiver
             android:name=".receivers.MarkAsReadReceiver"
             android:enabled="true"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="org.nova.messages.action.mark_as_read" />
             </intent-filter>
@@ -239,7 +238,7 @@
         <receiver
             android:name=".receivers.DirectReplyReceiver"
             android:enabled="true"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="org.nova.messages.action.reply" />
             </intent-filter>
@@ -248,7 +247,7 @@
         <receiver
             android:name=".receivers.DeleteSmsReceiver"
             android:enabled="true"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="org.nova.messages.action.delete" />
             </intent-filter>
