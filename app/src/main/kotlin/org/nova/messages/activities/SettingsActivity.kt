@@ -518,7 +518,7 @@ class SettingsActivity : SimpleActivity() {
     }
 
     private fun startCropper(uri: String, target: Int) {
-        val intent = Intent(this, ImageCropperActivity::class.java).apply {
+        val intent = Intent().setClassName(applicationContext.packageName, ImageCropperActivity::class.java.name).apply {
             putExtra("uri", uri)
             putExtra(CROP_TARGET, target)
         }

@@ -25,7 +25,7 @@ class ShortcutHelper(private val context: Context) {
     val contactsHelper = SimpleContactsHelper(context)
 
     fun getShortcuts(): List<ShortcutInfoCompat> {
-        return ShortcutManagerCompat.getDynamicShortcuts(context)
+        return ShortcutManagerCompat.getDynamicShortcuts(context.applicationContext)
     }
 
     fun getShortcut(threadId: Long): ShortcutInfoCompat? {
@@ -47,7 +47,7 @@ class ShortcutHelper(private val context: Context) {
 
         val participants = context.getThreadParticipants(conv.threadId, contactsMap)
         val persons: Array<Person> = participants.map { it.toPerson(context) }.toTypedArray()
-        val targetIntent = Intent(context, ThreadActivity::class.java).apply {
+        val targetIntent = Intent().setClassName(context.applicationContext.packageName, ThreadActivity::class.java.name).apply {
             action = Intent.ACTION_VIEW
             putExtra(THREAD_ID, conv.threadId)
             putExtra(THREAD_TITLE, conv.title)
@@ -58,7 +58,7 @@ class ShortcutHelper(private val context: Context) {
             addCategory(Intent.CATEGORY_BROWSABLE)
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         }
-        val mainIntent = Intent(context, MainActivity::class.java).apply {
+        val mainIntent = Intent().setClassName(context.applicationContext.packageName, MainActivity::class.java.name).apply {
             action = Intent.ACTION_MAIN
         }
         val intents = androidx.core.app.TaskStackBuilder.create(context).apply {
@@ -66,7 +66,7 @@ class ShortcutHelper(private val context: Context) {
             addNextIntent(targetIntent)
         }.intents
 
-        val shortcut = ShortcutInfoCompat.Builder(context, conv.threadId.toString()).apply {
+        val shortcut = ShortcutInfoCompat.Builder(context.applicationContext, conv.threadId.toString()).apply {
             setShortLabel(conv.title)
             setLongLabel(conv.title)
             setIsConversation()
@@ -146,10 +146,10 @@ class ShortcutHelper(private val context: Context) {
 
     private fun createOrUpdateShortcut(shortcut: ShortcutInfoCompat) {
         if (getShortcut(shortcut.id.toLong()) != null) {
-            ShortcutManagerCompat.updateShortcuts(context, listOf(shortcut))
+            ShortcutManagerCompat.updateShortcuts(context.applicationContext, listOf(shortcut))
             return
         }
-        ShortcutManagerCompat.pushDynamicShortcut(context, shortcut)
+        ShortcutManagerCompat.pushDynamicShortcut(context.applicationContext, shortcut)
     }
 
     /**
@@ -157,17 +157,17 @@ class ShortcutHelper(private val context: Context) {
      */
     fun reportSendMessageUsage(threadId: Long) {
         val shortcut = buildShortcut(threadId, listOf("actions.intent.SEND_MESSAGE"))
-        ShortcutManagerCompat.pushDynamicShortcut(context, shortcut)
+        ShortcutManagerCompat.pushDynamicShortcut(context.applicationContext, shortcut)
     }
 
     fun reportReceiveMessageUsage(threadId: Long) {
         val shortcut = buildShortcut(threadId, listOf("actions.intent.RECEIVE_MESSAGE"))
-        ShortcutManagerCompat.pushDynamicShortcut(context, shortcut)
+        ShortcutManagerCompat.pushDynamicShortcut(context.applicationContext, shortcut)
     }
 
     fun removeShortcutForThread(threadId: Long) {
         val shortcut = getShortcut(threadId) ?: return
-        ShortcutManagerCompat.removeDynamicShortcuts(context, mutableListOf(shortcut.id))
+        ShortcutManagerCompat.removeDynamicShortcuts(context.applicationContext, mutableListOf(shortcut.id))
     }
 
     fun shouldPresentShortcut(conv: Conversation): Boolean {

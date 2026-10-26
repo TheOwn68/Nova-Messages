@@ -44,6 +44,7 @@ import org.fossify.commons.extensions.getTextSize
 import org.fossify.commons.extensions.applyColorFilter
 import org.fossify.commons.extensions.beVisibleIf
 import org.nova.messages.R
+import org.nova.messages.BuildConfig
 import org.nova.messages.extensions.config
 import org.nova.messages.extensions.getCustomTypeface
 import org.nova.messages.helpers.*
@@ -52,17 +53,24 @@ import kotlin.math.max
 
 open class SimpleActivity : BaseSimpleActivity() {
 
-    override fun getPackageName(): String {
-        // Spoof package name only when called from fossify commons (to suppress
-        // the "fake version" modded-app warning). Return the real name otherwise
-        // so Intent(this, ...) resolves correctly.
-        val stackTrace = Thread.currentThread().stackTrace
-        for (element in stackTrace) {
-            if (element.className.startsWith("org.fossify.")) {
-                return "org.fossify.messages"
+    companion object {
+        private val useRealPackageName = ThreadLocal<Boolean>()
+
+        fun <T> withRealPackageName(block: () -> T): T {
+            useRealPackageName.set(true)
+            try {
+                return block()
+            } finally {
+                useRealPackageName.set(false)
             }
         }
-        return super.getPackageName()
+    }
+
+    override fun getPackageName(): String {
+        if (useRealPackageName.get() == true) {
+            return BuildConfig.APPLICATION_ID
+        }
+        return "org.fossify.messages"
     }
 
     val uiScale get() = config.uiScale
@@ -493,7 +501,7 @@ open class SimpleActivity : BaseSimpleActivity() {
     override fun onResume() {
         super.onResume()
         if (config.appLockType != LOCK_NONE && !AppLockActivity.isUnlocked && this !is AppLockActivity) {
-            startActivity(Intent(this, AppLockActivity::class.java))
+            startActivity(Intent().setClassName(applicationContext.packageName, AppLockActivity::class.java.name))
         }
         updateAppFonts(findViewById(android.R.id.content))
         applyCustomColors()

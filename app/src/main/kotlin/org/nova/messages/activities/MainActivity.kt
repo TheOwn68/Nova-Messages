@@ -187,7 +187,7 @@ class MainActivity : SimpleActivity() {
             }
             
             navSettingsBtn.setOnClickListener {
-                startActivity(Intent(this@MainActivity, SettingsActivity::class.java))
+                startActivity(Intent().setClassName(this@MainActivity, SettingsActivity::class.java.name))
             }
             
             navHomeBtn.setOnClickListener {
@@ -225,7 +225,7 @@ class MainActivity : SimpleActivity() {
 
         if (!useNewUi) {
             classicSettingsIcon.setOnClickListener {
-                startActivity(Intent(this@MainActivity, SettingsActivity::class.java))
+                startActivity(Intent().setClassName(this@MainActivity, SettingsActivity::class.java.name))
             }
             
             if (classicSearchInput.tag != "text_watcher_attached") {
@@ -350,22 +350,27 @@ class MainActivity : SimpleActivity() {
         if (isQPlus()) {
             val roleManager = getSystemService(RoleManager::class.java)
             if (roleManager?.isRoleAvailable(RoleManager.ROLE_SMS) == true) {
-                if (roleManager.isRoleHeld(RoleManager.ROLE_SMS)) {
+                val isDefault = SimpleActivity.withRealPackageName {
+                    val roleHeld = try { roleManager.isRoleHeld(RoleManager.ROLE_SMS) } catch (_: Exception) { false }
+                    roleHeld || Telephony.Sms.getDefaultSmsPackage(this@MainActivity) == applicationContext.packageName
+                }
+                if (isDefault) {
                     askPermissions()
                 } else {
                     val intent = roleManager.createRequestRoleIntent(RoleManager.ROLE_SMS)
                     startActivityForResult(intent, MAKE_DEFAULT_APP_REQUEST)
                 }
             } else if (!isFinishing && !isDestroyed) {
-                // Show rationale instead of silently exiting
                 toast("This app must be set as the default SMS app to function. Please set it in Settings.")
             }
         } else {
-            if (Telephony.Sms.getDefaultSmsPackage(this) == packageName) {
+            val realPkg = applicationContext.packageName
+            val isDefault = Telephony.Sms.getDefaultSmsPackage(this) == realPkg
+            if (isDefault) {
                 askPermissions()
             } else {
                 val intent = Intent(Telephony.Sms.Intents.ACTION_CHANGE_DEFAULT)
-                intent.putExtra(Telephony.Sms.Intents.EXTRA_PACKAGE_NAME, packageName)
+                intent.putExtra(Telephony.Sms.Intents.EXTRA_PACKAGE_NAME, realPkg)
                 startActivityForResult(intent, MAKE_DEFAULT_APP_REQUEST)
             }
         }
@@ -376,13 +381,18 @@ class MainActivity : SimpleActivity() {
         if (requestCode == MAKE_DEFAULT_APP_REQUEST) {
             if (isQPlus()) {
                 val roleManager = getSystemService(RoleManager::class.java)
-                if (roleManager?.isRoleHeld(RoleManager.ROLE_SMS) == true) {
+                val isDefault = SimpleActivity.withRealPackageName {
+                    val roleHeld = try { roleManager?.isRoleHeld(RoleManager.ROLE_SMS) } catch (_: Exception) { false }
+                    roleHeld == true || Telephony.Sms.getDefaultSmsPackage(this@MainActivity) == applicationContext.packageName
+                }
+                if (isDefault) {
                     askPermissions()
                 } else if (!isFinishing && !isDestroyed) {
                     toast("This app must be set as the default SMS app to function. Please set it in Settings.")
                 }
             } else {
-                if (Telephony.Sms.getDefaultSmsPackage(this) == packageName) {
+                val realPkg = applicationContext.packageName
+                if (Telephony.Sms.getDefaultSmsPackage(this) == realPkg) {
                     askPermissions()
                 } else if (!isFinishing && !isDestroyed) {
                     toast("This app must be set as the default SMS app to function. Please set it in Settings.")
@@ -625,7 +635,7 @@ class MainActivity : SimpleActivity() {
 
     private fun handleConversationClick(any: Any) {
         val conv = any as Conversation
-        Intent(this, ThreadActivity::class.java).apply {
+        Intent().setClassName(applicationContext.packageName, ThreadActivity::class.java.name).apply {
             putExtra(THREAD_ID, conv.threadId)
             putExtra(THREAD_TITLE, conv.title)
             // No longer passing full parcelable to avoid intent size limits, but the essential title is enough
@@ -635,7 +645,7 @@ class MainActivity : SimpleActivity() {
 
     private fun launchNewConversation() {
         hideKeyboard()
-        startActivity(Intent(this, NewConversationActivity::class.java))
+        startActivity(Intent().setClassName(applicationContext.packageName, NewConversationActivity::class.java.name))
     }
 
     private fun searchTextChanged(text: String) {
@@ -715,7 +725,7 @@ class MainActivity : SimpleActivity() {
                     val searchResult = it as SearchResult
                     hideKeyboard()
                     closeSearch()
-                    Intent(this, ThreadActivity::class.java).apply {
+                    Intent().setClassName(applicationContext.packageName, ThreadActivity::class.java.name).apply {
                         putExtra(THREAD_ID, searchResult.threadId)
                         putExtra(THREAD_TITLE, searchResult.title)
                         putExtra(SEARCHED_MESSAGE_ID, searchResult.messageId)

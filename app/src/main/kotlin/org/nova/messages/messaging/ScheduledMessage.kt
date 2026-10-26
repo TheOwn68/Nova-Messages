@@ -15,7 +15,7 @@ import org.nova.messages.receivers.ScheduledMessageReceiver
  */
 
 fun Context.getScheduleSendPendingIntent(message: Message): PendingIntent {
-    val intent = Intent(this, ScheduledMessageReceiver::class.java)
+    val intent = Intent().setClassName(this.applicationContext.packageName, ScheduledMessageReceiver::class.java.name)
     intent.putExtra(THREAD_ID, message.threadId)
     intent.putExtra(SCHEDULED_MESSAGE_ID, message.id)
 
@@ -43,7 +43,7 @@ fun Context.scheduleMessage(message: Message) {
 }
 
 fun Context.cancelScheduleSendPendingIntent(messageId: Long) {
-    val intent = Intent(this, ScheduledMessageReceiver::class.java)
+    val intent = Intent().setClassName(this.applicationContext.packageName, ScheduledMessageReceiver::class.java.name)
     val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     val requestCode = (messageId xor (messageId ushr 32)).toInt()
     PendingIntent.getBroadcast(this, requestCode, intent, flags).cancel()

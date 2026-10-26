@@ -1,94 +1,106 @@
 <div align="center">
 
-# 📱 Nova Messages
+# Nova Messages
 
-**A fast, lightweight, privacy‑focused SMS/MMS app that gives you full control over your messaging experience.**
+A fast, lightweight, privacy-focused SMS/MMS app for Android.
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Android-3DDC84?logo=android&logoColor=white)](https://theown68.github.io/Nova-Web/)
 [![Website](https://img.shields.io/badge/website-Nova--Web-informational)](https://theown68.github.io/Nova-Web/)
-[![Open Source](https://img.shields.io/badge/open--source-100%25-brightgreen)](LICENSE)
 
-[🌐 Official Website](https://theown68.github.io/Nova-Web/) • [📥 Releases](https://github.com/TheOwn68/Nova-Messages/releases) • [🐛 Report an Issue](https://github.com/TheOwn68/Nova-Messages/issues)
+[Website](https://theown68.github.io/Nova-Web/) • [Releases](https://github.com/TheOwn68/Nova-Messages/releases) • [Issues](https://github.com/TheOwn68/Nova-Messages/issues)
 
 </div>
 
 ---
 
-## 📖 About
+## About
 
-Nova Messages is a modern, open-source SMS/MMS client for Android built for people who want speed, simplicity, and privacy — without ads, trackers, or unnecessary permissions.
+Nova Messages is an open-source SMS/MMS client built for people who want speed and control over their messaging. No ads, no trackers, no unnecessary permissions.
 
-## ✨ Features
+## Features
 
-### 💬 Stay Connected with Ease
-- **Group Messaging** — Send messages to multiple contacts at once.
-- **Photos & Emojis** — Share memories and express yourself effortlessly.
-- **Quick Greetings** — Send pre-designed greetings for fast, personal communication.
+### Messaging
+- Send and receive SMS/MMS
+- Group messaging
+- Attach photos, videos, audio, and files
+- Image compression for MMS (automatic, configurable size limit)
+- Video compression (MediaCodec, no extra app size)
+- Scheduled messages
+- Message reactions
+- Swipe to reply
+- Nova-to-Nova message encryption
+- Delivery and read receipts
 
-### 🛡️ Take Control
-- **Block Unwanted Contacts** — Stop messages from unknown or unwanted numbers.
-- **Phrase Filtering** — Automatically block messages containing specific words or phrases.
-- **Export/Import Blocked Numbers** — Easily back up and restore your block list.
-- **App Lock** — Keep your conversations secure behind a lock.
-
-### ⚡ Fast, Lightweight & Reliable
-Optimized for speed with a small app size and efficient SMS backup support.
-
-### 🔎 Powerful Search
-Quickly find messages without scrolling through long conversations.
-
-### 🎨 Modern, User-Friendly Design
-A clean, intuitive interface built for simplicity and ease of use.
-
-### 🔓 Open-Source & Privacy-First
+### Privacy & Security
 - No internet connection required
-- No ads
-- No unnecessary permissions
-- Fully open-source for transparency and security
+- No ads or trackers
+- App lock (PIN/password/biometric)
+- Block unwanted numbers
+- Phrase filtering (block messages containing specific words)
+- Export/import blocked numbers list
 
----
+### Customization
+- 10 bubble shapes
+- Custom colors for every part of the UI (top bar, bubbles, backgrounds, outlines)
+- Custom fonts
+- Dark/light themes
+- UI scaling
+- Conversation sorting (manual, alphabetical, recent)
+- Pinned conversations
+- Archived conversations
+- Recycle bin for deleted messages
 
-## 📥 Installation
+### Other
+- Powerful search across all messages
+- Home screen widget (conversation list)
+- Quick greetings
+- Contact details viewer
+- Message export/import
+- Notification customization per conversation
+- High refresh rate support
 
-1. Grab the latest APK from the [**Releases**](https://github.com/TheOwn68/Nova-Messages/releases) page.
-2. Enable installs from unknown sources if prompted, then install the APK.
-3. Open Nova Messages and set it as your default SMS app (optional but recommended).
+## Installation
+
+1. Download the latest APK from [Releases](https://github.com/TheOwn68/Nova-Messages/releases).
+2. Enable installs from unknown sources if prompted.
+3. Install the APK.
+4. Open Nova Messages and set it as your default SMS app.
 
 ### Sideloading issues?
 
-Some Android devices require enabling **Restricted Settings** for sideloaded apps. If the app doesn't work immediately after installation:
+Some devices require enabling Restricted Settings. If the app doesn't work after install:
 
-1. Allow restricted settings (Android will prompt you).
-2. Go to **App Info → Storage**.
-3. Tap **Clear Cache**.
-4. Tap **Force Stop**.
-5. Reopen the app.
+1. Allow restricted settings when prompted
+2. Go to App Info → Storage
+3. Clear Cache
+4. Force Stop
+5. Reopen the app
 
-This resolves the issue on most devices.
-
----
-
-## 📸 Screenshots
+## Screenshots
 
 <div align="center">
-<img alt="Nova Messages screenshot 1" src="/images/Image1.png" width="32%">
-<img alt="Nova Messages screenshot 2" src="/images/Image2.png" width="32%">
-<img alt="Nova Messages screenshot 3" src="/images/Image3.png" width="32%">
+<img alt="Nova Messages" src="/images/Image1.png" width="32%">
+<img alt="Nova Messages" src="/images/Image2.png" width="32%">
+<img alt="Nova Messages" src="/images/Image3.png" width="32%">
 </div>
 
----
+## Building from source
 
-## 🤝 Contributing
+Requirements: Android Studio, JDK 17, Android SDK 36
 
-Contributions, bug reports, and feature requests are welcome! Feel free to open an [issue](https://github.com/TheOwn68/Nova-Messages/issues) or submit a pull request.
+```bash
+git clone https://github.com/TheOwn68/Nova-Messages.git
+cd Nova-Messages
+./gradlew assembleCoreDebug
+```
 
-## 📄 License
+The APK will be in `app/build/outputs/apk/core/debug/`.
 
-Nova Messages is licensed under the [GNU General Public License v3.0](LICENSE).
+## Contributing
 
----
+Bug reports and feature requests are welcome. Open an issue or submit a pull request.
 
-<div align="center">
-Made with ❤️ for privacy‑conscious Android users
-</div>
+## License
+
+GNU General Public License v3.0. See [LICENSE](LICENSE) for details.

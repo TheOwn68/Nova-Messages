@@ -9,9 +9,10 @@ import android.graphics.Matrix
 import android.graphics.RectF
 import android.media.ExifInterface
 import android.net.Uri
-import org.fossify.commons.extensions.getMyFileUri
+import org.nova.messages.helpers.getNovaFileUri
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.nova.messages.extensions.isImageMimeType
+import org.nova.messages.helpers.FILE_SIZE_1_MB
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -25,13 +26,26 @@ class ImageCompressor(private val context: Context) {
         }
     }
 
-    private val MAX_RESOLUTION = 1280 // Standard "efficient" mobile resolution
-    private val MIN_RESOLUTION = 160 // Smallest rung before giving up and sending oversized
+    private val MAX_RESOLUTION = 1024 // Reduced from 1280: 37% fewer pixels, faster encode/decode
+    private val MIN_RESOLUTION = 256 // Slightly higher floor for better quality at small sizes
     private val MAX_CACHE_AGE_MS = 7L * 24 * 60 * 60 * 1000 // 7 days
     private val MAX_CACHE_BYTES = 50L * 1024 * 1024 // 50 MB
+    private var lastEvictionTime = 0L
+    private val EVICTION_INTERVAL_MS = 5 * 60 * 1000L // Only evict every 5 minutes
 
     fun compressImage(uri: Uri, compressSize: Long, callback: (compressedFileUri: Uri?) -> Unit) {
         ensureBackgroundThread {
+            val now = System.currentTimeMillis()
+            if (now - lastEvictionTime > EVICTION_INTERVAL_MS) {
+                lastEvictionTime = now
+                evictStaleCache()
+            }
+            var targetSize = compressSize
+            // Cap at 1MB: no carrier supports MMS above this, and a 100MB default
+            // would cause the compressor to skip compression entirely.
+            if (targetSize <= 0 || targetSize > FILE_SIZE_1_MB) {
+                targetSize = FILE_SIZE_1_MB
+            }
             var bitmap: Bitmap? = null
             try {
                 evictStaleCache()
@@ -155,20 +169,20 @@ class ImageCompressor(private val context: Context) {
                     best = if (format == Bitmap.CompressFormat.PNG) {
                         encode(fitted, format, 100) to 100
                     } else {
-                        var quality = 80
+                        var quality = 75
                         var step: Pair<ByteArray, Int>? = null
                         while (quality >= 30) {
                             val bytes = encode(fitted, format, quality)
                             step = bytes to quality
-                            if (compressSize <= 0 || bytes.size <= compressSize) {
+                            if (targetSize <= 0 || bytes.size <= targetSize) {
                                 break
                             }
-                            quality -= 15
+                            quality = if (quality == 75) 50 else 30
                         }
                         step
                     }
                     val size = best?.first?.size ?: Int.MAX_VALUE
-                    if (compressSize <= 0 || size <= compressSize || maxRes <= MIN_RESOLUTION) {
+                    if (targetSize <= 0 || size <= targetSize || maxRes <= MIN_RESOLUTION) {
                         break
                     }
                     maxRes /= 2
@@ -180,7 +194,7 @@ class ImageCompressor(private val context: Context) {
                 val file = File(outputDirectory, "nova_comp_${UUID.randomUUID()}$extension")
                 FileOutputStream(file).use { it.write(bytes) }
 
-                callback.invoke(context.getMyFileUri(file))
+                callback.invoke(context.getNovaFileUri(file))
             } catch (e: Exception) {
                 android.util.Log.e("ImageCompressor", "Nova Compression failed", e)
                 callback.invoke(uri)

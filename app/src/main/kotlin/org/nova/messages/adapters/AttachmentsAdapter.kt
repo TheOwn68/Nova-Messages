@@ -79,7 +79,7 @@ class AttachmentsAdapter(
                         activity = activity,
                         uri = attachment.uri,
                         onClick = {
-                            val intent = Intent(activity, VCardViewerActivity::class.java).also {
+                            val intent = Intent().setClassName(activity.applicationContext.packageName, VCardViewerActivity::class.java.name).also {
                                 it.putExtra(EXTRA_VCARD_URI, attachment.uri)
                             }
                             activity.startActivity(intent)

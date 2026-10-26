@@ -20,12 +20,17 @@ object SmsIntentParser {
 
     fun parse(intent: Intent): Pair<String, String>? {
         val action = intent.action
-        if (action != Intent.ACTION_SENDTO && action != Intent.ACTION_VIEW) {
+        if (action != Intent.ACTION_SENDTO && action != Intent.ACTION_VIEW && action != Intent.ACTION_SEND && action != Intent.ACTION_SEND_MULTIPLE) {
             // Unsupported intent action
             return null
         }
 
-        val recipients = parseRecipients(intent)
+        // For SEND/SEND_MULTIPLE, there's no recipient - let the user pick
+        val recipients = if (action == Intent.ACTION_SEND || action == Intent.ACTION_SEND_MULTIPLE) {
+            ""
+        } else {
+            parseRecipients(intent)
+        }
         val body = extractBodyFromIntent(intent)
         return body.orEmpty() to recipients
     }
@@ -53,12 +58,21 @@ object SmsIntentParser {
     }
 
     private fun extractBodyFromIntent(intent: Intent): String? {
+        val action = intent.action
+        if (action == Intent.ACTION_SEND || action == Intent.ACTION_SEND_MULTIPLE) {
+            // Shared text from other apps
+            val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
+            if (sharedText != null) return sharedText
+            // Shared subject
+            val subject = intent.getStringExtra(Intent.EXTRA_SUBJECT)
+            if (subject != null) return subject
+        }
+
         val uriBody = extractBodyFromUri(intent.data)
         val smsBody = intent.getStringExtra(SMS_BODY)
-        val extraText = if (ContentType.TEXT_PLAIN == intent.type) {
+        val extraText = if (ContentType.TEXT_PLAIN == intent.type || intent.type == null) {
             intent.getStringExtra(Intent.EXTRA_TEXT)
         } else {
-            // Invalid URL, probably
             null
         }
 

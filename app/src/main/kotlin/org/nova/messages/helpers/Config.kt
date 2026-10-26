@@ -75,7 +75,7 @@ class Config(context: Context) : BaseConfig(context) {
             .putInt(LOCK_SCREEN_VISIBILITY, lockScreenVisibilitySetting).apply()
 
     var mmsFileSizeLimit: Long
-        get() = prefs.getLong(MMS_FILE_SIZE_LIMIT, FILE_SIZE_100_MB)
+        get() = prefs.getLong(MMS_FILE_SIZE_LIMIT, FILE_SIZE_1_MB)
         set(mmsFileSizeLimit) = prefs.edit().putLong(MMS_FILE_SIZE_LIMIT, mmsFileSizeLimit).apply()
 
     var pinnedConversations: Set<String>
@@ -491,7 +491,7 @@ class Config(context: Context) : BaseConfig(context) {
             TOP_BAR_CROP_RECT, MAIN_BG_CROP_RECT, INPUT_BAR_CROP_RECT,
             TOP_BAR_BG_MODE, MAIN_BG_MODE, INPUT_BAR_BG_MODE,
             RECENT_COLOR, ROW1_COLOR, ROW2_COLOR, ROW3_COLOR,
-            FONT_FAMILY_NOVA, UI_SCALE, USE_NEW_UI,
+            FONT_FAMILY_NOVA, UI_SCALE, USE_NEW_UI, BUBBLE_SHAPE,
             DOMINANT_COLOR,
             NOTIFICATION_TEXT_COLOR, NOTIFICATION_TEXT_OVAL_COLOR,
             NOTIFICATION_ICON_OUTLINE, NOTIFICATION_OVAL_OUTLINE,
@@ -526,7 +526,7 @@ class Config(context: Context) : BaseConfig(context) {
             TOP_BAR_CROP_RECT, MAIN_BG_CROP_RECT, INPUT_BAR_CROP_RECT,
             TOP_BAR_BG_MODE, MAIN_BG_MODE, INPUT_BAR_BG_MODE,
             RECENT_COLOR, ROW1_COLOR, ROW2_COLOR, ROW3_COLOR,
-            FONT_FAMILY_NOVA, UI_SCALE, USE_NEW_UI,
+            FONT_FAMILY_NOVA, UI_SCALE, USE_NEW_UI, BUBBLE_SHAPE,
             NOTIFICATION_TEXT_COLOR, NOTIFICATION_TEXT_OVAL_COLOR,
             NOTIFICATION_ICON_OUTLINE, NOTIFICATION_OVAL_OUTLINE,
             NOTIFICATION_OUTLINE_COLOR, NOTIFICATION_OUTLINE_THICKNESS,

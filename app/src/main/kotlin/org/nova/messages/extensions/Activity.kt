@@ -111,7 +111,7 @@ fun Activity.startContactDetailsIntent(contact: SimpleContact) {
 }
 
 fun Activity.launchConversationDetails(threadId: Long) {
-    Intent(this, ConversationDetailsActivity::class.java).apply {
+    Intent().setClassName(this.applicationContext.packageName, ConversationDetailsActivity::class.java.name).apply {
         putExtra(THREAD_ID, threadId)
         startActivity(this)
     }

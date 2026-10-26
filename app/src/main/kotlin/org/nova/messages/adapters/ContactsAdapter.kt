@@ -130,13 +130,14 @@ class ContactsAdapter(
                 placeholderName = conversation.title
             )
             
-            val baseColor = Color.WHITE
-            val lightened = baseColor.adjustColor(1.2f)
-            val darkened = baseColor.adjustColor(0.8f)
-            val gd = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(lightened, baseColor, darkened))
-            gd.cornerRadius = 1000f
+            val cardColor = if (activity.config.useNewUi) Color.parseColor("#16FFFFFF") else Color.WHITE
+            val gd = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = 1000f
+                setColor(cardColor)
+            }
             recentFrame.background = gd
-            recentFrame.elevation = 8f * resources.displayMetrics.density
+            recentFrame.elevation = if (activity.config.useNewUi) 0f else 8f * resources.displayMetrics.density
         }
     }
 
@@ -167,10 +168,11 @@ class ContactsAdapter(
             conversationBodyShort.alpha = 0.7f
             
             val density = resources.displayMetrics.density
+            val cardColor = if (activity.config.useNewUi) Color.parseColor("#16FFFFFF") else Color.WHITE
             val gd = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
                 cornerRadius = 24f * density
-                setColor(Color.WHITE)
+                setColor(cardColor)
             }
             conversationFrame.background = gd
         }
@@ -188,29 +190,27 @@ class ContactsAdapter(
                 placeholderName = contact.name
             )
 
-            // Setup modern gradient/outline
-            val baseColor = Color.WHITE
-            val lightened = baseColor.adjustColor(1.2f)
-            val darkened = baseColor.adjustColor(0.8f)
-            val gd = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(lightened, baseColor, darkened))
-            val r_base = 1000f
-            
             val density = resources.displayMetrics.density
+            val cardColor = Color.parseColor("#16FFFFFF")
+            val gd = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = 1000f
+                setColor(cardColor)
+            }
+            
             if (activity.config.smallContactsOutline && activity.config.useNewUi) {
                 val thickness = activity.config.smallContactsOutlineThickness
                 val thickStroke = (thickness * density).toInt()
-                gd.cornerRadius = r_base
                 gd.setStroke(thickStroke, activity.config.smallContactsOutlineColor)
                 
                 val layerDrawable = LayerDrawable(arrayOf(gd))
                 layerDrawable.setLayerInset(0, 0, 0, 0, 0)
                 pillFrame.background = layerDrawable
             } else {
-                gd.cornerRadius = r_base
                 pillFrame.background = gd
             }
             
-            pillFrame.elevation = 6f * density
+            pillFrame.elevation = 0f
         }
     }
 
@@ -218,11 +218,11 @@ class ContactsAdapter(
         override fun areItemsTheSame(oldItem: Any, newItem: Any): Boolean {
             if (oldItem is SimpleContact && newItem is SimpleContact) return oldItem.rawId == newItem.rawId
             if (oldItem is ConversationListItem && newItem is ConversationListItem) return oldItem.id == newItem.id
-            return oldItem == newItem
+            return oldItem.hashCode() == newItem.hashCode()
         }
 
         override fun areContentsTheSame(oldItem: Any, newItem: Any): Boolean {
-            return oldItem == newItem
+            return oldItem.hashCode() == newItem.hashCode()
         }
     }
 

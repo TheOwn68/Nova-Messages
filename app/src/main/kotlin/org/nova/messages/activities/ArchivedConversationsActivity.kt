@@ -153,7 +153,7 @@ class ArchivedConversationsActivity : SimpleActivity() {
     }
 
     private fun handleConversationClick(any: Any) {
-        Intent(this, ThreadActivity::class.java).apply {
+        Intent().setClassName(applicationContext.packageName, ThreadActivity::class.java.name).apply {
             val conversation = any as Conversation
             putExtra(THREAD_ID, conversation.threadId)
             putExtra(THREAD_TITLE, conversation.title)

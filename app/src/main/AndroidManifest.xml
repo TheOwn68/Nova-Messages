@@ -269,6 +269,35 @@
             </intent-filter>
         </receiver>
 
+        <activity
+            android:name=".widgets.WidgetConfigActivity"
+            android:exported="false"
+            android:theme="@style/AppTheme" />
+
+        <receiver
+            android:name=".widgets.ConversationsListWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_conversations_list_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widgets.WidgetOpenThreadReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="org.nova.messages.widget.OPEN_THREAD" />
+            </intent-filter>
+        </receiver>
+
+        <service
+            android:name=".widgets.ConversationsListWidgetService"
+            android:permission="android.permission.BIND_REMOTEVIEWS"
+            android:exported="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"

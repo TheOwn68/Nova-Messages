@@ -188,7 +188,7 @@ class MessagingUtils(val context: Context) {
             }
         }
 
-        val mmsSentIntent = Intent(context, MmsSentReceiver::class.java)
+        val mmsSentIntent = Intent().setClassName(context.applicationContext.packageName, MmsSentReceiver::class.java.name)
         mmsSentIntent.putExtra(MmsSentReceiver.EXTRA_ORIGINAL_RESENT_MESSAGE_ID, messageId)
         transaction.setExplicitBroadcastForSentMms(mmsSentIntent)
 

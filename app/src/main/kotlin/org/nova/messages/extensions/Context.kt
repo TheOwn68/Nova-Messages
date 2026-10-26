@@ -145,6 +145,7 @@ fun Context.getMessages(
     dateFrom: Int = -1,
     includeScheduledMessages: Boolean = true,
     limit: Int = MESSAGES_LIMIT,
+    includeMms: Boolean = true,
 ): ArrayList<Message> {
     val uri = Sms.CONTENT_URI
     val projection = arrayOf(
@@ -248,7 +249,10 @@ fun Context.getMessages(
         messages.add(message)
     }
 
-    messages.addAll(getMMS(threadId, sortOrder, dateFrom))
+    if (includeMms) {
+        val mmsSortOrder = "${Sms.DATE} DESC LIMIT ${limit / 2}" // Load fewer MMS initially (MMS parts queries are expensive)
+        messages.addAll(getMMS(threadId, mmsSortOrder, dateFrom))
+    }
 
     if (includeScheduledMessages) {
         try {
@@ -1397,21 +1401,24 @@ fun Context.updateLastConversationMessage(threadId: Long) {
 }
 
 fun Context.updateLastConversationMessage(threadIds: Iterable<Long>) {
-    // update the date and the snippet of the threads, by triggering the
-    // following Android code (which runs even if no messages are deleted):
-    // https://android.googlesource.com/platform/packages/providers/TelephonyProvider/+/android14-release/src/com/android/providers/telephony/MmsSmsProvider.java#1409
-    val uri = Threads.CONTENT_URI
-    val selection =
-        "1 = 0" // always-false condition, because we don't actually want to delete any messages
-    try {
-        contentResolver.delete(uri, selection, null)
-        val allSystemConvs = getConversations()
-        val toUpdate = allSystemConvs.filter { it.threadId in threadIds }
-        if (toUpdate.isNotEmpty()) {
-            insertOrUpdateConversations(toUpdate)
+    val now = (System.currentTimeMillis() / 1000).toInt()
+    val toUpdate = threadIds.map { threadId ->
+        val conv = conversationsDB.getConversationWithThreadId(threadId)
+        if (conv != null) {
+            conv.date = now
+            conv
+        } else {
+            null
         }
-    } catch (_: Exception) {
+    }.filterNotNull()
+    if (toUpdate.isNotEmpty()) {
+        conversationsDB.insertOrUpdateAll(toUpdate)
     }
+    // Also trigger system conversation update
+    try {
+        val uri = Threads.CONTENT_URI
+        contentResolver.delete(uri, "1 = 0", null)
+    } catch (_: Exception) {}
 }
 
 fun Context.insertOrUpdateConversations(conversations: List<Conversation>) {
@@ -1420,6 +1427,7 @@ fun Context.insertOrUpdateConversations(conversations: List<Conversation>) {
         val cachedConv = existing[conv.threadId]
         var updatedConv = conv
         if (cachedConv != null) {
+            // Use the newer date (system date after send should be latest)
             if (cachedConv.date > updatedConv.date) {
                 updatedConv.date = cachedConv.date
             }

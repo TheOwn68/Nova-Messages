@@ -92,8 +92,8 @@ class NotificationHelper(private val context: Context) {
 
         val notificationId = threadId.hashCode()
         val contentPendingIntent = androidx.core.app.TaskStackBuilder.create(context).apply {
-            addNextIntent(Intent(context, MainActivity::class.java))
-            addNextIntent(Intent(context, ThreadActivity::class.java).apply {
+            addNextIntent(Intent().setClassName(context.applicationContext.packageName, MainActivity::class.java.name))
+            addNextIntent(Intent().setClassName(context.applicationContext.packageName, ThreadActivity::class.java.name).apply {
                 putExtra(THREAD_ID, threadId)
                 putExtra(IS_FROM_NOTIFICATION, true)
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -103,7 +103,7 @@ class NotificationHelper(private val context: Context) {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
         )
 
-        val markAsReadIntent = Intent(context, MarkAsReadReceiver::class.java).apply {
+        val markAsReadIntent = Intent().setClassName(context.applicationContext.packageName, MarkAsReadReceiver::class.java.name).apply {
             action = MARK_AS_READ
             putExtra(THREAD_ID, threadId)
         }
@@ -115,7 +115,7 @@ class NotificationHelper(private val context: Context) {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
             )
 
-        val deleteSmsIntent = Intent(context, DeleteSmsReceiver::class.java).apply {
+        val deleteSmsIntent = Intent().setClassName(context.applicationContext.packageName, DeleteSmsReceiver::class.java.name).apply {
             putExtra(THREAD_ID, threadId)
             putExtra(MESSAGE_ID, messageId)
         }
@@ -135,7 +135,7 @@ class NotificationHelper(private val context: Context) {
                 .setLabel(replyLabel)
                 .build()
 
-            val replyIntent = Intent(context, DirectReplyReceiver::class.java).apply {
+            val replyIntent = Intent().setClassName(context.applicationContext.packageName, DirectReplyReceiver::class.java.name).apply {
                 putExtra(THREAD_ID, threadId)
                 putExtra(THREAD_NUMBER, address)
             }
@@ -157,7 +157,7 @@ class NotificationHelper(private val context: Context) {
         }
 
         val builder = NotificationCompat.Builder(context, notificationChannelId).apply {
-            val customView = RemoteViews(context.packageName, R.layout.notification_custom_v2).apply {
+            val customView = RemoteViews(context.applicationContext.packageName, R.layout.notification_custom_v2).apply {
                 val contactIcon: Bitmap = bitmap ?: SimpleContactsHelper(context).getContactLetterIcon(sender ?: "")
                 
                 val config = context.config
@@ -264,7 +264,7 @@ class NotificationHelper(private val context: Context) {
         }
 
         val notificationId = threadId.hashCode()
-        val intent = Intent(context, ThreadActivity::class.java).apply {
+        val intent = Intent().setClassName(context.applicationContext.packageName, ThreadActivity::class.java.name).apply {
             putExtra(THREAD_ID, threadId)
         }
         val contentPendingIntent = PendingIntent.getActivity(

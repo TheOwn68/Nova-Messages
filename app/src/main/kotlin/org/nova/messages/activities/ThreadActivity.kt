@@ -452,7 +452,7 @@ class ThreadActivity : SimpleActivity() {
     private fun setupThread(searchedMessageId: Long = -1L, callback: () -> Unit) {
         if (conversation == null && isLaunchedFromShortcut) {
             if (isTaskRoot) {
-                Intent(this, MainActivity::class.java).apply {
+                Intent().setClassName(applicationContext.packageName, MainActivity::class.java.name).apply {
                     addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
                     startActivity(this)
                 }
@@ -518,6 +518,9 @@ class ThreadActivity : SimpleActivity() {
                         toRecycleBin,
                         fromRecycleBin
                     )
+                },
+                onReply = { message ->
+                    handleReply(message)
                 }
             )
 
@@ -548,7 +551,13 @@ class ThreadActivity : SimpleActivity() {
                     isRefreshing = false
                     if (isFinishing || isDestroyed) return@updateMessages
                     if (forceScroll || forceScrollOnOpen) {
-                        scrollToBottom(true)
+                        // Scroll to bottom, accounting for tall items (images)
+                        binding.threadMessagesList.scrollToPosition(adapter.itemCount - 1)
+                        binding.threadMessagesList.post {
+                            if (!isFinishing && !isDestroyed) {
+                                binding.threadMessagesList.scrollToPosition(adapter.itemCount - 1)
+                            }
+                        }
                     }
                 }
             }
@@ -1218,6 +1227,19 @@ class ThreadActivity : SimpleActivity() {
         return binding.messageHolder.threadAttachmentsRecyclerview.adapter as? AttachmentsAdapter
     }
 
+    private fun handleReply(message: Message) {
+        val senderName = if (message.isReceivedMessage()) {
+            message.senderName ?: message.senderPhoneNumber ?: ""
+        } else {
+            "You"
+        }
+        val quotedText = message.body.take(100)
+        val replyPrefix = "↩ $senderName: $quotedText\n"
+        binding.messageHolder.threadTypeMessage.setText(replyPrefix)
+        binding.messageHolder.threadTypeMessage.setSelection(replyPrefix.length)
+        binding.messageHolder.threadTypeMessage.requestFocus()
+    }
+
     private fun sendMessage() {
         val text = binding.messageHolder.threadTypeMessage.text.toString().trim()
         val attachments = ArrayList(getAttachmentSelections())
@@ -1405,15 +1427,9 @@ class ThreadActivity : SimpleActivity() {
 
                         // Smoothly glide to the bottom instead of instant jump
                         if (forceScroll || isManual) {
-                            // For forced scrolls (sending) or manual, use custom smooth scroller for perfect speed
-                            val scroller = object : androidx.recyclerview.widget.LinearSmoothScroller(this) {
-                                override fun getVerticalSnapPreference(): Int = SNAP_TO_END
-                                override fun calculateSpeedPerPixel(displayMetrics: android.util.DisplayMetrics): Float {
-                                    return 120f / displayMetrics.densityDpi
-                                }
-                            }
-                            scroller.targetPosition = target
-                            recyclerView.layoutManager?.startSmoothScroll(scroller)
+                            // For forced scrolls (opening thread or sending), scroll instantly to bottom
+                            // Smooth scroll can stop early if the last item is very tall (image)
+                            recyclerView.scrollToPosition(target)
                         } else {
                             // Standard smooth scroll for background receipts
                             recyclerView.smoothScrollToPosition(target)
@@ -1779,7 +1795,7 @@ class ThreadActivity : SimpleActivity() {
 
     private fun handleBackNavigation() {
         if (isTaskRoot) {
-            Intent(this, MainActivity::class.java).apply {
+            Intent().setClassName(applicationContext.packageName, MainActivity::class.java.name).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
                 startActivity(this)
             }

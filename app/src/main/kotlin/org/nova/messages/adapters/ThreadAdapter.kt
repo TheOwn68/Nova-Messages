@@ -61,7 +61,8 @@ class ThreadAdapter(
     recyclerView: MyRecyclerView,
     itemClick: (Any) -> Unit,
     private val isRecycleBin: Boolean,
-    private val deleteMessages: (messages: List<Message>, toRecycleBin: Boolean, fromRecycleBin: Boolean) -> Unit
+    private val deleteMessages: (messages: List<Message>, toRecycleBin: Boolean, fromRecycleBin: Boolean) -> Unit,
+    private val onReply: (Message) -> Unit = {}
 ) : MyRecyclerViewListAdapter<ThreadItem>(activity, recyclerView, ThreadItemDiffCallback(), itemClick) {
 
     var highlightedMessageId: Long = -1L
@@ -75,7 +76,7 @@ class ThreadAdapter(
     private val uiScale get() = (activity as SimpleActivity).uiScale
     private val maxChatBubbleWidth = (activity.usableScreenSize.x * 0.75f).toInt()
     private var fontSize = (activity as SimpleActivity).getScaledTextSize()
-    private var lastAnimatedPosition = -1
+    private val animatedIds = mutableSetOf<Long>()
 
     fun updateScaling() {
         fontSize = (activity as SimpleActivity).getScaledTextSize()
@@ -307,21 +308,98 @@ class ThreadAdapter(
                 
                 setupView(holder, binding, item)
                 
-                // Bubble Entry Animation
-                if (position > lastAnimatedPosition) {
+                // Bubble Entry Animation: pop in from left (received) or right (sent)
+                // Staggered from bottom to top, only for newly visible items
+                if (item.id !in animatedIds) {
+                    animatedIds.add(item.id)
                     val isReceived = item.isReceivedMessage()
                     val bodyHolder = if (binding is ItemMessageReceivedBinding) binding.threadMessageBodyHolder else (binding as ItemMessageSentBinding).threadMessageBodyHolder
                     
-                    val anim = android.view.animation.ScaleAnimation(
-                        0.7f, 1.0f, 0.7f, 1.0f,
-                        android.view.animation.Animation.RELATIVE_TO_SELF, if (isReceived) 0f else 1.0f,
-                        android.view.animation.Animation.RELATIVE_TO_SELF, 1.0f
-                    )
-                    anim.duration = 400
-                    anim.interpolator = android.view.animation.OvershootInterpolator(1.2f)
-                    bodyHolder.startAnimation(anim)
-                    lastAnimatedPosition = position
+                    // Stagger: items closer to bottom animate first
+                    val itemCount = currentList.size
+                    val distanceFromBottom = itemCount - 1 - position
+                    val staggerDelay = (distanceFromBottom * 30L).coerceAtMost(300L)
+                    
+                    bodyHolder.alpha = 0f
+                    bodyHolder.translationX = if (isReceived) -80f else 80f
+                    
+                    bodyHolder.animate()
+                        .alpha(1f)
+                        .translationX(0f)
+                        .setDuration(250)
+                        .setStartDelay(staggerDelay)
+                        .setInterpolator(android.view.animation.DecelerateInterpolator())
+                        .start()
+                } else {
+                    // Already animated - ensure visible
+                    val bodyHolder = if (binding is ItemMessageReceivedBinding) binding.threadMessageBodyHolder else (binding as ItemMessageSentBinding).threadMessageBodyHolder
+                    bodyHolder.alpha = 1f
+                    bodyHolder.translationX = 0f
                 }
+
+                // Swipe-to-reply gesture (applied to all messages)
+                val swipeBodyHolder = if (binding is ItemMessageReceivedBinding) binding.threadMessageBodyHolder else (binding as ItemMessageSentBinding).threadMessageBodyHolder
+                val swipeBodyView = if (binding is ItemMessageReceivedBinding) binding.threadMessageBody else (binding as ItemMessageSentBinding).threadMessageBody
+                val isReceived = item.isReceivedMessage()
+                swipeBodyView.setOnTouchListener(object : View.OnTouchListener {
+                    private var startX = 0f
+                    private var startY = 0f
+                    private var isSwiping = false
+                    private val swipeThreshold = 120f
+                    private val verticalThreshold = 50f
+
+                    override fun onTouch(v: View, event: MotionEvent): Boolean {
+                        when (event.action) {
+                            MotionEvent.ACTION_DOWN -> {
+                                startX = event.rawX
+                                startY = event.rawY
+                                isSwiping = false
+                                return true
+                            }
+                            MotionEvent.ACTION_MOVE -> {
+                                val dx = event.rawX - startX
+                                val dy = event.rawY - startY
+                                if (!isSwiping && (kotlin.math.abs(dx) > 20f || kotlin.math.abs(dy) > 20f)) {
+                                    if (kotlin.math.abs(dx) > kotlin.math.abs(dy) && kotlin.math.abs(dy) < verticalThreshold) {
+                                        isSwiping = true
+                                    } else {
+                                        return false
+                                    }
+                                }
+                                if (isSwiping) {
+                                    v.parent.requestDisallowInterceptTouchEvent(true)
+                                    val allowedDx = if (isReceived) dx.coerceAtLeast(0f) else dx.coerceAtMost(0f)
+                                    swipeBodyHolder.translationX = allowedDx * 0.5f
+                                    val progress = (kotlin.math.abs(allowedDx) / swipeThreshold).coerceIn(0f, 1f)
+                                    swipeBodyHolder.alpha = 1f - progress * 0.3f
+                                    return true
+                                }
+                            }
+                            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                                if (isSwiping) {
+                                    val dx = event.rawX - startX
+                                    val allowedDx = if (isReceived) dx.coerceAtLeast(0f) else dx.coerceAtMost(0f)
+                                    if (kotlin.math.abs(allowedDx) > swipeThreshold) {
+                                        onReply(item)
+                                    }
+                                    swipeBodyHolder.animate()
+                                        .translationX(0f)
+                                        .alpha(1f)
+                                        .setDuration(200)
+                                        .setInterpolator(android.view.animation.DecelerateInterpolator())
+                                        .start()
+                                    isSwiping = false
+                                    return true
+                                } else {
+                                    // No swipe - trigger click
+                                    v.performClick()
+                                    return true
+                                }
+                            }
+                        }
+                        return false
+                    }
+                })
             }
             is ThreadDateTime -> setupDateTime(binding.root, item)
             is ThreadError -> setupThreadError(binding.root)
@@ -411,7 +489,7 @@ class ThreadAdapter(
 
     private fun forwardMessage() {
         val message = getSelectedItems().first() as Message
-        val intent = Intent(activity, NewConversationActivity::class.java).apply {
+        val intent = Intent().setClassName(activity.applicationContext.packageName, NewConversationActivity::class.java.name).apply {
             putExtra(THREAD_TEXT, message.body)
             if (message.isMMS) {
                 putExtra(THREAD_ATTACHMENT_URIS, ArrayList(message.attachment?.attachments?.map { it.getUri().toString() } ?: emptyList()))
@@ -540,26 +618,13 @@ class ThreadAdapter(
                     }
                     
                     // Material 3 Depth (Standardized for stability)
-                    elevation = 4f * density
+                    elevation = 6f * density
                 }
                 
-                clipToOutline = false
-                outlineProvider = object : android.view.ViewOutlineProvider() {
-                    override fun getOutline(view: View, outline: android.graphics.Outline) {
-                        val path = android.graphics.Path()
-                        // Use baseRadii for clipping to ensure content matches the visual interior
-                        path.addRoundRect(
-                            0f, 0f, view.width.toFloat(), view.height.toFloat(),
-                            baseRadii, android.graphics.Path.Direction.CW
-                        )
-                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-                            outline.setPath(path)
-                        } else {
-                            @Suppress("DEPRECATION")
-                            outline.setConvexPath(path)
-                        }
-                    }
-                }
+                clipToOutline = true
+                // Let Android compute outline from the background drawable (GradientDrawable with cornerRadii)
+                // This produces better shadows than custom outline providers on most devices
+                outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
             } else {
                 if (backgroundDrawable is GradientDrawable) {
                     backgroundDrawable.setColor(bgColor)
@@ -619,19 +684,10 @@ class ThreadAdapter(
             val style = if (message.isScheduled) Typeface.ITALIC else Typeface.NORMAL
             typeface = getCachedTypeface(customTypeface, style)
 
-            val hasPotentialLinks = message.body.isNotEmpty() && (
-                message.body.contains("http", ignoreCase = true) ||
-                message.body.contains("www.", ignoreCase = true) ||
-                message.body.contains("@") ||
-                message.body.contains(".com", ignoreCase = true) ||
-                message.body.contains(".org", ignoreCase = true) ||
-                message.body.contains(".net", ignoreCase = true)
-            )
-            // Only run Linkify if the body text has changed since last bind
             val lastBody = tag as? String
-            if (hasPotentialLinks) {
+            if (message.body.isNotEmpty()) {
                 if (lastBody != message.body) {
-                    Linkify.addLinks(this, Linkify.WEB_URLS or Linkify.EMAIL_ADDRESSES)
+                    Linkify.addLinks(this, Linkify.WEB_URLS or Linkify.EMAIL_ADDRESSES or Linkify.PHONE_NUMBERS)
                 }
                 movementMethod = TouchableLinkMovementMethod
             } else {
@@ -767,7 +823,7 @@ class ThreadAdapter(
                     if (actModeCallback.isSelectable) {
                         holder.viewClicked(message)
                     } else {
-                        val intent = Intent(activity, VCardViewerActivity::class.java).also {
+                        val intent = Intent().setClassName(activity.applicationContext.packageName, VCardViewerActivity::class.java.name).also {
                             it.putExtra(EXTRA_VCARD_URI, uri)
                         }
                         activity.startActivity(intent)

@@ -44,6 +44,8 @@ class NewConversationActivity : SimpleActivity() {
     private var privateContacts = ArrayList<SimpleContact>()
     private var lastMessageMap = HashMap<String, Int>()
     private var wasImeVisible = false
+    private var sharedBody: String = ""
+    private var sharedUris: ArrayList<Uri>? = null
 
     private val binding by viewBinding(ActivityNewConversationBinding::inflate)
 
@@ -63,6 +65,9 @@ class NewConversationActivity : SimpleActivity() {
         handlePermission(PERMISSION_READ_CONTACTS) {
             initContacts()
         }
+
+        // Handle shared content from other apps (runs regardless of contacts permission)
+        isThirdPartyIntent()
 
         // Keyboard Sync for Search Bar
         ViewCompat.setOnApplyWindowInsetsListener(binding.newConversationCoordinator) { _, insets ->
@@ -229,16 +234,35 @@ class NewConversationActivity : SimpleActivity() {
         binding.newConversationConfirm.setOnClickListener {
             if (System.currentTimeMillis() - lastSelectionTime.get() < 1000) return@setOnClickListener
             if (searchString.isPhoneNumber()) {
-                launchThreadActivity(searchString, searchString)
+                launchThreadActivity(searchString, searchString, sharedBody, sharedUris)
             } else if (shortCodeWithLetters) {
                 toast(R.string.invalid_short_code, length = Toast.LENGTH_LONG)
             } else {
-                launchThreadActivity(searchString, searchString)
+                launchThreadActivity(searchString, searchString, sharedBody, sharedUris)
             }
         }
     }
 
     private fun isThirdPartyIntent(): Boolean {
+        val action = intent.action
+        if (action != Intent.ACTION_SENDTO && action != Intent.ACTION_VIEW && action != Intent.ACTION_SEND && action != Intent.ACTION_SEND_MULTIPLE) {
+            return false
+        }
+
+        if (action == Intent.ACTION_SEND || action == Intent.ACTION_SEND_MULTIPLE) {
+            // Shared content from another app - store it for when user picks a contact
+            sharedBody = intent.getStringExtra(Intent.EXTRA_TEXT) ?: intent.getStringExtra(Intent.EXTRA_SUBJECT) ?: ""
+            sharedUris = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM)
+            if (sharedUris == null) {
+                val singleUri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+                if (singleUri != null) {
+                    sharedUris = arrayListOf(singleUri)
+                }
+            }
+            // Don't launch thread yet - let user pick a contact first
+            return false
+        }
+
         val result = SmsIntentParser.parse(intent)
         if (result != null && result.first.isNotEmpty()) {
             val phoneNumber = result.first
@@ -340,27 +364,18 @@ class NewConversationActivity : SimpleActivity() {
         val currAdapter = binding.contactsList.adapter
         if (currAdapter == null) {
             ContactsAdapter(this, contacts, binding.contactsList) {
-                val now = System.currentTimeMillis()
-                if (now - lastSelectionTime.get() < 1000) {
-                    android.util.Log.d("LAUNCH_DEBUG", "Blocked click - too fast")
-                    return@ContactsAdapter
-                }
-                
-                // Mark selection time immediately to block other list taps
-                lastSelectionTime.set(now)
-                
                 if (it is SimpleContact) {
                     val contact = it
                     if (contact.phoneNumbers.size == 1) {
-                        launchThreadActivity(contact.phoneNumbers.first().normalizedNumber, contact.name)
+                        launchThreadActivity(contact.phoneNumbers.first().normalizedNumber, contact.name, sharedBody, sharedUris)
                     } else {
                         maybeShowNumberPickerDialog(contact.phoneNumbers) { number ->
-                            launchThreadActivity(number.normalizedNumber, contact.name)
+                            launchThreadActivity(number.normalizedNumber, contact.name, sharedBody, sharedUris)
                         }
                     }
                 } else if (it is ConversationListItem) {
                     val conversation = it.conversation
-                    launchThreadActivity(conversation.phoneNumber, conversation.title)
+                    launchThreadActivity(conversation.phoneNumber, conversation.title, sharedBody, sharedUris)
                 }
             }.apply {
                 binding.contactsList.adapter = this
@@ -422,38 +437,18 @@ class NewConversationActivity : SimpleActivity() {
     private val lastSelectionTime = java.util.concurrent.atomic.AtomicLong(0)
     private var lastLaunchedNumber = ""
 
-    private fun launchThreadActivity(phoneNumber: String, name: String, body: String = "") {
-        val now = System.currentTimeMillis()
-        // If it's a different number, we allow it after a short debounce
-        // If it's the same number, we block for longer
-        val debounce = if (phoneNumber == lastLaunchedNumber) 2000 else 1000
-        
-        if (now - lastSelectionTime.get() < debounce) {
-            android.util.Log.d("LAUNCH_DEBUG", "Blocked launch - too fast")
-            return
-        }
-        
-        lastSelectionTime.set(now)
-        lastLaunchedNumber = phoneNumber
-        android.util.Log.d("LAUNCH_DEBUG", "Launching thread activity for $phoneNumber ($name)")
-        
+    private fun launchThreadActivity(phoneNumber: String, name: String, body: String = "", uris: ArrayList<Uri>? = null) {
         hideKeyboard()
         val numbers = phoneNumber.split(";").toSet()
-        Intent(this, ThreadActivity::class.java).apply {
+        Intent().setClassName(applicationContext.packageName, ThreadActivity::class.java.name).apply {
             putExtra(THREAD_ID, this@NewConversationActivity.getThreadId(numbers))
             putExtra(THREAD_TITLE, name)
             putExtra(THREAD_NUMBER, phoneNumber)
             putExtra(THREAD_TEXT, body)
-            
-            val uri = intent.getParcelableExtra<Uri>(THREAD_ATTACHMENT_URI)
-            if (uri != null) {
-                putExtra(THREAD_ATTACHMENT_URI, uri.toString())
-            } else if (intent.action == Intent.ACTION_SEND_MULTIPLE && intent.extras?.containsKey(
-                    Intent.EXTRA_STREAM
-                ) == true
-            ) {
-                val uris = intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)
-                putExtra(THREAD_ATTACHMENT_URIS, uris)
+
+            val urisToPass = uris ?: sharedUris
+            if (urisToPass != null && urisToPass.isNotEmpty()) {
+                putExtra(THREAD_ATTACHMENT_URIS, urisToPass)
             }
 
             startActivity(this)
