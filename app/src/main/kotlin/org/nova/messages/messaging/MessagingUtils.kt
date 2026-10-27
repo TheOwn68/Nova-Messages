@@ -165,13 +165,17 @@ class MessagingUtils(val context: Context) {
         settings: Settings,
         messageId: Long? = null
     ) {
-        val transaction = Transaction(context, settings)
+        // Use the application context so getPackageName() returns the real package name.
+        // SimpleActivity overrides getPackageName() to spoof "org.fossify.messages", which
+        // breaks PendingIntent creation (Permission Denial) inside the MMS transaction.
+        val appContext = context.applicationContext
+        val transaction = Transaction(appContext, settings)
         val message = Message(text, addresses.toTypedArray())
 
         if (attachment != null) {
             try {
                 val uri = attachment.getUri()
-                context.contentResolver.openInputStream(uri)?.use {
+                appContext.contentResolver.openInputStream(uri)?.use {
                     val bytes = it.readBytes()
                     val mimeType = if (attachment.mimetype.isPlainTextMimeType()) {
                         "application/txt"

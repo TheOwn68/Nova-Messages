@@ -187,7 +187,7 @@ class MainActivity : SimpleActivity() {
             }
             
             navSettingsBtn.setOnClickListener {
-                startActivity(Intent().setClassName(this@MainActivity, SettingsActivity::class.java.name))
+                startActivity(Intent().setClassName(applicationContext.packageName, SettingsActivity::class.java.name))
             }
             
             navHomeBtn.setOnClickListener {
@@ -225,7 +225,7 @@ class MainActivity : SimpleActivity() {
 
         if (!useNewUi) {
             classicSettingsIcon.setOnClickListener {
-                startActivity(Intent().setClassName(this@MainActivity, SettingsActivity::class.java.name))
+                startActivity(Intent().setClassName(applicationContext.packageName, SettingsActivity::class.java.name))
             }
             
             if (classicSearchInput.tag != "text_watcher_attached") {

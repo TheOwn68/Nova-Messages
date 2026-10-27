@@ -1,6 +1,7 @@
 package org.nova.messages.helpers
 
 import android.content.Context
+import android.media.Image
 import android.media.MediaCodec
 import android.media.MediaCodecInfo
 import android.media.MediaExtractor
@@ -25,6 +26,7 @@ class VideoCompressor(private val context: Context) {
     private val MAX_RESOLUTION = 480
     private val MIN_RESOLUTION = 160
     private val MAX_CACHE_AGE_MS = 7L * 24 * 60 * 60 * 1000
+    private val TIMEOUT_US = 100_000L
 
     fun compressVideo(uri: Uri, targetSize: Long, callback: (compressedFileUri: Uri?) -> Unit) {
         ensureBackgroundThread {
@@ -32,6 +34,7 @@ class VideoCompressor(private val context: Context) {
             try {
                 val originalSize = context.getFileSizeFromUri(uri)
                 if (originalSize <= 0 || (targetSize > 0 && originalSize <= targetSize)) {
+                    Log.d(TAG, "Already small enough ($originalSize <= $targetSize), returning original")
                     callback.invoke(uri)
                     return@ensureBackgroundThread
                 }
@@ -43,6 +46,7 @@ class VideoCompressor(private val context: Context) {
                 }
 
                 val probe = probeVideo(uri) ?: run {
+                    Log.w(TAG, "Probe failed")
                     callback.invoke(uri)
                     return@ensureBackgroundThread
                 }
@@ -53,42 +57,60 @@ class VideoCompressor(private val context: Context) {
                 }
 
                 val durationSec = probe.durationUs / 1_000_000.0
-                val targetBitrate = ((effectiveTarget * 8 * 0.9) / durationSec).toInt().coerceIn(100_000, 2_000_000)
+                Log.d(TAG, "Original: ${probe.width}x${probe.height}, ${durationSec}s, ${originalSize} bytes")
 
-                // Determine target resolution
-                val scale = if (probe.width > probe.height) {
-                    MAX_RESOLUTION.toFloat() / probe.width
-                } else {
-                    MAX_RESOLUTION.toFloat() / probe.height
-                }.coerceAtMost(1f)
-                val targetWidth = (probe.width * scale).toInt().coerceAtLeast(MIN_RESOLUTION) and -2
-                val targetHeight = (probe.height * scale).toInt().coerceAtLeast(MIN_RESOLUTION) and -2
+                // Strategy 1: Try at calculated bitrate + scaled resolution
+                val targetBitrate = ((effectiveTarget * 8 * 0.85) / durationSec).toInt().coerceIn(100_000, 2_000_000)
+                val scale = (MAX_RESOLUTION.toFloat() / maxOf(probe.width, probe.height)).coerceAtMost(1f)
+                val targetW = (probe.width * scale).toInt().coerceAtLeast(MIN_RESOLUTION) and -2
+                val targetH = (probe.height * scale).toInt().coerceAtLeast(MIN_RESOLUTION) and -2
+
+                Log.d(TAG, "Strategy 1: ${targetW}x${targetH} @ ${targetBitrate}bps")
 
                 val outputFile = File(outputDirectory, "nova_vid_${UUID.randomUUID()}.mp4")
-
-                val success = transcode(uri, outputFile, probe, targetWidth, targetHeight, targetBitrate)
-                if (success && outputFile.exists() && outputFile.length() > 0) {
+                if (tryTranscode(uri, outputFile, probe, targetW, targetH, targetBitrate)) {
                     val resultSize = outputFile.length()
-                    if (resultSize <= effectiveTarget || resultSize < originalSize) {
+                    Log.d(TAG, "Strategy 1 result: $resultSize bytes")
+                    if (resultSize in 1 until effectiveTarget || resultSize < originalSize * 0.5) {
                         callback.invoke(context.getNovaFileUri(outputFile))
                         return@ensureBackgroundThread
                     }
-                    // Fallback: lower resolution
                     outputFile.delete()
-                    val fbW = (targetWidth * 0.6).toInt() and -2
-                    val fbH = (targetHeight * 0.6).toInt() and -2
-                    val fbBitrate = (targetBitrate * 0.6).toInt()
-                    if (fbW >= MIN_RESOLUTION && fbH >= MIN_RESOLUTION) {
-                        val fbFile = File(outputDirectory, "nova_vid_${UUID.randomUUID()}.mp4")
-                        val fbSuccess = transcode(uri, fbFile, probe, fbW, fbH, fbBitrate)
-                        if (fbSuccess && fbFile.exists() && fbFile.length() > 0 && fbFile.length() < originalSize) {
-                            callback.invoke(context.getNovaFileUri(fbFile))
-                            return@ensureBackgroundThread
-                        }
-                        fbFile.delete()
-                    }
                 }
-                outputFile.delete()
+
+                // Strategy 2: Lower resolution + lower bitrate
+                val fbW = (targetW * 0.7).toInt().coerceAtLeast(MIN_RESOLUTION) and -2
+                val fbH = (targetH * 0.7).toInt().coerceAtLeast(MIN_RESOLUTION) and -2
+                val fbBitrate = (targetBitrate * 0.5).toInt().coerceAtLeast(80_000)
+                Log.d(TAG, "Strategy 2: ${fbW}x${fbH} @ ${fbBitrate}bps")
+
+                val fbFile = File(outputDirectory, "nova_vid_${UUID.randomUUID()}.mp4")
+                if (tryTranscode(uri, fbFile, probe, fbW, fbH, fbBitrate)) {
+                    val resultSize = fbFile.length()
+                    Log.d(TAG, "Strategy 2 result: $resultSize bytes")
+                    if (resultSize < originalSize) {
+                        callback.invoke(context.getNovaFileUri(fbFile))
+                        return@ensureBackgroundThread
+                    }
+                    fbFile.delete()
+                }
+
+                // Strategy 3: Audio-only strip (re-encode at very low bitrate, original res)
+                // This is a last resort - just reduce bitrate drastically
+                val lowBitrate = 200_000
+                Log.d(TAG, "Strategy 3: ${probe.width}x${probe.height} @ ${lowBitrate}bps (no resize)")
+                val lowFile = File(outputDirectory, "nova_vid_${UUID.randomUUID()}.mp4")
+                if (tryTranscode(uri, lowFile, probe, probe.width and -2, probe.height and -2, lowBitrate)) {
+                    val resultSize = lowFile.length()
+                    Log.d(TAG, "Strategy 3 result: $resultSize bytes")
+                    if (resultSize < originalSize) {
+                        callback.invoke(context.getNovaFileUri(lowFile))
+                        return@ensureBackgroundThread
+                    }
+                    lowFile.delete()
+                }
+
+                Log.w(TAG, "All strategies failed, returning original")
                 callback.invoke(uri)
             } catch (e: Exception) {
                 Log.e(TAG, "Video compression failed", e)
@@ -102,8 +124,7 @@ class VideoCompressor(private val context: Context) {
         val height: Int,
         val durationUs: Long,
         val mime: String,
-        val rotation: Int,
-        val hasAudio: Boolean
+        val rotation: Int
     )
 
     private fun probeVideo(uri: Uri): VideoProbe? {
@@ -111,7 +132,7 @@ class VideoCompressor(private val context: Context) {
         return try {
             extractor.setDataSource(context, uri, null)
             var width = 0; var height = 0; var durationUs = 0L
-            var mime = ""; var rotation = 0; var hasAudio = false
+            var mime = ""; var rotation = 0
             for (i in 0 until extractor.trackCount) {
                 val format = extractor.getTrackFormat(i)
                 val m = format.getString(MediaFormat.KEY_MIME) ?: ""
@@ -121,12 +142,10 @@ class VideoCompressor(private val context: Context) {
                     durationUs = format.getLong(MediaFormat.KEY_DURATION)
                     mime = m
                     if (format.containsKey(MediaFormat.KEY_ROTATION)) rotation = format.getInteger(MediaFormat.KEY_ROTATION)
-                } else if (m.startsWith("audio/")) {
-                    hasAudio = true
                 }
             }
             if (width <= 0 || height <= 0 || durationUs <= 0) null
-            else VideoProbe(width, height, durationUs, mime, rotation, hasAudio)
+            else VideoProbe(width, height, durationUs, mime, rotation)
         } catch (e: Exception) {
             Log.e(TAG, "Probe failed", e)
             null
@@ -135,7 +154,7 @@ class VideoCompressor(private val context: Context) {
         }
     }
 
-    private fun transcode(uri: Uri, outputFile: File, probe: VideoProbe, targetW: Int, targetH: Int, targetBitrate: Int): Boolean {
+    private fun tryTranscode(uri: Uri, outputFile: File, probe: VideoProbe, targetW: Int, targetH: Int, targetBitrate: Int): Boolean {
         val extractor = MediaExtractor()
         var decoder: MediaCodec? = null
         var encoder: MediaCodec? = null
@@ -159,17 +178,40 @@ class VideoCompressor(private val context: Context) {
             decoderCodec.start()
             decoder = decoderCodec
 
-            // Encoder
-            val encoderFormat = MediaFormat.createVideoFormat("video/avc", targetW, targetH)
-            encoderFormat.setInteger(MediaFormat.KEY_BIT_RATE, targetBitrate)
-            encoderFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 24)
-            encoderFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 2)
-            encoderFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420SemiPlanar)
-            val encoderCodec = MediaCodec.createEncoderByType("video/avc")
-            encoderCodec.configure(encoderFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-            encoderCodec.start()
-            encoder = encoderCodec
+            val colorFormats = intArrayOf(
+                MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420SemiPlanar,
+                MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Planar,
+                MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420PackedPlanar,
+                MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420PackedSemiPlanar
+            )
 
+            var encoderCodec: MediaCodec? = null
+            var encoderStarted = false
+            for (colorFormat in colorFormats) {
+                try {
+                    val encoderFormat = MediaFormat.createVideoFormat("video/avc", targetW, targetH)
+                    encoderFormat.setInteger(MediaFormat.KEY_BIT_RATE, targetBitrate)
+                    encoderFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 24)
+                    encoderFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 2)
+                    encoderFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, colorFormat)
+                    val ec = MediaCodec.createEncoderByType("video/avc")
+                    ec.configure(encoderFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+                    ec.start()
+                    encoderCodec = ec
+                    encoderStarted = true
+                    Log.d(TAG, "Encoder configured with color format $colorFormat")
+                    break
+                } catch (e: Exception) {
+                    Log.w(TAG, "Color format $colorFormat not supported: ${e.message}")
+                }
+            }
+
+            if (!encoderStarted || encoderCodec == null) {
+                Log.e(TAG, "No encoder color format supported")
+                return false
+            }
+
+            encoder = encoderCodec
             muxer = MediaMuxer(outputFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
 
             val bufferInfo = MediaCodec.BufferInfo()
@@ -177,16 +219,11 @@ class VideoCompressor(private val context: Context) {
             var outputDone = false
             var muxerStarted = false
             var videoTrackMuxerIndex = -1
-            val timeoutUs = 10_000L
-
-            // Get stride info from decoder output format
-            var srcStride = probe.width
-            var srcSliceHeight = probe.height
 
             while (!outputDone) {
-                // Feed input
+                // Feed input to decoder
                 if (!inputDone) {
-                    val inIndex = decoderCodec.dequeueInputBuffer(timeoutUs)
+                    val inIndex = decoderCodec.dequeueInputBuffer(TIMEOUT_US)
                     if (inIndex >= 0) {
                         val buf = decoderCodec.getInputBuffer(inIndex)
                         val sampleSize = extractor.readSampleData(buf!!, 0)
@@ -201,51 +238,62 @@ class VideoCompressor(private val context: Context) {
                 }
 
                 // Get decoded frame
-                val outIndex = decoderCodec.dequeueOutputBuffer(bufferInfo, timeoutUs)
+                val outIndex = decoderCodec.dequeueOutputBuffer(bufferInfo, TIMEOUT_US)
                 if (outIndex >= 0) {
-                    val decodedBuf = decoderCodec.getOutputBuffer(outIndex)
-                    val decodedFormat = decoderCodec.getOutputFormat(outIndex)
-                    if (decodedFormat.containsKey(MediaFormat.KEY_STRIDE)) {
-                        srcStride = decodedFormat.getInteger(MediaFormat.KEY_STRIDE)
-                    }
-                    if (decodedFormat.containsKey(MediaFormat.KEY_SLICE_HEIGHT)) {
-                        srcSliceHeight = decodedFormat.getInteger(MediaFormat.KEY_SLICE_HEIGHT)
-                    }
-                    val srcW = decodedFormat.getInteger(MediaFormat.KEY_WIDTH)
-                    val srcH = decodedFormat.getInteger(MediaFormat.KEY_HEIGHT)
+                    val image = decoderCodec.getOutputImage(outIndex)
+                    if (image != null && bufferInfo.size > 0) {
+                        val planes = image.planes
+                        val yPlane = planes[0]
+                        val uPlane = planes[1]
+                        val vPlane = planes[2]
+                        val yBuf = yPlane.buffer
+                        val uBuf = uPlane.buffer
+                        val vBuf = vPlane.buffer
+                        val yRowStride = yPlane.rowStride
+                        val uRowStride = uPlane.rowStride
+                        val uPixelStride = uPlane.pixelStride
+                        val vRowStride = vPlane.rowStride
+                        val vPixelStride = vPlane.pixelStride
+                        val srcW = image.width
+                        val srcH = image.height
 
-                    if (bufferInfo.size > 0 && decodedBuf != null) {
-                        val encInIndex = encoderCodec.dequeueInputBuffer(timeoutUs)
+                        val encInIndex = encoder!!.dequeueInputBuffer(TIMEOUT_US)
                         if (encInIndex >= 0) {
-                            val encBuf = encoderCodec.getInputBuffer(encInIndex)!!
-                            // Scale YUV from src to target dimensions
-                            scaleNV12(decodedBuf, encBuf, srcW, srcH, srcStride, srcSliceHeight, targetW, targetH)
-                            encoderCodec.queueInputBuffer(encInIndex, 0, encBuf.capacity(), bufferInfo.presentationTimeUs, 0)
+                            val encBuf = encoder!!.getInputBuffer(encInIndex)!!
+                            val encFormat = encoder!!.inputFormat
+                            val dstW = if (encFormat.containsKey(MediaFormat.KEY_WIDTH)) encFormat.getInteger(MediaFormat.KEY_WIDTH) else targetW
+                            val dstH = if (encFormat.containsKey(MediaFormat.KEY_HEIGHT)) encFormat.getInteger(MediaFormat.KEY_HEIGHT) else targetH
+
+                            // Scale YUV from source to target
+                            scaleYUV(yBuf, uBuf, vBuf, encBuf, srcW, srcH, yRowStride, uRowStride, uPixelStride, vRowStride, vPixelStride, dstW, dstH)
+
+                            encoder!!.queueInputBuffer(encInIndex, 0, encBuf.capacity(), bufferInfo.presentationTimeUs, 0)
                         }
                     }
                     if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
-                        val encInIndex = encoderCodec.dequeueInputBuffer(timeoutUs)
+                        val encInIndex = encoder!!.dequeueInputBuffer(TIMEOUT_US)
                         if (encInIndex >= 0) {
-                            encoderCodec.queueInputBuffer(encInIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                            encoder!!.queueInputBuffer(encInIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
                         }
                     }
+                    image?.close()
                     decoderCodec.releaseOutputBuffer(outIndex, false)
                 }
 
-                // Get encoded output
-                val encOutIndex = encoderCodec.dequeueOutputBuffer(bufferInfo, timeoutUs)
+                // Get encoder output
+                val encOutIndex = encoder!!.dequeueOutputBuffer(bufferInfo, TIMEOUT_US)
                 if (encOutIndex >= 0) {
-                    val encBuf = encoderCodec.getOutputBuffer(encOutIndex)
+                    val encBuf = encoder!!.getOutputBuffer(encOutIndex)
                     if (bufferInfo.size > 0 && encBuf != null) {
                         if (!muxerStarted) {
-                            val newFormat = encoderCodec.outputFormat
+                            val newFormat = encoder!!.outputFormat
                             videoTrackMuxerIndex = muxer!!.addTrack(newFormat)
                             muxer!!.start()
                             muxerStarted = true
                         }
                         muxer!!.writeSampleData(videoTrackMuxerIndex, encBuf, bufferInfo)
                     }
-                    encoderCodec.releaseOutputBuffer(encOutIndex, false)
+                    encoder!!.releaseOutputBuffer(encOutIndex, false)
                     if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
                         outputDone = true
                     }
@@ -268,53 +316,52 @@ class VideoCompressor(private val context: Context) {
         }
     }
 
-    /**
-     * Scales NV12 (YUV420 semi-planar) data from source dimensions to target dimensions.
-     * Y plane: srcW x srcH -> dstW x dstH
-     * UV plane: srcW/2 x srcH/2 -> dstW/2 x dstH/2
-     */
-    private fun scaleNV12(src: ByteBuffer, dst: ByteBuffer, srcW: Int, srcH: Int, srcStride: Int, srcSliceH: Int, dstW: Int, dstH: Int) {
-        src.position(0)
+    private fun scaleYUV(
+        ySrc: ByteBuffer, uSrc: ByteBuffer, vSrc: ByteBuffer,
+        dst: ByteBuffer,
+        srcW: Int, srcH: Int,
+        yRowStride: Int, uRowStride: Int, uPixelStride: Int, vRowStride: Int, vPixelStride: Int,
+        dstW: Int, dstH: Int
+    ) {
         dst.position(0)
         val uvSrcW = srcW / 2
         val uvSrcH = srcH / 2
         val uvDstW = dstW / 2
         val uvDstH = dstH / 2
-        val ySrcSize = srcStride * srcSliceH
         val yDstSize = dstW * dstH
-        val uvSrcSize = srcStride * srcSliceH / 2  // approximate
         val uvDstSize = uvDstW * uvDstH * 2
 
-        // Scale Y plane
+        // Scale Y plane (nearest-neighbor)
         for (dy in 0 until dstH) {
             val sy = (dy * srcH / dstH).coerceIn(0, srcH - 1)
             for (dx in 0 until dstW) {
                 val sx = (dx * srcW / dstW).coerceIn(0, srcW - 1)
-                val srcIdx = sy * srcStride + sx
-                if (srcIdx < ySrcSize) {
-                    dst.put(src.get(srcIdx.coerceIn(0, ySrcSize - 1)))
+                val srcIdx = sy * yRowStride + sx
+                if (srcIdx in 0 until ySrc.capacity()) {
+                    dst.put(ySrc.get(srcIdx))
                 } else {
                     dst.put(0)
                 }
             }
         }
 
-        // Scale UV plane (interleaved U,V)
-        val yPlaneEnd = ySrcSize
+        // Scale UV plane (semi-planar: interleaved U,V)
         for (dy in 0 until uvDstH) {
             val sy = (dy * uvSrcH / uvDstH).coerceIn(0, uvSrcH - 1)
             for (dx in 0 until uvDstW) {
                 val sx = (dx * uvSrcW / uvDstW).coerceIn(0, uvSrcW - 1)
-                val srcIdx = yPlaneEnd + sy * srcStride + sx * 2
-                if (srcIdx + 1 < src.capacity()) {
-                    dst.put(src.get(srcIdx.coerceIn(0, src.capacity() - 2)))
-                    dst.put(src.get((srcIdx + 1).coerceIn(0, src.capacity() - 1)))
+                val uIdx = sy * uRowStride + sx * uPixelStride
+                val vIdx = sy * vRowStride + sx * vPixelStride
+                if (uIdx < uSrc.capacity() && vIdx < vSrc.capacity()) {
+                    dst.put(uSrc.get(uIdx.coerceIn(0, uSrc.capacity() - 1)))
+                    dst.put(vSrc.get(vIdx.coerceIn(0, vSrc.capacity() - 1)))
                 } else {
                     dst.put(128.toByte())
                     dst.put(128.toByte())
                 }
             }
         }
+        dst.flip()
     }
 
     private fun evictStaleCache() {

@@ -11,34 +11,47 @@ import android.widget.RemoteViews
 import org.nova.messages.R
 import org.nova.messages.activities.MainActivity
 import org.nova.messages.activities.ThreadActivity
+import org.nova.messages.helpers.THREAD_ID
 
 class ConversationsListWidgetProvider : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
+        val appContext = context.applicationContext
         for (appWidgetId in appWidgetIds) {
-            updateWidget(context, appWidgetManager, appWidgetId)
+            updateWidget(appContext, appWidgetManager, appWidgetId)
         }
     }
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
-        if (intent.action == ACTION_REFRESH) {
-            val appWidgetManager = AppWidgetManager.getInstance(context)
-            val ids = appWidgetManager.getAppWidgetIds(ComponentName(context.applicationContext, ConversationsListWidgetProvider::class.java))
-            onUpdate(context, appWidgetManager, ids)
+        val appContext = context.applicationContext
+        if (intent.action == ACTION_OPEN_THREAD) {
+            val threadId = intent.getLongExtra("thread_id", -1L)
+            if (threadId != -1L) {
+                val openIntent = Intent(appContext, ThreadActivity::class.java).apply {
+                    putExtra(THREAD_ID, threadId)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                }
+                appContext.startActivity(openIntent)
+            }
+        } else if (intent.action == ACTION_REFRESH) {
+            val appWidgetManager = AppWidgetManager.getInstance(appContext)
+            val ids = appWidgetManager.getAppWidgetIds(ComponentName(appContext, ConversationsListWidgetProvider::class.java))
+            onUpdate(appContext, appWidgetManager, ids)
         }
     }
 
     companion object {
         const val ACTION_REFRESH = "org.nova.messages.widget.REFRESH"
-        const val EXTRA_THREAD_ID = "thread_id"
+        const val ACTION_OPEN_THREAD = "org.nova.messages.widget.OPEN_THREAD"
 
         fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
-            val prefs = context.getSharedPreferences("widget_prefs_$appWidgetId", Context.MODE_PRIVATE)
+            val appContext = context.applicationContext
+            val prefs = appContext.getSharedPreferences("widget_prefs_$appWidgetId", Context.MODE_PRIVATE)
             val bgColor = prefs.getInt("bg_color", Color.parseColor("#CC1A1A1A"))
             val textColor = prefs.getInt("text_color", Color.WHITE)
 
-            val views = RemoteViews(context.applicationContext.packageName, R.layout.widget_conversations_list)
+            val views = RemoteViews(appContext.packageName, R.layout.widget_conversations_list)
 
             // Apply colors
             views.setInt(R.id.widget_root, "setBackgroundColor", bgColor)
@@ -46,27 +59,27 @@ class ConversationsListWidgetProvider : AppWidgetProvider() {
             views.setTextColor(R.id.widget_empty, textColor)
 
             // Title click → open app
-            val openAppIntent = Intent().setClassName(context.applicationContext.packageName, MainActivity::class.java.name).apply {
+            val openAppIntent = Intent(appContext, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             }
             val openAppPending = PendingIntent.getActivity(
-                context, 0, openAppIntent,
+                appContext, 0, openAppIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             views.setOnClickPendingIntent(R.id.widget_title, openAppPending)
 
             // List view with remote adapter
-            val serviceIntent = Intent().setClassName(context.applicationContext.packageName, ConversationsListWidgetService::class.java.name).apply {
+            val serviceIntent = Intent(appContext, ConversationsListWidgetService::class.java).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
             }
             views.setRemoteAdapter(R.id.widget_list, serviceIntent)
 
             // Click handler for list items
-            val clickIntent = Intent().setClassName(context.applicationContext.packageName, ConversationsListWidgetProvider::class.java.name).apply {
-                action = "org.nova.messages.widget.OPEN_THREAD"
+            val clickIntent = Intent(appContext, ConversationsListWidgetProvider::class.java).apply {
+                action = ACTION_OPEN_THREAD
             }
             val clickPending = PendingIntent.getBroadcast(
-                context, 0, clickIntent,
+                appContext, 0, clickIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
             )
             views.setPendingIntentTemplate(R.id.widget_list, clickPending)
@@ -76,23 +89,6 @@ class ConversationsListWidgetProvider : AppWidgetProvider() {
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
             appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_list)
-        }
-    }
-}
-
-// BroadcastReceiver for open thread clicks
-class WidgetOpenThreadReceiver : AppWidgetProvider() {
-    override fun onReceive(context: Context, intent: Intent) {
-        super.onReceive(context, intent)
-        if (intent.action == "org.nova.messages.widget.OPEN_THREAD") {
-            val threadId = intent.getLongExtra("thread_id", -1L)
-            if (threadId != -1L) {
-                val openIntent = Intent().setClassName(context.applicationContext.packageName, ThreadActivity::class.java.name).apply {
-                    putExtra("thread_id", threadId)
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                }
-                context.startActivity(openIntent)
-            }
         }
     }
 }

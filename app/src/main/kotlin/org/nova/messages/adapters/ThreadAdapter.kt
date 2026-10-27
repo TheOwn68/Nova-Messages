@@ -347,6 +347,7 @@ class ThreadAdapter(
                     private var isSwiping = false
                     private val swipeThreshold = 120f
                     private val verticalThreshold = 50f
+                    private var touchedLink: ClickableSpan? = null
 
                     override fun onTouch(v: View, event: MotionEvent): Boolean {
                         when (event.action) {
@@ -354,6 +355,26 @@ class ThreadAdapter(
                                 startX = event.rawX
                                 startY = event.rawY
                                 isSwiping = false
+                                // Check if touch is on a link
+                                touchedLink = null
+                                val text = (v as TextView).text
+                                if (text is Spannable) {
+                                    val x = (event.x - v.totalPaddingLeft + v.scrollX).toInt()
+                                    val y = (event.y - v.totalPaddingTop + v.scrollY).toInt()
+                                    val layout = v.layout
+                                    if (layout != null && y in 0..layout.height) {
+                                        val line = layout.getLineForVertical(y)
+                                        val off = layout.getOffsetForHorizontal(line, x.toFloat())
+                                        val links = text.getSpans(off, off, ClickableSpan::class.java)
+                                        if (links.isNotEmpty()) {
+                                            val spanStart = text.getSpanStart(links[0])
+                                            val spanEnd = text.getSpanEnd(links[0])
+                                            if (off in spanStart until spanEnd) {
+                                                touchedLink = links[0]
+                                            }
+                                        }
+                                    }
+                                }
                                 return true
                             }
                             MotionEvent.ACTION_MOVE -> {
@@ -376,6 +397,11 @@ class ThreadAdapter(
                                 }
                             }
                             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                                if (touchedLink != null) {
+                                    touchedLink?.onClick(v as TextView)
+                                    touchedLink = null
+                                    return true
+                                }
                                 if (isSwiping) {
                                     val dx = event.rawX - startX
                                     val allowedDx = if (isReceived) dx.coerceAtLeast(0f) else dx.coerceAtMost(0f)
@@ -539,6 +565,8 @@ class ThreadAdapter(
         reactionView.text = message.reaction ?: ""
         if (message.reaction != null) {
             org.nova.messages.helpers.ReactionStyleUtils.setupReactionBubble(reactionView, activity)
+            // Ensure reaction is above the bubble shadow
+            reactionView.elevation = 8f * resources.displayMetrics.density
         }
 
         // Selection Overlay Logic (Theme Perfect)
@@ -621,7 +649,7 @@ class ThreadAdapter(
                     elevation = 6f * density
                 }
                 
-                clipToOutline = true
+                clipToOutline = false
                 // Let Android compute outline from the background drawable (GradientDrawable with cornerRadii)
                 // This produces better shadows than custom outline providers on most devices
                 outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
@@ -676,24 +704,23 @@ class ThreadAdapter(
             alpha = 1.0f
             setLinkTextColor(if (isReceived) activity.getProperPrimaryColor() else finalTextColor)
 
-            text = message.body
-            visibility = if (message.body.isNotEmpty()) View.VISIBLE else View.GONE
-            setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
-            
             val customTypeface = (activity as SimpleActivity).getCustomTypeface()
             val style = if (message.isScheduled) Typeface.ITALIC else Typeface.NORMAL
-            typeface = getCachedTypeface(customTypeface, style)
+            val cachedTypeface = getCachedTypeface(customTypeface, style)
 
-            val lastBody = tag as? String
+            typeface = cachedTypeface
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
+
+            text = message.body
+            visibility = if (message.body.isNotEmpty()) View.VISIBLE else View.GONE
+
+            // Run Linkify last, after all text properties are set
             if (message.body.isNotEmpty()) {
-                if (lastBody != message.body) {
-                    Linkify.addLinks(this, Linkify.WEB_URLS or Linkify.EMAIL_ADDRESSES or Linkify.PHONE_NUMBERS)
-                }
+                Linkify.addLinks(this, Linkify.WEB_URLS or Linkify.EMAIL_ADDRESSES or Linkify.PHONE_NUMBERS)
                 movementMethod = TouchableLinkMovementMethod
             } else {
                 movementMethod = null
             }
-            tag = message.body
 
             // Ensure clicks pass through to the bubble container
             isClickable = true

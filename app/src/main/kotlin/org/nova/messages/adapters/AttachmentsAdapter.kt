@@ -158,6 +158,7 @@ class AttachmentsAdapter(
                     videoCompressor.compressVideo(attachment.uri, config.mmsFileSizeLimit) { compressedUri ->
                         activity.runOnUiThread {
                             val finalUri = compressedUri ?: attachment.uri
+                            android.util.Log.d("VIDEO_COMPRESS", "Result: finalUri=$finalUri, original=${attachment.uri}, same=${finalUri == attachment.uri}")
                             if (finalUri == attachment.uri) {
                                 attachments.find { it.uri == attachment.uri }?.isPending = false
                                 loadMediaPreview(this, attachment)

@@ -67,10 +67,7 @@ open class SimpleActivity : BaseSimpleActivity() {
     }
 
     override fun getPackageName(): String {
-        if (useRealPackageName.get() == true) {
-            return BuildConfig.APPLICATION_ID
-        }
-        return "org.fossify.messages"
+        return super.getPackageName()
     }
 
     val uiScale get() = config.uiScale

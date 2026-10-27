@@ -6,8 +6,10 @@ import android.content.Intent
 import android.graphics.Color
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
+import org.fossify.commons.helpers.SimpleContactsHelper
 import org.nova.messages.R
 import org.nova.messages.extensions.conversationsDB
+import org.nova.messages.extensions.stripCountryCodePrefix
 import org.nova.messages.models.Conversation
 
 class ConversationsListWidgetService : RemoteViewsService() {
@@ -39,23 +41,33 @@ class ConversationsListFactory(private val context: Context, private val widgetI
     override fun getViewAt(position: Int): RemoteViews {
         val conv = conversations.getOrElse(position) { return RemoteViews(context.applicationContext.packageName, R.layout.widget_conversations_item) }
         val rv = RemoteViews(context.applicationContext.packageName, R.layout.widget_conversations_item)
-        rv.setTextViewText(R.id.widget_item_title, conv.title.ifEmpty { conv.phoneNumber })
+
+        val titleText = conv.title.ifEmpty { conv.phoneNumber }.stripCountryCodePrefix()
+        rv.setTextViewText(R.id.widget_item_title, titleText)
         rv.setTextViewText(R.id.widget_item_snippet, conv.snippet)
+
+        val letterIcon = SimpleContactsHelper(context).getContactLetterIcon(titleText)
+        if (letterIcon != null) {
+            rv.setImageViewBitmap(R.id.widget_item_avatar, letterIcon)
+        }
+
         val prefs = context.getSharedPreferences("widget_prefs_$widgetId", Context.MODE_PRIVATE)
         val textColor = prefs.getInt("text_color", Color.WHITE)
         rv.setTextColor(R.id.widget_item_title, textColor)
         rv.setTextColor(R.id.widget_item_snippet, textColor)
+
         if (conv.unreadCount > 0) {
             rv.setViewVisibility(R.id.widget_item_unread, android.view.View.VISIBLE)
             rv.setTextViewText(R.id.widget_item_unread, conv.unreadCount.toString())
         } else {
             rv.setViewVisibility(R.id.widget_item_unread, android.view.View.GONE)
         }
-        // Click to open thread
+
+        // Click whole card to open thread
         val fillInIntent = Intent().apply {
             putExtra("thread_id", conv.threadId)
         }
-        rv.setOnClickFillInIntent(R.id.widget_item_title, fillInIntent)
+        rv.setOnClickFillInIntent(R.id.widget_item_holder, fillInIntent)
         return rv
     }
 
