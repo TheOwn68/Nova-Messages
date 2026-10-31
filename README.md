@@ -80,9 +80,9 @@ Some devices require enabling Restricted Settings. If the app doesn't work after
 ## Screenshots
 
 <div align="center">
-<img alt="Nova Messages" src="/images/Image1.png" width="32%">
-<img alt="Nova Messages" src="/images/Image2.png" width="32%">
-<img alt="Nova Messages" src="/images/Image3.png" width="32%">
+<img alt="Nova Messages" src="/images/Nova_main.png" width="32%">
+<img alt="Nova Messages" src="/images/Nova_chat.png" width="32%">
+<img alt="Nova Messages" src="/images/Nova_settings.jpg" width="32%">
 </div>
 
 ## Building from source
